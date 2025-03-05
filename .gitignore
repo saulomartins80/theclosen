@@ -1,0 +1,121 @@
+# Build do Next.js
+.next/
+<<<<<<< HEAD
+out/
+=======
+<<<<<<< HEAD
+out/
+=======
+>>>>>>> aa7aa05043fdcdedfe696f8995341d2008ed4ca7
+>>>>>>> main
+
+# Dependências do Node.js
+node_modules/
+
+# Logs e cache
+*.log
+.cache/
+
+# Arquivos temporários do Webpack
+*.hot-update.js
+
+# CSS gerado automaticamente
+styles/output.css
+
+# Arquivo de configuração do Vercel
+.vercel
+
+# Arquivos de ambiente
+<<<<<<< HEAD
+.env
+.env.local
+.env*.local
+=======
+<<<<<<< HEAD
+.env
+.env.local
+.env*.local
+=======
+.env*.local
+.env
+>>>>>>> aa7aa05043fdcdedfe696f8995341d2008ed4ca7
+>>>>>>> main
+
+# Diretórios de desenvolvimento
+dist/
+build/
+<<<<<<< HEAD
+out/
+=======
+<<<<<<< HEAD
+=======
+out/
+>>>>>>> aa7aa05043fdcdedfe696f8995341d2008ed4ca7
+>>>>>>> main
+
+# Arquivos de IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de depuração
+*.pid
+*.seed
+*.pid.lock
+
+# Arquivos de configuração local
+*.local
+
+# Arquivos de teste
+coverage/
+*.lcov
+
+# Arquivos de pacote
+*.tgz
+
+# Arquivos de lock
+package-lock.json
+yarn.lock
+
+# Arquivos do Lerna
+lerna-debug.log
+
+# Arquivos do pnpm
+pnpm-debug.log
+
+# Arquivos do Turbo
+.turbo/
+
+# Exceção para o arquivo grande no node_modules
+!frontend/node_modules/@next/swc-win32-x64-msvc/next-swc.win32-x64-msvc.node
+<<<<<<< HEAD
+
+# Ignorar a pasta .next/ do frontend
+frontend/.next/
+=======
+<<<<<<< HEAD
+>>>>>>> main
+
+# Ignorar todos os arquivos .js, exceto os de configuração
+*.js
+!postcss.config.js
+<<<<<<< HEAD
+!tailwind.config.jsbackend/src/config/firebaseServiceAccount.json
+backend/src/config/firebaseServiceAccount.json
+
+node_modules/
+.next/
+backend/node_modules/
+frontend/node_modules/
+*.dll
+*.map
+=======
+!tailwind.config.js
+=======
+>>>>>>> aa7aa05043fdcdedfe696f8995341d2008ed4ca7
+>>>>>>> main

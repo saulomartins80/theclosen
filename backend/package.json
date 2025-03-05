@@ -1,0 +1,29 @@
+{
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.6",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase": "^11.3.1",
+    "firebase-admin": "^13.1.0",
+    "mongodb": "^6.13.0",
+    "mongoose": "^8.11.0",
+    "protobufjs": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.17.19",
+    "copyfiles": "^2.4.1",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "scripts": {
+    "build": "tsc && copyfiles -u 1 'src/config/firebaseServiceAccount.json' 'dist/config'",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  }
+}
