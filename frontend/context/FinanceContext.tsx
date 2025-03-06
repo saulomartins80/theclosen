@@ -5,12 +5,11 @@ import {
   updateTransacao,
   deleteTransacao,
   getInvestimentos,
-  addInvestimento,
+  addInvestimento as apiAddInvestimento, // Renamed to avoid conflict
   updateInvestimento,
   deleteInvestimento,
-} from "../services/api"; // Importe todas as funções da API
+} from "../services/api";
 
-// Defina as interfaces para transações e investimentos
 interface Transacao {
   id: string;
   tipo: "receita" | "despesa";
@@ -63,7 +62,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Função para buscar transações
   const fetchTransactions = async () => {
     setLoading(true);
     setError(null);
@@ -78,7 +76,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para adicionar uma transação
   const addTransaction = async (newTransaction: Omit<Transacao, "id">) => {
     try {
       const data = await createTransacao(newTransaction);
@@ -89,7 +86,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para editar uma transação
   const editTransaction = async (id: string, updatedTransaction: Partial<Transacao>) => {
     try {
       const data = await updateTransacao(id, updatedTransaction);
@@ -102,7 +98,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para excluir uma transação
   const deleteTransaction = async (id: string) => {
     try {
       await deleteTransacao(id);
@@ -113,7 +108,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para buscar investimentos
   const fetchInvestimentos = async () => {
     setLoading(true);
     setError(null);
@@ -128,10 +122,9 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para adicionar um investimento
-  const addInvestimento = async (novoInvestimento: Omit<Investimento, "id">) => {
+  const addInvestment = async (novoInvestimento: Omit<Investimento, "id">) => {
     try {
-      const data = await addInvestimento(novoInvestimento);
+      const data = await apiAddInvestimento(novoInvestimento); // Use the renamed function
       setInvestimentos((prev) => [...prev, data]);
     } catch (error) {
       console.error("Erro ao adicionar investimento:", error);
@@ -139,7 +132,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para editar um investimento
   const editInvestimento = async (id: string, updatedInvestimento: Partial<Investimento>) => {
     try {
       const data = await updateInvestimento(id, updatedInvestimento);
@@ -152,7 +144,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função para excluir um investimento
   const deleteInvestimento = async (id: string) => {
     try {
       await deleteInvestimento(id);
@@ -163,7 +154,6 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Busca transações e investimentos ao carregar o contexto
   useEffect(() => {
     fetchTransactions();
     fetchInvestimentos();
@@ -181,7 +171,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
         editTransaction,
         deleteTransaction,
         fetchInvestimentos,
-        addInvestimento,
+        addInvestimento: addInvestment, // Use the renamed function
         editInvestimento,
         deleteInvestimento,
       }}

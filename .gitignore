@@ -86,4 +86,5 @@ frontend/node_modules/
 
 # Ignorar arquivos de desenvolvimento
 *.dll
-*.map
+*.mapbackend/dist/
+backend/dist/

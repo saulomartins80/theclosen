@@ -1,6 +1,5 @@
-<<<<<<< HEAD
 import { useEffect, useState } from "react";
-import { Plus, Download, Search } from "lucide-react";
+import { Plus, Download, Search, X } from "lucide-react";
 import { Bar, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -25,6 +24,107 @@ ChartJS.register(
   Legend
 );
 
+// Componente do Modal para Nova Transação
+const AddTransactionModal = ({ onClose, onAddTransaction }) => {
+  const [descricao, setDescricao] = useState("");
+  const [valor, setValor] = useState("");
+  const [data, setData] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [tipo, setTipo] = useState("receita");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const novaTransacao = {
+      descricao,
+      valor: parseFloat(valor),
+      data,
+      categoria,
+      tipo,
+    };
+    onAddTransaction(novaTransacao);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nova Transação</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-white">Descrição</label>
+            <input
+              type="text"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
+            <input
+              type="number"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-white">Data</label>
+            <input
+              type="date"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
+            <select
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              required
+            >
+              <option value="">Selecione uma categoria</option>
+              <option value="alimentacao">Alimentação</option>
+              <option value="casa">Casa</option>
+              <option value="servico">Serviço</option>
+              <option value="educacao">Educação</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              required
+            >
+              <option value="receita">Receita</option>
+              <option value="despesa">Despesa</option>
+              <option value="transferencia">Transferência</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+          >
+            Adicionar
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const Transacoes = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
@@ -34,6 +134,7 @@ const Transacoes = () => {
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Busca as transações do backend
   useEffect(() => {
@@ -95,11 +196,16 @@ const Transacoes = () => {
 
   // Funções para os botões "Nova Transação" e "Exportar"
   const handleNovaTransacao = () => {
-    alert("Funcionalidade de Nova Transação ainda não implementada.");
+    setIsModalOpen(true);
   };
 
   const handleExportar = () => {
     alert("Funcionalidade de Exportar ainda não implementada.");
+  };
+
+  const handleAddTransaction = (novaTransacao) => {
+    setTransactions([...transactions, novaTransacao]);
+    setFilteredTransactions([...filteredTransactions, novaTransacao]);
   };
 
   // Dados para os gráficos
@@ -267,113 +373,16 @@ const Transacoes = () => {
           </button>
         </div>
       </div>
+
+      {/* Modal para Nova Transação */}
+      {isModalOpen && (
+        <AddTransactionModal
+          onClose={() => setIsModalOpen(false)}
+          onAddTransaction={handleAddTransaction}
+        />
+      )}
     </div>
   );
 };
 
 export default Transacoes;
-=======
-import { useState } from "react";
-import { Plus, Download, Search, X } from "lucide-react";
-
-// Componente do Modal para Nova Transação
-const AddTransactionModal = ({ onClose, onAddTransaction }) => {
-  const [descricao, setDescricao] = useState("");
-  const [valor, setValor] = useState("");
-  const [data, setData] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [tipo, setTipo] = useState("receita");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const novaTransacao = {
-      descricao,
-      valor: parseFloat(valor),
-      data,
-      categoria,
-      tipo,
-    };
-    onAddTransaction(novaTransacao);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nova Transação</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X size={24} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Descrição</label>
-            <input
-              type="text"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
-            <input
-              type="number"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Data</label>
-            <input
-              type="date"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-            <select
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            >
-              <option value="">Selecione uma categoria</option>
-              <option value="alimentacao">Alimentação</option>
-              <option value="casa">Casa</option>
-              <option value="servico">Serviço</option>
-              <option value="educacao">Educação</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
-            <select
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            >
-              <option value="receita">Receita</option>
-              <option value="despesa">Despesa</option>
-              <option value="transferencia">Transferência</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-          >
-            Adicionar
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
->>>>>>> main
