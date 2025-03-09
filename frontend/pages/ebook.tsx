@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { Download, BookOpen, ArrowUp } from "lucide-react";
+import Image from 'next/image';
 
 // Conteúdo de cada seção
 const sectionsContent = {
@@ -131,9 +132,11 @@ const EbookPage = () => {
             <p className="text-gray-700 dark:text-gray-300 mb-6 text-lg">
               Descubra os princípios que transformam sua vida financeira, emocional e espiritual.
             </p>
-            <img
+            <Image
               src="/rumo.pdf.png"
               alt="Capa do E-book"
+              width={256}
+              height={400} // Add height property
               className="w-64 h-auto mx-auto mb-6 rounded-lg shadow-lg"
             />
             {/* Botão de Download (Opcional) */}

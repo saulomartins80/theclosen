@@ -15,7 +15,7 @@ app.use(express.json());
 
 // Rota raiz
 app.get("/", (req, res) => {
-  res.send("Backend está funcionando!");
+  res.send("Backend Conectado!");
 });
 
 // Routes

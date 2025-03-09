@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
-import { useTheme } from "../context/ThemeContext";
 import { motion } from "framer-motion";
 import { useFinance } from "../context/FinanceContext";
 import Graficos from "../components/Graficos";
@@ -19,7 +18,6 @@ const getGreeting = () => {
 };
 
 export default function Dashboard() {
-  const { theme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { transactions, investimentos, loading, error, fetchData } = useFinance();
 

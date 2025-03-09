@@ -11,10 +11,20 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 const Transacoes = () => {
-  const [transacoes, setTransacoes] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [transacaoEditavel, setTransacaoEditavel] = useState<any>(null);
+  const [transacaoEditavel, setTransacaoEditavel] = useState<Transacao | null>(null);
+
+  // Define the Transacao type
+  interface Transacao {
+    _id?: string; // Make _id optional
+    descricao: string;
+    categoria: string;
+    valor: number;
+    data: string;
+    tipo: string;
+    conta: string; // Add the conta property
+  }
 
   // Estados para os filtros
   const [filtroTipo, setFiltroTipo] = useState<"todos" | "receita" | "despesa" | "transferencia">("todos");
@@ -23,20 +33,17 @@ const Transacoes = () => {
   const [filtroDataFim, setFiltroDataFim] = useState("");
 
   // Estados para paginação
-  const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = 10;
+  const [currentPage] = useState(0); // Remove setCurrentPage
+  const [itemsPerPage] = useState(10);
 
   // Busca as transações ao carregar a página
   useEffect(() => {
     const fetchTransacoes = async () => {
-      setIsLoading(true);
       try {
         const data = await getTransacoes();
         setTransacoes(data);
       } catch (error) {
         console.error("Erro ao buscar transações:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -44,9 +51,9 @@ const Transacoes = () => {
   }, []);
 
   // Função para adicionar ou editar uma transação
-  const handleSaveTransacao = async (transacao: any) => {
+  const handleSaveTransacao = async (transacao: Transacao) => {
     try {
-      if (transacaoEditavel) {
+      if (transacaoEditavel && transacaoEditavel._id) {
         await updateTransacao(transacaoEditavel._id, transacao);
         toast.success("Transação atualizada com sucesso!");
       } else {
@@ -103,13 +110,8 @@ const Transacoes = () => {
   });
 
   // Lógica de paginação
-  const pageCount = Math.ceil(transacoesFiltradas.length / itemsPerPage);
   const offset = currentPage * itemsPerPage;
   const currentTransacoes = transacoesFiltradas.slice(offset, offset + itemsPerPage);
-
-  const handlePageClick = ({ selected }: { selected: number }) => {
-    setCurrentPage(selected);
-  };
 
   // Função para exportar para PDF
   const handleExportPDF = () => {
@@ -207,7 +209,7 @@ const Transacoes = () => {
       <TransactionTable
         transacoes={currentTransacoes}
         onEdit={(transacao) => {
-          setTransacaoEditavel(transacao);
+          setTransacaoEditavel({ ...transacao, conta: transacao.conta || "" });
           setIsFormOpen(true);
         }}
         onDelete={handleDeleteTransacao}

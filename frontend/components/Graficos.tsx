@@ -11,10 +11,10 @@ import {
   Tooltip,
   Legend,
   Filler,
+  TooltipItem,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
 
-// Registra os componentes do Chart.js
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -27,16 +27,22 @@ ChartJS.register(
   Filler
 );
 
+interface Transacao {
+  data: string;
+  tipo: string;
+  valor: number;
+}
+
 const Graficos = () => {
   const { transactions } = useFinance();
 
   // Função para agrupar transações por mês
-  const agruparPorMes = (transacoes: any[]) => {
+  const agruparPorMes = (transacoes: Transacao[]) => {
     const meses = [
       "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
       "Jul", "Ago", "Set", "Out", "Nov", "Dez"
     ];
-    const dadosPorMes = meses.map((mes, index) => {
+    return meses.map((mes, index) => {
       const transacoesDoMes = transacoes.filter((t) => {
         const data = new Date(t.data);
         return data.getMonth() === index;
@@ -52,8 +58,6 @@ const Graficos = () => {
 
       return { mes, receitas, despesas };
     });
-
-    return dadosPorMes;
   };
 
   // Dados para o gráfico de barras (Receitas vs Despesas)
@@ -64,38 +68,18 @@ const Graficos = () => {
       {
         label: "Receitas",
         data: dadosPorMes.map((d) => d.receitas),
-        backgroundColor: (context: any) => {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return null;
-
-          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-          gradient.addColorStop(0, "rgba(75, 192, 192, 0.2)");
-          gradient.addColorStop(1, "rgba(75, 192, 192, 0.8)");
-          return gradient;
-        },
+        backgroundColor: "rgba(75, 192, 192, 0.2)",
         borderColor: "rgba(75, 192, 192, 1)",
         borderWidth: 2,
-        borderRadius: 5, // Bordas arredondadas nas barras
-        hoverBackgroundColor: "rgba(75, 192, 192, 1)",
+        borderRadius: 5,
       },
       {
         label: "Despesas",
         data: dadosPorMes.map((d) => d.despesas),
-        backgroundColor: (context: any) => {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return null;
-
-          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-          gradient.addColorStop(0, "rgba(255, 99, 132, 0.2)");
-          gradient.addColorStop(1, "rgba(255, 99, 132, 0.8)");
-          return gradient;
-        },
+        backgroundColor: "rgba(255, 99, 132, 0.2)",
         borderColor: "rgba(255, 99, 132, 1)",
         borderWidth: 2,
-        borderRadius: 5, // Bordas arredondadas nas barras
-        hoverBackgroundColor: "rgba(255, 99, 132, 1)",
+        borderRadius: 5,
       },
     ],
   };
@@ -106,7 +90,7 @@ const Graficos = () => {
       legend: {
         position: "top" as const,
         labels: {
-          color: "#6B7280", // Cor da legenda
+          color: "#6B7280",
           font: {
             size: 14,
           },
@@ -115,9 +99,9 @@ const Graficos = () => {
       tooltip: {
         enabled: true,
         callbacks: {
-          label: (context: any) => {
-            const label = context.dataset.label || "";
-            const value = context.raw || 0;
+          label: (tooltipItem: TooltipItem<"bar">) => {
+            const label = tooltipItem.dataset.label || "";
+            const value = tooltipItem.raw as number;
             return `${label}: R$ ${value.toFixed(2)}`;
           },
         },
@@ -126,20 +110,20 @@ const Graficos = () => {
     scales: {
       x: {
         grid: {
-          display: false, // Remove as linhas de grade do eixo X
+          display: false,
         },
       },
       y: {
         grid: {
-          color: "rgba(229, 231, 235, 0.2)", // Linhas de grade quase apagadas
+          color: "rgba(229, 231, 235, 0.2)",
         },
       },
     },
     animation: {
-      duration: 1000, // Duração da animação
+      duration: 1000,
     },
     responsive: true,
-    maintainAspectRatio: false, // Permite que o gráfico se ajuste ao contêiner
+    maintainAspectRatio: false,
   };
 
   // Dados para o gráfico de linhas (Evolução do Saldo)
@@ -162,18 +146,9 @@ const Graficos = () => {
         label: "Saldo",
         data: saldoAcumulado.map((s) => s.saldo),
         borderColor: "rgba(54, 162, 235, 1)",
-        backgroundColor: (context: any) => {
-          const chart = context.chart;
-          const { ctx, chartArea } = chart;
-          if (!chartArea) return null;
-
-          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-          gradient.addColorStop(0, "rgba(54, 162, 235, 0.2)");
-          gradient.addColorStop(1, "rgba(54, 162, 235, 0.8)");
-          return gradient;
-        },
+        backgroundColor: "rgba(54, 162, 235, 0.2)",
         fill: true,
-        tension: 0.4, // Curva suave
+        tension: 0.4,
       },
     ],
   };
@@ -184,7 +159,7 @@ const Graficos = () => {
       legend: {
         position: "top" as const,
         labels: {
-          color: "#6B7280", // Cor da legenda
+          color: "#6B7280",
           font: {
             size: 14,
           },
@@ -193,9 +168,9 @@ const Graficos = () => {
       tooltip: {
         enabled: true,
         callbacks: {
-          label: (context: any) => {
-            const label = context.dataset.label || "";
-            const value = context.raw || 0;
+          label: (tooltipItem: TooltipItem<"line">) => {
+            const label = tooltipItem.dataset.label || "";
+            const value = tooltipItem.raw as number;
             return `${label}: R$ ${value.toFixed(2)}`;
           },
         },
@@ -204,20 +179,20 @@ const Graficos = () => {
     scales: {
       x: {
         grid: {
-          display: false, // Remove as linhas de grade do eixo X
+          display: false,
         },
       },
       y: {
         grid: {
-          color: "rgba(229, 231, 235, 0.2)", // Linhas de grade quase apagadas
+          color: "rgba(229, 231, 235, 0.2)",
         },
       },
     },
     animation: {
-      duration: 1000, // Duração da animação
+      duration: 1000,
     },
     responsive: true,
-    maintainAspectRatio: false, // Permite que o gráfico se ajuste ao contêiner
+    maintainAspectRatio: false,
   };
 
   return (

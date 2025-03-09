@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Plus, Download, Search, X } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Plus, Download, Search } from "lucide-react";
 import { Bar, Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import TransactionForm from "./TransactionForm"; // Importe o componente
 
 ChartJS.register(
   CategoryScale,
@@ -24,131 +25,43 @@ ChartJS.register(
   Legend
 );
 
-// Componente do Modal para Nova Transação
-const AddTransactionModal = ({ onClose, onAddTransaction }) => {
-  const [descricao, setDescricao] = useState("");
-  const [valor, setValor] = useState("");
-  const [data, setData] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [tipo, setTipo] = useState("receita");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const novaTransacao = {
-      descricao,
-      valor: parseFloat(valor),
-      data,
-      categoria,
-      tipo,
-    };
-    onAddTransaction(novaTransacao);
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nova Transação</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X size={24} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Descrição</label>
-            <input
-              type="text"
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
-            <input
-              type="number"
-              value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Data</label>
-            <input
-              type="date"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-            <select
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            >
-              <option value="">Selecione uma categoria</option>
-              <option value="alimentacao">Alimentação</option>
-              <option value="casa">Casa</option>
-              <option value="servico">Serviço</option>
-              <option value="educacao">Educação</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
-            <select
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              required
-            >
-              <option value="receita">Receita</option>
-              <option value="despesa">Despesa</option>
-              <option value="transferencia">Transferência</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-          >
-            Adicionar
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
+interface Transacao {
+  id: string;
+  descricao: string;
+  valor: number;
+  data: string;
+  categoria: string;
+  tipo: string;
+  conta: string;
+}
 
 const Transacoes = () => {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Transacao[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transacao[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [transacaoEditavel, setTransacaoEditavel] = useState<Transacao | null>(null);
 
   // Busca as transações do backend
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/lancamentos");
+        const response = await fetch("http://localhost:5000/api/transaçoes");
         if (!response.ok) {
           throw new Error("Falha ao carregar transações");
         }
-        const data = await response.json();
+        const data: Transacao[] = await response.json();
         setTransactions(data);
         setFilteredTransactions(data);
-      } catch (error: any) {
-        setError(error.message);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          setError(error.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -196,16 +109,30 @@ const Transacoes = () => {
 
   // Funções para os botões "Nova Transação" e "Exportar"
   const handleNovaTransacao = () => {
-    setIsModalOpen(true);
+    setTransacaoEditavel(null); // Limpa o estado de edição
+    setIsFormOpen(true); // Abre o modal
   };
 
   const handleExportar = () => {
     alert("Funcionalidade de Exportar ainda não implementada.");
   };
 
-  const handleAddTransaction = (novaTransacao) => {
-    setTransactions([...transactions, novaTransacao]);
-    setFilteredTransactions([...filteredTransactions, novaTransacao]);
+  // Função para salvar uma transação (nova ou editada)
+  const handleSaveTransacao = (transacaoAtualizada: Transacao) => {
+    if (transacaoEditavel) {
+      // Editar transação existente
+      const updatedTransactions = transactions.map((t) =>
+        t.id === transacaoAtualizada.id ? transacaoAtualizada : t
+      );
+      setTransactions(updatedTransactions);
+      setFilteredTransactions(updatedTransactions);
+    } else {
+      // Adicionar nova transação
+      setTransactions([...transactions, transacaoAtualizada]);
+      setFilteredTransactions([...filteredTransactions, transacaoAtualizada]);
+    }
+    setIsFormOpen(false); // Fecha o modal
+    setTransacaoEditavel(null); // Limpa a transação editável
   };
 
   // Dados para os gráficos
@@ -375,11 +302,19 @@ const Transacoes = () => {
       </div>
 
       {/* Modal para Nova Transação */}
-      {isModalOpen && (
-        <AddTransactionModal
-          onClose={() => setIsModalOpen(false)}
-          onAddTransaction={handleAddTransaction}
-        />
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-xl font-bold mb-6">
+              {transacaoEditavel ? "Editar Transação" : "Nova Transação"}
+            </h2>
+            <TransactionForm
+              onClose={() => setIsFormOpen(false)}
+              onSave={handleSaveTransacao}
+              transacaoEditavel={transacaoEditavel} // Passa a transação editável
+            />
+          </div>
+        </div>
       )}
     </div>
   );

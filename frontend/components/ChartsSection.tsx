@@ -1,12 +1,26 @@
 import React from "react";
 import { Doughnut, Bar } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from "chart.js";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  TooltipItem,
+} from "chart.js";
 
 // Registre os componentes do Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
+interface Transacao {
+  tipo: string;
+  valor: number;
+}
+
 interface ChartsSectionProps {
-  transacoes: any[];
+  transacoes: Transacao[];
 }
 
 const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
@@ -23,7 +37,7 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
         backgroundColor: ["#10B981", "#EF4444", "#3B82F6"],
         borderColor: ["#10B981", "#EF4444", "#3B82F6"],
         borderWidth: 2,
-        hoverOffset: 20, // Efeito de hover
+        hoverOffset: 20,
       },
     ],
   };
@@ -34,7 +48,7 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
       legend: {
         position: "bottom" as const,
         labels: {
-          color: "#6B7280", // Cor da legenda
+          color: "#6B7280",
           font: {
             size: 14,
           },
@@ -43,34 +57,34 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
       tooltip: {
         enabled: true,
         callbacks: {
-          label: (context: any) => {
-            const label = context.label || "";
-            const value = context.raw || 0;
-            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+          label: (tooltipItem: TooltipItem<"doughnut">) => {
+            const label = tooltipItem.label || "";
+            const value = tooltipItem.raw as number;
+            const total = tooltipItem.dataset.data.reduce((a, b) => a + b, 0);
             const percentage = ((value / total) * 100).toFixed(2);
             return `${label}: ${value} (${percentage}%)`;
           },
         },
       },
     },
-    cutout: "70%", // Transforma o gráfico de pizza em rosca
+    cutout: "70%",
     animation: {
-      animateRotate: true, // Animação de rotação
-      animateScale: true, // Animação de escala
+      animateRotate: true,
+      animateScale: true,
     },
   };
 
   // Dados para o gráfico de barras horizontais
   const dataBarras = {
-    labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"], // Substitua pelos meses reais
+    labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"],
     datasets: [
       {
         label: "Saldo",
-        data: [2000, 3000, 2500, 3500, 4000, 5000], // Substitua pelos dados reais
+        data: [2000, 3000, 2500, 3500, 4000, 5000],
         backgroundColor: "rgba(59, 130, 246, 0.8)",
         borderColor: "rgba(59, 130, 246, 1)",
         borderWidth: 2,
-        borderRadius: 5, // Bordas arredondadas nas barras
+        borderRadius: 5,
         hoverBackgroundColor: "rgba(59, 130, 246, 1)",
       },
     ],
@@ -80,14 +94,14 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
   const optionsBarras = {
     plugins: {
       legend: {
-        display: false, // Oculta a legenda
+        display: false,
       },
       tooltip: {
         enabled: true,
         callbacks: {
-          label: (context: any) => {
-            const label = context.dataset.label || "";
-            const value = context.raw || 0;
+          label: (tooltipItem: TooltipItem<"bar">) => {
+            const label = tooltipItem.dataset.label || "";
+            const value = tooltipItem.raw as number;
             return `${label}: R$ ${value.toFixed(2)}`;
           },
         },
@@ -96,17 +110,17 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
     scales: {
       x: {
         grid: {
-          display: false, // Remove as linhas de grade do eixo X
+          display: false,
         },
       },
       y: {
         grid: {
-          color: "rgba(229, 231, 235, 0.2)", // Cor das linhas de grade do eixo Y
+          color: "rgba(229, 231, 235, 0.2)",
         },
       },
     },
     animation: {
-      duration: 1000, // Duração da animação
+      duration: 1000,
     },
   };
 

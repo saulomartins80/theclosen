@@ -2,9 +2,19 @@ import React, { useState } from "react";
 import { Edit, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import ReactPaginate from "react-paginate";
 
+interface Transacao {
+  _id?: string; // _id é opcional
+  descricao: string;
+  categoria: string;
+  valor: number;
+  data: string;
+  tipo: string;
+  conta: string; // Adicione a propriedade 'conta'
+}
+
 interface TransactionTableProps {
-  transacoes: any[];
-  onEdit: (transacao: any) => void;
+  transacoes: Transacao[];
+  onEdit: (transacao: Transacao) => void;
   onDelete: (id: string) => void;
 }
 
@@ -129,14 +139,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
                 <td className="px-6 py-4 text-sm">
                   <div className="flex items-center space-x-4">
                     <button
-                      onClick={() => onEdit(transacao)}
+                      onClick={() => onEdit({ ...transacao, conta: transacao.conta || "" })}
                       className="p-2 text-blue-500 hover:text-blue-600 transition"
                       title="Editar"
                     >
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => onDelete(transacao._id)}
+                      onClick={() => onDelete(transacao._id!)}
                       className="p-2 text-red-500 hover:text-red-600 transition"
                       title="Excluir"
                     >
@@ -174,14 +184,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
               </p>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => onEdit(transacao)}
+                  onClick={() => onEdit({ ...transacao, conta: transacao.conta || "" })}
                   className="p-1 text-blue-500 hover:text-blue-600 transition"
                   title="Editar"
                 >
                   <Edit size={16} />
                 </button>
                 <button
-                  onClick={() => onDelete(transacao._id)}
+                  onClick={() => onDelete(transacao._id!)}
                   className="p-1 text-red-500 hover:text-red-600 transition"
                   title="Excluir"
                 >

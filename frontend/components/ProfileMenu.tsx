@@ -1,16 +1,17 @@
 import { ChevronDown, LogOut, Settings } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from 'next/image';
 
 export default function ProfileMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Dados do usuário (substitua por dados reais)
+  // Dados do usuário
   const user = {
     name: "Saulo Martins",
     email: "saulo@example.com",
-    avatar: "", // URL da imagem do avatar (vazio para simular falta de foto)
+    avatar: "",
   };
 
   // Avatar padrão com iniciais
@@ -35,14 +36,12 @@ export default function ProfileMenu() {
 
   // Função para lidar com o logout
   const handleLogout = () => {
-    // Adicione a lógica de logout aqui
     console.log("Usuário deslogado");
     setIsOpen(false);
   };
 
   // Função para navegar para as configurações
   const handleSettings = () => {
-    // Adicione a lógica de navegação aqui
     console.log("Navegar para Configurações");
     setIsOpen(false);
   };
@@ -59,9 +58,11 @@ export default function ProfileMenu() {
         {/* Avatar do Usuário */}
         <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
           {user.avatar ? (
-            <img
+            <Image
               src={user.avatar}
               alt={`Avatar de ${user.name}`}
+              width={32}
+              height={32}
               className="w-full h-full object-cover"
             />
           ) : (

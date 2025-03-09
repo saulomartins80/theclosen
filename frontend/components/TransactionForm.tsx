@@ -1,86 +1,88 @@
 import React, { useState } from "react";
-import { createTransacao, updateTransacao } from "../services/api";
+
+interface Transacao {
+  _id?: string;
+  descricao: string;
+  categoria: string;
+  valor: number;
+  data: string;
+  tipo: string;
+  conta: string; // Propriedade obrigatória
+}
 
 interface TransactionFormProps {
   onClose: () => void;
-  onSave: (transacao: any) => void;
-  transacaoEditavel: any;
+  onSave: (transacao: Transacao) => void;
+  transacaoEditavel: Transacao | null;
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({
-  onClose,
-  onSave,
-  transacaoEditavel,
-}) => {
+const TransactionForm = ({ onClose, onSave, transacaoEditavel }: TransactionFormProps) => {
   const [descricao, setDescricao] = useState(transacaoEditavel?.descricao || "");
-  const [valor, setValor] = useState(transacaoEditavel?.valor || "");
-  const [data, setData] = useState(transacaoEditavel?.data || "");
   const [categoria, setCategoria] = useState(transacaoEditavel?.categoria || "");
-  const [tipo, setTipo] = useState<"receita" | "despesa" | "transferencia">(
-    transacaoEditavel?.tipo || "receita"
-  );
-  const [conta, setConta] = useState(transacaoEditavel?.conta || "");
+  const [valor, setValor] = useState(transacaoEditavel?.valor.toString() || "");
+  const [data, setData] = useState(transacaoEditavel?.data || "");
+  const [tipo, setTipo] = useState(transacaoEditavel?.tipo || "receita");
+  const [conta, setConta] = useState(transacaoEditavel?.conta || ""); // Estado para 'conta'
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const transacao = {
+    const transacaoAtualizada: Transacao = {
+      _id: transacaoEditavel?._id,
       descricao,
-      valor: parseFloat(valor),
-      data: new Date(data).toISOString(),
       categoria,
+      valor: parseFloat(valor),
+      data,
       tipo,
-      conta,
+      conta, // Inclua a propriedade 'conta'
     };
-
-    try {
-      if (transacaoEditavel) {
-        await updateTransacao(transacaoEditavel._id, transacao);
-      } else {
-        await createTransacao(transacao);
-      }
-
-      onSave(transacao);
-      onClose();
-    } catch (error) {
-      console.error("Erro ao salvar transação:", error);
-    }
+    onSave(transacaoAtualizada);
+    onClose();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Campos do formulário */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Descrição
-        </label>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Descrição</label>
         <input
           type="text"
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
-          placeholder="Ex: Compra no mercado"
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: Compra no mercado"
           required
         />
       </div>
 
+      {/* Campo: Categoria */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Valor
-        </label>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
+        <input
+          type="text"
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: Alimentação"
+          required
+        />
+      </div>
+
+      {/* Campo: Valor */}
+      <div>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
         <input
           type="number"
           value={valor}
           onChange={(e) => setValor(e.target.value)}
-          placeholder="Ex: 100.00"
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: 100.00"
           required
         />
       </div>
 
+      {/* Campo: Data */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Data
-        </label>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Data</label>
         <input
           type="date"
           value={data}
@@ -90,50 +92,35 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         />
       </div>
 
+      {/* Campo: Tipo */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Categoria
-        </label>
-        <input
-          type="text"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-          placeholder="Ex: Alimentação"
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Tipo
-        </label>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
         <select
           value={tipo}
-          onChange={(e) => setTipo(e.target.value as "receita" | "despesa" | "transferencia")}
+          onChange={(e) => setTipo(e.target.value)}
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           required
         >
-          <option value="despesa">🔴 Despesa</option>
-          <option value="receita">🟢 Receita</option>
-          <option value="transferencia">🟣 Transferência</option>
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+          <option value="transferencia">Transferência</option>
         </select>
       </div>
 
+      {/* Campo: Conta */}
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Conta
-        </label>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Conta</label>
         <input
           type="text"
           value={conta}
           onChange={(e) => setConta(e.target.value)}
-          placeholder="Ex: Conta Corrente"
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: Banco XYZ"
           required
         />
       </div>
 
+      {/* Botões de Ação */}
       <div className="flex justify-end space-x-4">
         <button
           type="button"

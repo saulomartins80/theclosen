@@ -11,14 +11,23 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Toolti
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const Investimentos = () => {
-  const [investimentos, setInvestimentos] = useState<any[]>([]);
+  const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [investimentoEditavel, setInvestimentoEditavel] = useState<any>(null);
+  const [investimentoEditavel, setInvestimentoEditavel] = useState<Investimento | null>(null);
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+
+  // Define the Investimento type
+  interface Investimento {
+    _id: string;
+    nome: string;
+    tipo: string;
+    valor: number;
+    data: string;
+  }
 
   // Busca os investimentos ao carregar a página
   useEffect(() => {
@@ -46,7 +55,7 @@ const Investimentos = () => {
   });
 
   // Função para adicionar um novo investimento
-  const handleAddInvestimento = async (novoInvestimento: any) => {
+  const handleAddInvestimento = async (novoInvestimento: Investimento) => {
     try {
       const data = await addInvestimento(novoInvestimento);
       setInvestimentos((prev) => [...prev, data]);
@@ -59,7 +68,7 @@ const Investimentos = () => {
   };
 
   // Função para editar um investimento
-  const handleEditInvestimento = async (investimentoAtualizado: any) => {
+  const handleEditInvestimento = async (investimentoAtualizado: Investimento) => {
     if (!investimentoEditavel || !investimentoEditavel._id) {
       toast.error("Nenhum investimento selecionado para edição.");
       return;
@@ -267,7 +276,7 @@ const Investimentos = () => {
                   return;
                 }
 
-                handleAddInvestimento({ nome, tipo, valor, data });
+                handleAddInvestimento({ _id: "", nome, tipo, valor, data }); // Add _id property
               }}
             >
               <div className="mb-4">
@@ -338,7 +347,7 @@ const Investimentos = () => {
                   return;
                 }
 
-                handleEditInvestimento({ nome, tipo, valor, data });
+                handleEditInvestimento({ _id: investimentoEditavel._id, nome, tipo, valor, data }); // Add _id property
               }}
             >
               <div className="mb-4">

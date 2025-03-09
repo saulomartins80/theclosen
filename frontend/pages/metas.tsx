@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash, Check, X } from "lucide-react";
+import { Plus, Edit, Trash } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
@@ -70,7 +70,15 @@ export default function Metas() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(meta),
+        body: JSON.stringify({
+          meta: meta.meta,
+          descricao: meta.descricao,
+          valor_total: meta.valor_total,
+          valor_atual: meta.valor_atual,
+          data_conclusao: meta.data_conclusao,
+          observacoes: meta.observacoes,
+          transacoesVinculadas: meta.transacoesVinculadas,
+        }),
       });
 
       if (response.ok) {
