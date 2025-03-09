@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import LoadingSpinner from "../components/LoadingSpinner";
 import { getTransacoes, createTransacao, updateTransacao, deleteTransacao } from "../services/api";
 import FinancialSummary from "../components/FinancialSummary";
 import ChartsSection from "../components/ChartsSection";
@@ -10,7 +9,6 @@ import TransactionTable from "../components/TransactionTable";
 import TransactionForm from "../components/TransactionForm";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import ReactPaginate from "react-paginate";
 
 const Transacoes = () => {
   const [transacoes, setTransacoes] = useState<any[]>([]);
