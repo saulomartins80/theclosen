@@ -5,7 +5,7 @@ import {
   updateTransacao,
   deleteTransacao,
   getInvestimentos,
-  addInvestimento as apiAddInvestimento, // Renamed to avoid conflict
+  addInvestimento as apiAddInvestimento,
   updateInvestimento,
   deleteInvestimento,
 } from "../services/api";
@@ -39,6 +39,7 @@ interface FinanceContextProps {
   addInvestimento: (novoInvestimento: Omit<Investimento, "id">) => void;
   editInvestimento: (id: string, updatedInvestimento: Partial<Investimento>) => void;
   deleteInvestimento: (id: string) => void;
+  fetchData: () => void; // Adicionando fetchData
 }
 
 const FinanceContext = createContext<FinanceContextProps>({
@@ -54,6 +55,7 @@ const FinanceContext = createContext<FinanceContextProps>({
   addInvestimento: () => {},
   editInvestimento: () => {},
   deleteInvestimento: () => {},
+  fetchData: () => {}, // Inicializando fetchData
 });
 
 export const FinanceProvider = ({ children }: { children: ReactNode }) => {
@@ -122,9 +124,9 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addInvestment = async (novoInvestimento: Omit<Investimento, "id">) => {
+  const addInvestimento = async (novoInvestimento: Omit<Investimento, "id">) => {
     try {
-      const data = await apiAddInvestimento(novoInvestimento); // Use the renamed function
+      const data = await apiAddInvestimento(novoInvestimento);
       setInvestimentos((prev) => [...prev, data]);
     } catch (error) {
       console.error("Erro ao adicionar investimento:", error);
@@ -154,9 +156,24 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função fetchData para atualização automática
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const transacoes = await getTransacoes();
+      const investimentos = await getInvestimentos();
+      setTransactions(transacoes);
+      setInvestimentos(investimentos);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Erro desconhecido");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Busca os dados ao carregar o componente
   useEffect(() => {
-    fetchTransactions();
-    fetchInvestimentos();
+    fetchData();
   }, []);
 
   return (
@@ -171,9 +188,10 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
         editTransaction,
         deleteTransaction,
         fetchInvestimentos,
-        addInvestimento: addInvestment, // Use the renamed function
+        addInvestimento,
         editInvestimento,
         deleteInvestimento,
+        fetchData, // Disponibilizando fetchData no contexto
       }}
     >
       {children}
