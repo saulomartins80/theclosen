@@ -10,6 +10,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
 
@@ -22,7 +23,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 const Graficos = () => {
@@ -31,8 +33,8 @@ const Graficos = () => {
   // Função para agrupar transações por mês
   const agruparPorMes = (transacoes: any[]) => {
     const meses = [
-      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+      "Jul", "Ago", "Set", "Out", "Nov", "Dez"
     ];
     const dadosPorMes = meses.map((mes, index) => {
       const transacoesDoMes = transacoes.filter((t) => {
@@ -62,14 +64,82 @@ const Graficos = () => {
       {
         label: "Receitas",
         data: dadosPorMes.map((d) => d.receitas),
-        backgroundColor: "rgba(75, 192, 192, 0.8)",
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return null;
+
+          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+          gradient.addColorStop(0, "rgba(75, 192, 192, 0.2)");
+          gradient.addColorStop(1, "rgba(75, 192, 192, 0.8)");
+          return gradient;
+        },
+        borderColor: "rgba(75, 192, 192, 1)",
+        borderWidth: 2,
+        borderRadius: 5, // Bordas arredondadas nas barras
+        hoverBackgroundColor: "rgba(75, 192, 192, 1)",
       },
       {
         label: "Despesas",
         data: dadosPorMes.map((d) => d.despesas),
-        backgroundColor: "rgba(255, 99, 132, 0.8)",
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return null;
+
+          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+          gradient.addColorStop(0, "rgba(255, 99, 132, 0.2)");
+          gradient.addColorStop(1, "rgba(255, 99, 132, 0.8)");
+          return gradient;
+        },
+        borderColor: "rgba(255, 99, 132, 1)",
+        borderWidth: 2,
+        borderRadius: 5, // Bordas arredondadas nas barras
+        hoverBackgroundColor: "rgba(255, 99, 132, 1)",
       },
     ],
+  };
+
+  // Opções para o gráfico de barras
+  const barChartOptions = {
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: {
+          color: "#6B7280", // Cor da legenda
+          font: {
+            size: 14,
+          },
+        },
+      },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          label: (context: any) => {
+            const label = context.dataset.label || "";
+            const value = context.raw || 0;
+            return `${label}: R$ ${value.toFixed(2)}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false, // Remove as linhas de grade do eixo X
+        },
+      },
+      y: {
+        grid: {
+          color: "rgba(229, 231, 235, 0.2)", // Linhas de grade quase apagadas
+        },
+      },
+    },
+    animation: {
+      duration: 1000, // Duração da animação
+    },
+    responsive: true,
+    maintainAspectRatio: false, // Permite que o gráfico se ajuste ao contêiner
   };
 
   // Dados para o gráfico de linhas (Evolução do Saldo)
@@ -83,37 +153,92 @@ const Graficos = () => {
     }, [] as { data: string; saldo: number }[]);
 
   const lineChartData = {
-    labels: saldoAcumulado.map((s) => new Date(s.data).toLocaleDateString()),
+    labels: saldoAcumulado.map((s) => {
+      const date = new Date(s.data);
+      return `${date.getDate()}/${date.toLocaleString("default", { month: "short" })}`;
+    }),
     datasets: [
       {
         label: "Saldo",
         data: saldoAcumulado.map((s) => s.saldo),
         borderColor: "rgba(54, 162, 235, 1)",
-        backgroundColor: "rgba(54, 162, 235, 0.2)",
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return null;
+
+          const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+          gradient.addColorStop(0, "rgba(54, 162, 235, 0.2)");
+          gradient.addColorStop(1, "rgba(54, 162, 235, 0.8)");
+          return gradient;
+        },
         fill: true,
+        tension: 0.4, // Curva suave
       },
     ],
   };
 
+  // Opções para o gráfico de linhas
+  const lineChartOptions = {
+    plugins: {
+      legend: {
+        position: "top" as const,
+        labels: {
+          color: "#6B7280", // Cor da legenda
+          font: {
+            size: 14,
+          },
+        },
+      },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          label: (context: any) => {
+            const label = context.dataset.label || "";
+            const value = context.raw || 0;
+            return `${label}: R$ ${value.toFixed(2)}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false, // Remove as linhas de grade do eixo X
+        },
+      },
+      y: {
+        grid: {
+          color: "rgba(229, 231, 235, 0.2)", // Linhas de grade quase apagadas
+        },
+      },
+    },
+    animation: {
+      duration: 1000, // Duração da animação
+    },
+    responsive: true,
+    maintainAspectRatio: false, // Permite que o gráfico se ajuste ao contêiner
+  };
+
   return (
-    <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* Gráfico de Barras */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Receitas vs Despesas
         </h2>
         <div className="h-64">
-          <Bar data={barChartData} />
+          <Bar data={barChartData} options={barChartOptions} />
         </div>
       </div>
 
       {/* Gráfico de Linhas */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Evolução do Saldo
         </h2>
         <div className="h-64">
-          <Line data={lineChartData} />
+          <Line data={lineChartData} options={lineChartOptions} />
         </div>
       </div>
     </div>

@@ -9,7 +9,8 @@ import ChartsSection from "../components/ChartsSection";
 import TransactionTable from "../components/TransactionTable";
 import TransactionForm from "../components/TransactionForm";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable"; // Importe o plugin corretamente
+import autoTable from "jspdf-autotable";
+import ReactPaginate from "react-paginate";
 
 const Transacoes = () => {
   const [transacoes, setTransacoes] = useState<any[]>([]);
@@ -22,6 +23,10 @@ const Transacoes = () => {
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
+
+  // Estados para paginação
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 10;
 
   // Busca as transações ao carregar a página
   useEffect(() => {
@@ -98,6 +103,15 @@ const Transacoes = () => {
     if (filtroDataFim && new Date(transacao.data) > new Date(filtroDataFim)) return false;
     return true;
   });
+
+  // Lógica de paginação
+  const pageCount = Math.ceil(transacoesFiltradas.length / itemsPerPage);
+  const offset = currentPage * itemsPerPage;
+  const currentTransacoes = transacoesFiltradas.slice(offset, offset + itemsPerPage);
+
+  const handlePageClick = ({ selected }: { selected: number }) => {
+    setCurrentPage(selected);
+  };
 
   // Função para exportar para PDF
   const handleExportPDF = () => {
@@ -193,7 +207,7 @@ const Transacoes = () => {
 
       {/* Tabela de Transações */}
       <TransactionTable
-        transacoes={transacoesFiltradas}
+        transacoes={currentTransacoes}
         onEdit={(transacao) => {
           setTransacaoEditavel(transacao);
           setIsFormOpen(true);
@@ -201,6 +215,7 @@ const Transacoes = () => {
         onDelete={handleDeleteTransacao}
       />
 
+      
       {/* Botão para abrir o formulário */}
       <button
         onClick={() => {
