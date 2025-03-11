@@ -1,103 +1,87 @@
 import React, { useState } from "react";
-
-interface Transacao {
-  _id?: string;
-  descricao: string;
-  categoria: string;
-  valor: number;
-  data: string;
-  tipo: string;
-  conta: string; // Propriedade obrigatória
-}
+import { Transacao } from "../src/types/Transacao"; // Importe a interface correta
 
 interface TransactionFormProps {
   onClose: () => void;
   onSave: (transacao: Transacao) => void;
-  transacaoEditavel: Transacao | null;
+  transacaoEditavel?: Transacao; // transacaoEditavel é opcional (Transacao | undefined)
 }
 
-const TransactionForm = ({ onClose, onSave, transacaoEditavel }: TransactionFormProps) => {
-  const [descricao, setDescricao] = useState(transacaoEditavel?.descricao || "");
-  const [categoria, setCategoria] = useState(transacaoEditavel?.categoria || "");
-  const [valor, setValor] = useState(transacaoEditavel?.valor.toString() || "");
-  const [data, setData] = useState(transacaoEditavel?.data || "");
-  const [tipo, setTipo] = useState(transacaoEditavel?.tipo || "receita");
-  const [conta, setConta] = useState(transacaoEditavel?.conta || ""); // Estado para 'conta'
+const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, transacaoEditavel }) => {
+  const [transacao, setTransacao] = useState<Transacao>({
+    _id: transacaoEditavel?._id || "", // Garanta que `_id` seja sempre uma string
+    id: transacaoEditavel?.id || "",
+    descricao: transacaoEditavel?.descricao || "",
+    valor: transacaoEditavel?.valor || 0,
+    data: transacaoEditavel?.data || "",
+    categoria: transacaoEditavel?.categoria || "",
+    tipo: transacaoEditavel?.tipo || "receita",
+    conta: transacaoEditavel?.conta || "",
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setTransacao((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const transacaoAtualizada: Transacao = {
-      _id: transacaoEditavel?._id,
-      descricao,
-      categoria,
-      valor: parseFloat(valor),
-      data,
-      tipo,
-      conta, // Inclua a propriedade 'conta'
-    };
-    onSave(transacaoAtualizada);
+    onSave(transacao); // Passa a transação para a função onSave
     onClose();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Campos do formulário */}
       <div>
         <label className="block text-sm font-medium text-gray-900 dark:text-white">Descrição</label>
         <input
           type="text"
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
+          name="descricao"
+          value={transacao.descricao}
+          onChange={handleChange}
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          placeholder="Ex: Compra no mercado"
           required
         />
       </div>
-
-      {/* Campo: Categoria */}
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-        <input
-          type="text"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          placeholder="Ex: Alimentação"
-          required
-        />
-      </div>
-
-      {/* Campo: Valor */}
       <div>
         <label className="block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
         <input
           type="number"
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
+          name="valor"
+          value={transacao.valor}
+          onChange={handleChange}
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          placeholder="Ex: 100.00"
           required
         />
       </div>
-
-      {/* Campo: Data */}
       <div>
         <label className="block text-sm font-medium text-gray-900 dark:text-white">Data</label>
         <input
           type="date"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
+          name="data"
+          value={transacao.data}
+          onChange={handleChange}
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           required
         />
       </div>
-
-      {/* Campo: Tipo */}
+      <div>
+        <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
+        <input
+          type="text"
+          name="categoria"
+          value={transacao.categoria}
+          onChange={handleChange}
+          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          required
+        />
+      </div>
       <div>
         <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
         <select
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value)}
+          name="tipo"
+          value={transacao.tipo}
+          onChange={handleChange}
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           required
         >
@@ -106,21 +90,17 @@ const TransactionForm = ({ onClose, onSave, transacaoEditavel }: TransactionForm
           <option value="transferencia">Transferência</option>
         </select>
       </div>
-
-      {/* Campo: Conta */}
       <div>
         <label className="block text-sm font-medium text-gray-900 dark:text-white">Conta</label>
         <input
           type="text"
-          value={conta}
-          onChange={(e) => setConta(e.target.value)}
+          name="conta"
+          value={transacao.conta}
+          onChange={handleChange}
           className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          placeholder="Ex: Banco XYZ"
           required
         />
       </div>
-
-      {/* Botões de Ação */}
       <div className="flex justify-end space-x-4">
         <button
           type="button"

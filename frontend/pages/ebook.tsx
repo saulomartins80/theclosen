@@ -4,8 +4,12 @@ import Header from "../components/Header";
 import { Download, BookOpen, ArrowUp } from "lucide-react";
 import Image from 'next/image';
 
-// Conteúdo de cada seção
-const sectionsContent = {
+interface SectionContent {
+  title: string;
+  content: string;
+}
+
+const sectionsContent: { [key: string]: SectionContent } = {
   introducao: {
     title: "Introdução",
     content: "Bem-vindo ao seu guia de finanças pessoais! Aqui você aprenderá a controlar seus gastos, investir de forma inteligente e alcançar o equilíbrio entre sucesso financeiro e realização pessoal.",
@@ -43,7 +47,7 @@ const sectionsContent = {
 const EbookPage = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [activeSection, setActiveSection] = useState("introducao");
-  const [highlights, setHighlights] = useState([]);
+  const [highlights, setHighlights] = useState<{ text: string; section: string }[]>([]);
   const [textColor, setTextColor] = useState("#000000");
   const [fontSize, setFontSize] = useState(16);
   const [isClient, setIsClient] = useState(false); // Verifica se está no cliente
@@ -103,7 +107,7 @@ const EbookPage = () => {
 
   const handleHighlight = () => {
     const selection = window.getSelection();
-    if (selection.toString().trim()) {
+    if (selection && selection.toString().trim()) { // Add null check for selection
       const newHighlight = {
         text: selection.toString(),
         section: activeSection,

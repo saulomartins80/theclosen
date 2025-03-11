@@ -19,7 +19,7 @@ interface TransactionTableProps {
 }
 
 const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit, onDelete }) => {
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Transacao; direction: "asc" | "desc" } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 10;
 
@@ -28,10 +28,16 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
     if (!sortConfig) return transacoes;
 
     return [...transacoes].sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
+      const key = sortConfig.key;
+      const valueA = a[key];
+      const valueB = b[key];
+
+      if (valueA === undefined || valueB === undefined) return 0; // Trata valores undefined
+
+      if (valueA < valueB) {
         return sortConfig.direction === "asc" ? -1 : 1;
       }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
+      if (valueA > valueB) {
         return sortConfig.direction === "asc" ? 1 : -1;
       }
       return 0;
@@ -48,7 +54,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
   };
 
   // Função para solicitar ordenação
-  const requestSort = (key: string) => {
+  const requestSort = (key: keyof Transacao) => {
     let direction: "asc" | "desc" = "asc";
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
@@ -146,7 +152,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => onDelete(transacao._id!)}
+                      onClick={() => transacao._id && onDelete(transacao._id)}
                       className="p-2 text-red-500 hover:text-red-600 transition"
                       title="Excluir"
                     >
@@ -191,7 +197,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
                   <Edit size={16} />
                 </button>
                 <button
-                  onClick={() => onDelete(transacao._id!)}
+                  onClick={() => transacao._id && onDelete(transacao._id)}
                   className="p-1 text-red-500 hover:text-red-600 transition"
                   title="Excluir"
                 >

@@ -9,32 +9,18 @@ import TransactionTable from "../components/TransactionTable";
 import TransactionForm from "../components/TransactionForm";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Transacao } from "../src/types/Transacao"; // Importe a interface correta
 
 const Transacoes = () => {
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [transacaoEditavel, setTransacaoEditavel] = useState<Transacao | null>(null);
-
-  // Define the Transacao type
-  interface Transacao {
-    _id?: string; // Make _id optional
-    descricao: string;
-    categoria: string;
-    valor: number;
-    data: string;
-    tipo: string;
-    conta: string; // Add the conta property
-  }
+  const [transacaoEditavel, setTransacaoEditavel] = useState<Transacao | undefined>(undefined);
 
   // Estados para os filtros
   const [filtroTipo, setFiltroTipo] = useState<"todos" | "receita" | "despesa" | "transferencia">("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
-
-  // Estados para paginação
-  const [currentPage] = useState(0); // Remove setCurrentPage
-  const [itemsPerPage] = useState(10);
 
   // Busca as transações ao carregar a página
   useEffect(() => {
@@ -65,7 +51,7 @@ const Transacoes = () => {
       setIsFormOpen(false);
 
       // Limpa o estado de edição
-      setTransacaoEditavel(null);
+      setTransacaoEditavel(undefined);
 
       // Atualiza a lista de transações
       const data = await getTransacoes();
@@ -110,6 +96,8 @@ const Transacoes = () => {
   });
 
   // Lógica de paginação
+  const [currentPage] = useState(0); // Remove setCurrentPage
+  const [itemsPerPage] = useState(10);
   const offset = currentPage * itemsPerPage;
   const currentTransacoes = transacoesFiltradas.slice(offset, offset + itemsPerPage);
 
@@ -209,17 +197,20 @@ const Transacoes = () => {
       <TransactionTable
         transacoes={currentTransacoes}
         onEdit={(transacao) => {
-          setTransacaoEditavel({ ...transacao, conta: transacao.conta || "" });
+          setTransacaoEditavel({
+            ...transacao,
+            id: transacao.id, // Garanta que `id` está presente
+            conta: transacao.conta || "",
+          });
           setIsFormOpen(true);
         }}
         onDelete={handleDeleteTransacao}
       />
 
-      
       {/* Botão para abrir o formulário */}
       <button
         onClick={() => {
-          setTransacaoEditavel(null);
+          setTransacaoEditavel(undefined);
           setIsFormOpen(true);
         }}
         className="fixed bottom-6 right-6 p-4 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition"

@@ -12,7 +12,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import TransactionForm from "./TransactionForm"; // Importe o componente
+import TransactionForm from "../components/TransactionForm";
+import { Transacao } from "../src/types/Transacao"; // Importe a interface Transacao
 
 ChartJS.register(
   CategoryScale,
@@ -24,16 +25,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
-interface Transacao {
-  id: string;
-  descricao: string;
-  valor: number;
-  data: string;
-  categoria: string;
-  tipo: string;
-  conta: string;
-}
 
 const Transacoes = () => {
   const [transactions, setTransactions] = useState<Transacao[]>([]);
@@ -128,8 +119,12 @@ const Transacoes = () => {
       setFilteredTransactions(updatedTransactions);
     } else {
       // Adicionar nova transação
-      setTransactions([...transactions, transacaoAtualizada]);
-      setFilteredTransactions([...filteredTransactions, transacaoAtualizada]);
+      const novaTransacao = {
+        ...transacaoAtualizada,
+        id: crypto.randomUUID(), // Gera um ID temporário
+      };
+      setTransactions([...transactions, novaTransacao]);
+      setFilteredTransactions([...filteredTransactions, novaTransacao]);
     }
     setIsFormOpen(false); // Fecha o modal
     setTransacaoEditavel(null); // Limpa a transação editável
@@ -311,7 +306,7 @@ const Transacoes = () => {
             <TransactionForm
               onClose={() => setIsFormOpen(false)}
               onSave={handleSaveTransacao}
-              transacaoEditavel={transacaoEditavel} // Passa a transação editável
+              transacaoEditavel={transacaoEditavel || undefined} // Converte null para undefined
             />
           </div>
         </div>

@@ -7,28 +7,18 @@ import {
   getInvestimentos,
   addInvestimento as apiAddInvestimento,
   updateInvestimento,
-  deleteInvestimento,
+  deleteInvestimento as apiDeleteInvestimento,
+  getMetas,
+  createMeta as apiCreateMeta,
+  updateMeta as apiUpdateMeta,
+  deleteMeta as apiDeleteMeta,
 } from "../services/api";
-
-interface Transacao {
-  id: string;
-  tipo: "receita" | "despesa";
-  valor: number;
-  descricao: string;
-  data: string;
-}
-
-interface Investimento {
-  id: string;
-  nome: string;
-  tipo: string;
-  valor: number;
-  data: string;
-}
+import { Meta, Transacao, Investimento } from "../src/types"; // Certifique-se de que essas interfaces estão definidas em "../types"
 
 interface FinanceContextProps {
   transactions: Transacao[];
   investimentos: Investimento[];
+  metas: Meta[];
   loading: boolean;
   error: string | null;
   fetchTransactions: () => void;
@@ -39,12 +29,18 @@ interface FinanceContextProps {
   addInvestimento: (novoInvestimento: Omit<Investimento, "id">) => void;
   editInvestimento: (id: string, updatedInvestimento: Partial<Investimento>) => void;
   deleteInvestimento: (id: string) => void;
-  fetchData: () => void; // Adicionando fetchData
+  fetchMetas: () => void;
+  addMeta: (novaMeta: Omit<Meta, "_id" | "createdAt">) => void;
+  editMeta: (id: string, updatedMeta: Partial<Meta>) => void;
+  deleteMeta: (id: string) => void;
+  fetchData: () => void;
+  getMetas: () => Promise<Meta[]>; // Add this line
 }
 
 const FinanceContext = createContext<FinanceContextProps>({
   transactions: [],
   investimentos: [],
+  metas: [],
   loading: true,
   error: null,
   fetchTransactions: () => {},
@@ -55,15 +51,22 @@ const FinanceContext = createContext<FinanceContextProps>({
   addInvestimento: () => {},
   editInvestimento: () => {},
   deleteInvestimento: () => {},
-  fetchData: () => {}, // Inicializando fetchData
+  fetchMetas: () => {},
+  addMeta: () => {},
+  editMeta: () => {},
+  deleteMeta: () => {},
+  fetchData: () => {},
+  getMetas: () => Promise.resolve([]), // Add this line
 });
 
 export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const [transactions, setTransactions] = useState<Transacao[]>([]);
   const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
+  const [metas, setMetas] = useState<Meta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Função para buscar transações
   const fetchTransactions = async () => {
     setLoading(true);
     setError(null);
@@ -78,6 +81,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para adicionar transação
   const addTransaction = async (newTransaction: Omit<Transacao, "id">) => {
     try {
       const data = await createTransacao(newTransaction);
@@ -88,6 +92,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para editar transação
   const editTransaction = async (id: string, updatedTransaction: Partial<Transacao>) => {
     try {
       const data = await updateTransacao(id, updatedTransaction);
@@ -100,6 +105,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para excluir transação
   const deleteTransaction = async (id: string) => {
     try {
       await deleteTransacao(id);
@@ -110,6 +116,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para buscar investimentos
   const fetchInvestimentos = async () => {
     setLoading(true);
     setError(null);
@@ -124,6 +131,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para adicionar investimento
   const addInvestimento = async (novoInvestimento: Omit<Investimento, "id">) => {
     try {
       const data = await apiAddInvestimento(novoInvestimento);
@@ -134,6 +142,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para editar investimento
   const editInvestimento = async (id: string, updatedInvestimento: Partial<Investimento>) => {
     try {
       const data = await updateInvestimento(id, updatedInvestimento);
@@ -146,9 +155,10 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Função para excluir investimento
   const deleteInvestimento = async (id: string) => {
     try {
-      await deleteInvestimento(id);
+      await apiDeleteInvestimento(id);
       setInvestimentos((prev) => prev.filter((inv) => inv.id !== id));
     } catch (error) {
       console.error("Erro ao excluir investimento:", error);
@@ -156,14 +166,66 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Função fetchData para atualização automática
+  // Função para buscar metas
+  const fetchMetas = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getMetas();
+      setMetas(data);
+    } catch (error) {
+      console.error("Erro ao buscar metas:", error);
+      setError(error instanceof Error ? error.message : "Erro desconhecido");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para adicionar meta
+  const addMeta = async (novaMeta: Omit<Meta, "_id" | "createdAt">) => {
+    try {
+      const data = await apiCreateMeta(novaMeta);
+      setMetas((prev) => [...prev, data]);
+    } catch (error) {
+      console.error("Erro ao adicionar meta:", error);
+      setError(error instanceof Error ? error.message : "Erro desconhecido");
+    }
+  };
+
+  // Função para editar meta
+  const editMeta = async (id: string, updatedMeta: Partial<Meta>) => {
+    try {
+      const data = await apiUpdateMeta(id, updatedMeta);
+      setMetas((prev) =>
+        prev.map((m) => (m._id === id ? { ...m, ...data } : m))
+      );
+    } catch (error) {
+      console.error("Erro ao editar meta:", error);
+      setError(error instanceof Error ? error.message : "Erro desconhecido");
+    }
+  };
+
+  // Função para excluir meta
+  const deleteMeta = async (id: string) => {
+    try {
+      await apiDeleteMeta(id);
+      setMetas((prev) => prev.filter((m) => m._id !== id));
+    } catch (error) {
+      console.error("Erro ao excluir meta:", error);
+      setError(error instanceof Error ? error.message : "Erro desconhecido");
+    }
+  };
+
+  // Função para buscar todos os dados
   const fetchData = async () => {
     try {
       setLoading(true);
       const transacoes = await getTransacoes();
       const investimentos = await getInvestimentos();
+      const metas = await getMetas();
       setTransactions(transacoes);
       setInvestimentos(investimentos);
+      setMetas(metas);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
@@ -181,6 +243,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       value={{
         transactions,
         investimentos,
+        metas,
         loading,
         error,
         fetchTransactions,
@@ -191,7 +254,12 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
         addInvestimento,
         editInvestimento,
         deleteInvestimento,
-        fetchData, // Disponibilizando fetchData no contexto
+        fetchMetas,
+        addMeta,
+        editMeta,
+        deleteMeta,
+        fetchData,
+        getMetas, // Add this line
       }}
     >
       {children}

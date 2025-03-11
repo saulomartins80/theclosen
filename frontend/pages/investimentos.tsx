@@ -262,7 +262,28 @@ const Investimentos = () => {
       {isFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-6">Novo Investimento</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Novo Investimento</h2>
+              <button
+                onClick={() => setIsFormOpen(false)} // Fecha o modal
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -318,12 +339,21 @@ const Investimentos = () => {
                   required
                 />
               </div>
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-              >
-                Adicionar
-              </button>
+              <div className="flex justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setIsFormOpen(false)} // Fecha o modal
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                >
+                  Adicionar
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -333,7 +363,28 @@ const Investimentos = () => {
       {isEditFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-6">Editar Investimento</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">Editar Investimento</h2>
+              <button
+                onClick={() => setIsEditFormOpen(false)} // Fecha o modal
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -347,7 +398,9 @@ const Investimentos = () => {
                   return;
                 }
 
-                handleEditInvestimento({ _id: investimentoEditavel._id, nome, tipo, valor, data }); // Add _id property
+                if (investimentoEditavel) { // Add null check for investimentoEditavel
+                  handleEditInvestimento({ _id: investimentoEditavel._id, nome, tipo, valor, data }); // Add _id property
+                }
               }}
             >
               <div className="mb-4">
@@ -393,12 +446,21 @@ const Investimentos = () => {
                   required
                 />
               </div>
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-              >
-                Salvar Alterações
-              </button>
+              <div className="flex justify-end space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditFormOpen(false)} // Fecha o modal
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
             </form>
           </div>
         </div>
