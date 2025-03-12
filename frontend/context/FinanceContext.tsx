@@ -22,7 +22,7 @@ interface FinanceContextProps {
   loading: boolean;
   error: string | null;
   fetchTransactions: () => void;
-  addTransaction: (novaTransacao: Omit<Transacao, "id">) => void;
+  addTransaction: (novaTransacao: Omit<Transacao, "_id">) => void;
   editTransaction: (id: string, updatedTransaction: Partial<Transacao>) => void;
   deleteTransaction: (id: string) => void;
   fetchInvestimentos: () => void;
@@ -34,7 +34,7 @@ interface FinanceContextProps {
   editMeta: (id: string, updatedMeta: Partial<Meta>) => void;
   deleteMeta: (id: string) => void;
   fetchData: () => void;
-  getMetas: () => Promise<Meta[]>; // Add this line
+  getMetas: () => Promise<Meta[]>;
 }
 
 const FinanceContext = createContext<FinanceContextProps>({
@@ -56,7 +56,7 @@ const FinanceContext = createContext<FinanceContextProps>({
   editMeta: () => {},
   deleteMeta: () => {},
   fetchData: () => {},
-  getMetas: () => Promise.resolve([]), // Add this line
+  getMetas: () => Promise.resolve([]),
 });
 
 export const FinanceProvider = ({ children }: { children: ReactNode }) => {
@@ -82,7 +82,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Função para adicionar transação
-  const addTransaction = async (newTransaction: Omit<Transacao, "id">) => {
+  const addTransaction = async (newTransaction: Omit<Transacao, "_id">) => {
     try {
       const data = await createTransacao(newTransaction);
       setTransactions((prev) => [...prev, data]);
@@ -97,7 +97,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     try {
       const data = await updateTransacao(id, updatedTransaction);
       setTransactions((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...data } : t))
+        prev.map((t) => (t._id.$oid === id ? { ...t, ...data } : t)) // Use t._id.$oid
       );
     } catch (error) {
       console.error("Erro ao editar transação:", error);
@@ -109,7 +109,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const deleteTransaction = async (id: string) => {
     try {
       await deleteTransacao(id);
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      setTransactions((prev) => prev.filter((t) => t._id.$oid !== id)); // Use t._id.$oid
     } catch (error) {
       console.error("Erro ao excluir transação:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
@@ -259,7 +259,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
         editMeta,
         deleteMeta,
         fetchData,
-        getMetas, // Add this line
+        getMetas,
       }}
     >
       {children}

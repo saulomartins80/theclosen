@@ -1,89 +1,77 @@
 import React, { useState } from "react";
-import { Transacao } from "../src/types/Transacao"; // Importe a interface correta
+import { Transacao } from "../src/types/Transacao";
 
 interface TransactionFormProps {
   onClose: () => void;
   onSave: (transacao: Transacao) => void;
-  transacaoEditavel?: Transacao; // transacaoEditavel é opcional (Transacao | undefined)
+  transacaoEditavel?: Transacao;
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, transacaoEditavel }) => {
   const [transacao, setTransacao] = useState<Transacao>({
-    _id: transacaoEditavel?._id || "", // Garanta que `_id` seja sempre uma string
-    id: transacaoEditavel?.id || "",
+    _id: transacaoEditavel?._id || { $oid: "" }, // Use um objeto `{ $oid: "" }` como valor padrão
     descricao: transacaoEditavel?.descricao || "",
     valor: transacaoEditavel?.valor || 0,
-    data: transacaoEditavel?.data || "",
+    data: transacaoEditavel?.data || { $date: new Date().toISOString() }, // Use um objeto `{ $date: "" }` como valor padrão
     categoria: transacaoEditavel?.categoria || "",
     tipo: transacaoEditavel?.tipo || "receita",
     conta: transacaoEditavel?.conta || "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setTransacao((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(transacao); // Passa a transação para a função onSave
-    onClose();
+    onSave(transacao);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit}>
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Descrição</label>
+        <label>Descrição</label>
         <input
           type="text"
-          name="descricao"
           value={transacao.descricao}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
+          onChange={(e) => setTransacao({ ...transacao, descricao: e.target.value })}
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
+        <label>Valor</label>
         <input
           type="number"
-          name="valor"
           value={transacao.valor}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
+          onChange={(e) => setTransacao({ ...transacao, valor: parseFloat(e.target.value) })}
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Data</label>
+        <label>Data</label>
         <input
           type="date"
-          name="data"
-          value={transacao.data}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
+          value={new Date(transacao.data.$date).toISOString().split("T")[0]}
+          onChange={(e) =>
+            setTransacao({
+              ...transacao,
+              data: { $date: new Date(e.target.value).toISOString() },
+            })
+          }
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
+        <label>Categoria</label>
         <input
           type="text"
-          name="categoria"
           value={transacao.categoria}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
+          onChange={(e) => setTransacao({ ...transacao, categoria: e.target.value })}
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
+        <label>Tipo</label>
         <select
-          name="tipo"
           value={transacao.tipo}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
+          onChange={(e) =>
+            setTransacao({
+              ...transacao,
+              tipo: e.target.value as "receita" | "despesa" | "transferencia",
+            })
+          }
         >
           <option value="receita">Receita</option>
           <option value="despesa">Despesa</option>
@@ -91,31 +79,17 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, tran
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">Conta</label>
+        <label>Conta</label>
         <input
           type="text"
-          name="conta"
           value={transacao.conta}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
+          onChange={(e) => setTransacao({ ...transacao, conta: e.target.value })}
         />
       </div>
-      <div className="flex justify-end space-x-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-        >
-          Salvar
-        </button>
-      </div>
+      <button type="submit">Salvar</button>
+      <button type="button" onClick={onClose}>
+        Cancelar
+      </button>
     </form>
   );
 };

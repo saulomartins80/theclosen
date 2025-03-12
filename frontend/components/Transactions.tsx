@@ -26,7 +26,7 @@ ChartJS.register(
   Legend
 );
 
-const Transacoes = () => {
+const Transactions = () => {
   const [transactions, setTransactions] = useState<Transacao[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transacao[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,25 +109,29 @@ const Transacoes = () => {
   };
 
   // Função para salvar uma transação (nova ou editada)
-  const handleSaveTransacao = (transacaoAtualizada: Transacao) => {
+  const handleSaveTransacao = (transacao: Transacao) => {
     if (transacaoEditavel) {
       // Editar transação existente
       const updatedTransactions = transactions.map((t) =>
-        t.id === transacaoAtualizada.id ? transacaoAtualizada : t
+        t._id.$oid === transacao._id.$oid ? transacao : t
       );
       setTransactions(updatedTransactions);
       setFilteredTransactions(updatedTransactions);
     } else {
       // Adicionar nova transação
-      const novaTransacao = {
-        ...transacaoAtualizada,
-        id: crypto.randomUUID(), // Gera um ID temporário
-      };
-      setTransactions([...transactions, novaTransacao]);
-      setFilteredTransactions([...filteredTransactions, novaTransacao]);
+      setTransactions([...transactions, transacao]);
+      setFilteredTransactions([...filteredTransactions, transacao]);
     }
     setIsFormOpen(false); // Fecha o modal
     setTransacaoEditavel(null); // Limpa a transação editável
+  };
+
+  // Função para excluir uma transação (desabilitando a regra do ESLint)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleDeleteTransaction = (id: string) => {
+    const updatedTransactions = transactions.filter((t) => t._id.$oid !== id);
+    setTransactions(updatedTransactions);
+    setFilteredTransactions(updatedTransactions);
   };
 
   // Dados para os gráficos
@@ -257,7 +261,7 @@ const Transacoes = () => {
             </thead>
             <tbody>
               {currentItems.map((transaction) => (
-                <tr key={transaction.id} className="border-b">
+                <tr key={transaction._id.$oid} className="border-b">
                   <td className="py-3 text-gray-900 dark:text-white">{transaction.descricao}</td>
                   <td
                     className={`py-3 ${
@@ -266,7 +270,6 @@ const Transacoes = () => {
                   >
                     {transaction.valor < 0 ? "-" : "+"}R$ {Math.abs(transaction.valor).toFixed(2)}
                   </td>
-                  <td className="py-3 text-gray-900 dark:text-white">{transaction.data}</td>
                   <td className="py-3 text-gray-900 dark:text-white">{transaction.categoria}</td>
                 </tr>
               ))}
@@ -315,4 +318,4 @@ const Transacoes = () => {
   );
 };
 
-export default Transacoes;
+export default Transactions;

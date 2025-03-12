@@ -39,8 +39,8 @@ const Transacoes = () => {
   // Função para adicionar ou editar uma transação
   const handleSaveTransacao = async (transacao: Transacao) => {
     try {
-      if (transacaoEditavel && transacaoEditavel._id) {
-        await updateTransacao(transacaoEditavel._id, transacao);
+      if (transacaoEditavel && transacaoEditavel._id.$oid) {
+        await updateTransacao(transacaoEditavel._id.$oid, transacao); // Usa _id.$oid
         toast.success("Transação atualizada com sucesso!");
       } else {
         await createTransacao(transacao);
@@ -90,8 +90,8 @@ const Transacoes = () => {
   const transacoesFiltradas = transacoes.filter((transacao) => {
     if (filtroTipo !== "todos" && transacao.tipo !== filtroTipo) return false;
     if (filtroCategoria && transacao.categoria !== filtroCategoria) return false;
-    if (filtroDataInicio && new Date(transacao.data) < new Date(filtroDataInicio)) return false;
-    if (filtroDataFim && new Date(transacao.data) > new Date(filtroDataFim)) return false;
+    if (filtroDataInicio && new Date(transacao.data.$date) < new Date(filtroDataInicio)) return false;
+    if (filtroDataFim && new Date(transacao.data.$date) > new Date(filtroDataFim)) return false;
     return true;
   });
 
@@ -116,7 +116,7 @@ const Transacoes = () => {
       transacao.descricao,
       transacao.categoria,
       `R$ ${transacao.valor.toFixed(2)}`,
-      new Date(transacao.data).toLocaleDateString(),
+      new Date(transacao.data.$date).toLocaleDateString(),
       transacao.tipo,
     ]);
 
@@ -199,8 +199,8 @@ const Transacoes = () => {
         onEdit={(transacao) => {
           setTransacaoEditavel({
             ...transacao,
-            id: transacao.id, // Garanta que `id` está presente
             conta: transacao.conta || "",
+            tipo: transacao.tipo as "receita" | "despesa" | "transferencia", // Força o tipo correto
           });
           setIsFormOpen(true);
         }}
