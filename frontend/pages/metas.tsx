@@ -8,19 +8,19 @@ import "react-toastify/dist/ReactToastify.css";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { Pie } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-
+import { FormMeta } from '../types/Meta'; // Ajuste o caminho conforme necessário
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface Meta {
-  _id: string;
+  _id?: string;
   meta: string;
   descricao: string;
   valor_total: number;
   valor_atual: number;
   data_conclusao: string;
-  createdAt: string;
-  observacoes?: string;
-  transacoesVinculadas?: string[];
+  userId: string;
+  createdAt?: string;
+  observacoes?: string; // Adicione se necessário
 }
 
 export default function Metas() {
@@ -65,31 +65,50 @@ export default function Metas() {
   const handleSaveMeta = async (meta: Omit<Meta, "_id" | "createdAt">) => {
     setIsLoading(true);
     try {
+      // Verifica se todos os campos obrigatórios estão presentes
+      if (!meta.meta || !meta.descricao || !meta.valor_total || !meta.valor_atual || !meta.data_conclusao || !meta.userId) {
+        throw new Error("Todos os campos são obrigatórios.");
+      }
+  
+      console.log("Dados sendo enviados para a API:", meta); // Log dos dados
+  
       const response = await fetch("http://localhost:5000/api/goals", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Adicione o token de autenticação se necessário
+          // Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(meta),
       });
-
-      if (response.ok) {
-        toast.success("Meta salva com sucesso!");
-        fetchMetas(); // Atualiza a lista de metas
-        setIsFormOpen(false);
-      } else {
-        toast.error("Erro ao salvar meta.");
+  
+      if (!response.ok) {
+        const errorData = await response.json(); // Captura a mensagem de erro do servidor
+        throw new Error(errorData.message || "Erro ao salvar meta.");
       }
+  
+      const data = await response.json();
+      console.log("Resposta da API:", data); // Log da resposta
+  
+      toast.success("Meta salva com sucesso!");
+      fetchMetas(); // Atualiza a lista de metas
+      setIsFormOpen(false); // Fecha o formulário
     } catch (error) {
       console.error("Erro ao salvar meta:", error);
-      toast.error("Erro ao salvar meta.");
+      toast.error(error instanceof Error ? error.message : "Erro ao salvar meta.");
     } finally {
       setIsLoading(false);
     }
   };
 
   // Função para atualizar uma meta
-  const handleUpdateMeta = async (id: string, meta: Omit<Meta, "_id" | "createdAt">) => {
+  const handleUpdateMeta = async (id: string | undefined, meta: Omit<Meta, "_id" | "createdAt">) =>
+  {
+    if (!id) {
+      console.error("ID da meta não encontrado.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await fetch(`http://localhost:5000/api/goals/${id}`, {
@@ -116,7 +135,12 @@ export default function Metas() {
   };
 
   // Função para excluir uma meta
-  const handleDeleteMeta = async (id: string) => {
+  const handleDeleteMeta = async (id: string | undefined) => {
+    if (!id) {
+      console.error("ID da meta não encontrado.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const response = await fetch(`http://localhost:5000/api/goals/${id}`, {
@@ -266,7 +290,7 @@ export default function Metas() {
                     </p>
                     <p className="text-gray-500 dark:text-gray-400 text-sm">
                       <span className="font-semibold">Criado em:</span>{" "}
-                      {new Date(meta.createdAt).toLocaleDateString()}
+                      {meta.createdAt ? new Date(meta.createdAt).toLocaleDateString() : "Data não disponível"}
                     </p>
                   </div>
                   <div className="mt-4">
@@ -375,16 +399,21 @@ const FormularioMeta: React.FC<FormularioMetaProps> = ({
   metaEditavel,
   isLoading,
 }) => {
-  const [meta, setMeta] = useState(
-    metaEditavel || {
-      meta: "",
-      descricao: "",
-      valor_total: 0,
-      valor_atual: 0,
-      data_conclusao: "",
-      observacoes: "",
-      transacoesVinculadas: [],
-    }
+  const [meta, setMeta] = useState<FormMeta>(
+    metaEditavel
+      ? {
+          ...metaEditavel,
+          observacoes: metaEditavel.observacoes || "", // Valor padrão
+        }
+      : {
+          meta: "",
+          descricao: "",
+          valor_total: 0,
+          valor_atual: 0,
+          data_conclusao: "",
+          observacoes: "",
+          userId: "67c3958bcab45f406385e309", // Adicione o userId do usuário logado
+        }
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {

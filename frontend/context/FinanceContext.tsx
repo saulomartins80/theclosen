@@ -13,7 +13,7 @@ import {
   updateMeta as apiUpdateMeta,
   deleteMeta as apiDeleteMeta,
 } from "../services/api";
-import { Meta, Transacao, Investimento } from "../src/types"; // Certifique-se de que essas interfaces estão definidas em "../types"
+import { Meta, Transacao, Investimento } from "../types"; // Certifique-se de que essas interfaces estão definidas em "../types"
 
 interface FinanceContextProps {
   transactions: Transacao[];
@@ -26,7 +26,7 @@ interface FinanceContextProps {
   editTransaction: (id: string, updatedTransaction: Partial<Transacao>) => void;
   deleteTransaction: (id: string) => void;
   fetchInvestimentos: () => void;
-  addInvestimento: (novoInvestimento: Omit<Investimento, "id">) => void;
+  addInvestimento: (novoInvestimento: Omit<Investimento, "_id">) => void;
   editInvestimento: (id: string, updatedInvestimento: Partial<Investimento>) => void;
   deleteInvestimento: (id: string) => void;
   fetchMetas: () => void;
@@ -85,7 +85,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const addTransaction = async (newTransaction: Omit<Transacao, "_id">) => {
     try {
       const data = await createTransacao(newTransaction);
-      setTransactions((prev) => [...prev, data]);
+      setTransactions((prev) => [...prev, { ...newTransaction, _id: data._id }]); // Adiciona _id ao novo objeto
     } catch (error) {
       console.error("Erro ao adicionar transação:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
@@ -130,36 +130,33 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
-
-  // Função para adicionar investimento
+  
   const addInvestimento = async (novoInvestimento: Omit<Investimento, "id">) => {
     try {
       const data = await apiAddInvestimento(novoInvestimento);
-      setInvestimentos((prev) => [...prev, data]);
+      setInvestimentos((prev) => [...prev, { ...novoInvestimento, id: data.id }]); // Usa id
     } catch (error) {
       console.error("Erro ao adicionar investimento:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
     }
   };
-
-  // Função para editar investimento
+  
   const editInvestimento = async (id: string, updatedInvestimento: Partial<Investimento>) => {
     try {
       const data = await updateInvestimento(id, updatedInvestimento);
       setInvestimentos((prev) =>
-        prev.map((inv) => (inv.id === id ? { ...inv, ...data } : inv))
+        prev.map((inv) => (inv.id === id ? { ...inv, ...data } : inv)) // Use inv.id
       );
     } catch (error) {
       console.error("Erro ao editar investimento:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
     }
   };
-
-  // Função para excluir investimento
+  
   const deleteInvestimento = async (id: string) => {
     try {
       await apiDeleteInvestimento(id);
-      setInvestimentos((prev) => prev.filter((inv) => inv.id !== id));
+      setInvestimentos((prev) => prev.filter((inv) => inv.id !== id)); // Use inv.id
     } catch (error) {
       console.error("Erro ao excluir investimento:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
@@ -185,7 +182,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const addMeta = async (novaMeta: Omit<Meta, "_id" | "createdAt">) => {
     try {
       const data = await apiCreateMeta(novaMeta);
-      setMetas((prev) => [...prev, data]);
+      setMetas((prev) => [...prev, { ...novaMeta, _id: data._id, createdAt: data.createdAt }]); // Adiciona _id e createdAt ao novo objeto
     } catch (error) {
       console.error("Erro ao adicionar meta:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
@@ -197,7 +194,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     try {
       const data = await apiUpdateMeta(id, updatedMeta);
       setMetas((prev) =>
-        prev.map((m) => (m._id === id ? { ...m, ...data } : m))
+        prev.map((m) => (m._id === id ? { ...m, ...data } : m)) // Use m._id
       );
     } catch (error) {
       console.error("Erro ao editar meta:", error);
@@ -209,7 +206,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const deleteMeta = async (id: string) => {
     try {
       await apiDeleteMeta(id);
-      setMetas((prev) => prev.filter((m) => m._id !== id));
+      setMetas((prev) => prev.filter((m) => m._id !== id)); // Use m._id
     } catch (error) {
       console.error("Erro ao excluir meta:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");

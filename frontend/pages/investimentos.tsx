@@ -6,6 +6,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { getInvestimentos, addInvestimento, updateInvestimento, deleteInvestimento } from "../services/api";
 import { Bar, Pie } from "react-chartjs-2";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from "chart.js";
+import { Investimento } from "../types/Investimento"; // Importe o tipo Investimento
 
 // Registra os componentes do Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
@@ -19,15 +20,6 @@ const Investimentos = () => {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroDataInicio, setFiltroDataInicio] = useState("");
   const [filtroDataFim, setFiltroDataFim] = useState("");
-
-  // Define the Investimento type
-  interface Investimento {
-    _id: string;
-    nome: string;
-    tipo: string;
-    valor: number;
-    data: string;
-  }
 
   // Busca os investimentos ao carregar a página
   useEffect(() => {
@@ -55,10 +47,14 @@ const Investimentos = () => {
   });
 
   // Função para adicionar um novo investimento
-  const handleAddInvestimento = async (novoInvestimento: Investimento) => {
+  const handleAddInvestimento = async (novoInvestimento: Omit<Investimento, "id">) => {
     try {
-      const data = await addInvestimento(novoInvestimento);
-      setInvestimentos((prev) => [...prev, data]);
+      const dataFormatada = {
+        ...novoInvestimento,
+        data: new Date(novoInvestimento.data).toISOString().split('T')[0], // Formato YYYY-MM-DD
+      };
+      const data = await addInvestimento(dataFormatada);
+      setInvestimentos((prev) => [...prev, { ...novoInvestimento, id: data.id }]); // Use id
       toast.success("Investimento adicionado com sucesso!");
       setIsFormOpen(false); // Fecha o formulário após adicionar
     } catch (error) {
@@ -69,15 +65,19 @@ const Investimentos = () => {
 
   // Função para editar um investimento
   const handleEditInvestimento = async (investimentoAtualizado: Investimento) => {
-    if (!investimentoEditavel || !investimentoEditavel._id) {
+    if (!investimentoEditavel || !investimentoEditavel.id) { // Use id em vez de _id
       toast.error("Nenhum investimento selecionado para edição.");
       return;
     }
 
     try {
-      const data = await updateInvestimento(investimentoEditavel._id, investimentoAtualizado);
+      const dataFormatada = {
+        ...investimentoAtualizado,
+        data: new Date(investimentoAtualizado.data).toISOString().split('T')[0], // Formato YYYY-MM-DD
+      };
+      const data = await updateInvestimento(investimentoEditavel.id, dataFormatada); // Use id
       setInvestimentos((prev) =>
-        prev.map((inv) => (inv._id === investimentoEditavel._id ? data : inv))
+        prev.map((inv) => (inv.id === investimentoEditavel.id ? data : inv)) // Use id
       );
       toast.success("Investimento atualizado com sucesso!");
       setIsEditFormOpen(false); // Fecha o formulário após editar
@@ -91,7 +91,7 @@ const Investimentos = () => {
   const handleDeleteInvestimento = async (id: string) => {
     try {
       await deleteInvestimento(id);
-      setInvestimentos((prev) => prev.filter((inv) => inv._id !== id));
+      setInvestimentos((prev) => prev.filter((inv) => inv.id !== id)); // Use id
       toast.success("Investimento excluído com sucesso!");
     } catch (error) {
       console.error("Erro ao excluir investimento:", error);
@@ -101,7 +101,7 @@ const Investimentos = () => {
 
   // Dados para o gráfico de barras (evolução dos investimentos)
   const barChartData = {
-    labels: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"], // Substitua pelos meses reais
+    labels: investimentos.map((inv) => new Date(inv.data).toLocaleDateString()), // Usa as datas reais
     datasets: [
       {
         label: "Valor Investido",
@@ -217,7 +217,7 @@ const Investimentos = () => {
             <ul className="space-y-4">
               {investimentosFiltrados.map((investimento) => (
                 <li
-                  key={investimento._id}
+                  key={investimento.id} // Use id
                   className="flex justify-between items-center border-b pb-4"
                 >
                   <div>
@@ -237,7 +237,7 @@ const Investimentos = () => {
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => handleDeleteInvestimento(investimento._id)}
+                      onClick={() => handleDeleteInvestimento(investimento.id)} // Use id
                       className="text-red-500 hover:text-red-600"
                     >
                       <Trash size={18} />
@@ -297,7 +297,7 @@ const Investimentos = () => {
                   return;
                 }
 
-                handleAddInvestimento({ _id: "", nome, tipo, valor, data }); // Add _id property
+                handleAddInvestimento({ nome, tipo, valor, data }); // Adiciona o investimento
               }}
             >
               <div className="mb-4">
@@ -360,7 +360,7 @@ const Investimentos = () => {
       )}
 
       {/* Modal do Formulário de Edição */}
-      {isEditFormOpen && (
+      {isEditFormOpen && investimentoEditavel && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
             <div className="flex justify-between items-center mb-6">
@@ -398,9 +398,7 @@ const Investimentos = () => {
                   return;
                 }
 
-                if (investimentoEditavel) { // Add null check for investimentoEditavel
-                  handleEditInvestimento({ _id: investimentoEditavel._id, nome, tipo, valor, data }); // Add _id property
-                }
+                handleEditInvestimento({ id: investimentoEditavel.id, nome, tipo, valor, data }); // Atualiza o investimento
               }}
             >
               <div className="mb-4">
@@ -408,7 +406,7 @@ const Investimentos = () => {
                 <input
                   type="text"
                   name="nome"
-                  defaultValue={investimentoEditavel?.nome}
+                  defaultValue={investimentoEditavel.nome}
                   className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   required
                 />
@@ -417,7 +415,7 @@ const Investimentos = () => {
                 <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
                 <select
                   name="tipo"
-                  defaultValue={investimentoEditavel?.tipo}
+                  defaultValue={investimentoEditavel.tipo}
                   className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   required
                 >
@@ -431,7 +429,7 @@ const Investimentos = () => {
                 <input
                   type="number"
                   name="valor"
-                  defaultValue={investimentoEditavel?.valor}
+                  defaultValue={investimentoEditavel.valor}
                   className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   required
                 />
@@ -441,7 +439,7 @@ const Investimentos = () => {
                 <input
                   type="date"
                   name="data"
-                  defaultValue={investimentoEditavel?.data}
+                  defaultValue={investimentoEditavel.data}
                   className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   required
                 />

@@ -1,13 +1,16 @@
 import axios from "axios";
+import { Transacao, Meta, Investimento } from "../types"; // Importe os tipos corretos
 
+// Define a URL base da API
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+// Cria uma instância do Axios com a URL base
 export const api = axios.create({
   baseURL: API_URL,
 });
 
-// Busca todas as metas
-export const getMetas = async () => {
+// Função para buscar todas as metas
+export const getMetas = async (): Promise<Meta[]> => {
   try {
     const response = await api.get("/api/goals");
     return response.data;
@@ -17,8 +20,8 @@ export const getMetas = async () => {
   }
 };
 
-// Cria uma nova meta
-export const createMeta = async (meta: any) => {
+// Função para criar uma nova meta
+export const createMeta = async (meta: Omit<Meta, "_id">): Promise<Meta> => {
   try {
     const response = await api.post("/api/goals", meta);
     return response.data;
@@ -28,8 +31,8 @@ export const createMeta = async (meta: any) => {
   }
 };
 
-// Atualiza uma meta existente
-export const updateMeta = async (id: string, meta: any) => {
+// Função para atualizar uma meta existente
+export const updateMeta = async (id: string, meta: Partial<Meta>): Promise<Meta> => {
   try {
     const response = await api.put(`/api/goals/${id}`, meta);
     return response.data;
@@ -39,19 +42,18 @@ export const updateMeta = async (id: string, meta: any) => {
   }
 };
 
-// Exclui uma meta
-export const deleteMeta = async (id: string) => {
+// Função para excluir uma meta
+export const deleteMeta = async (id: string): Promise<void> => {
   try {
-    const response = await api.delete(`/api/goals/${id}`);
-    return response.data;
+    await api.delete(`/api/goals/${id}`);
   } catch (error) {
     console.error("Erro ao excluir meta:", error);
     throw error;
   }
 };
 
-// Busca todas as transações
-export const getTransacoes = async () => {
+// Função para buscar todas as transações
+export const getTransacoes = async (): Promise<Transacao[]> => {
   try {
     const response = await api.get("/api/transacoes");
     return response.data;
@@ -61,10 +63,15 @@ export const getTransacoes = async () => {
   }
 };
 
-// Cria uma nova transação
-export const createTransacao = async (transacao: any) => {
+// Função para criar uma nova transação
+export const createTransacao = async (transacao: Omit<Transacao, "_id">): Promise<Transacao> => {
   try {
-    const response = await api.post("/api/transacoes", transacao);
+    // Formata a transação para o formato esperado pela API
+    const transacaoFormatada = {
+      ...transacao,
+      data: new Date(transacao.data.$date).toISOString(), // Converte a data para ISO
+    };
+    const response = await api.post("/api/transacoes", transacaoFormatada);
     return response.data;
   } catch (error) {
     console.error("Erro ao criar transação:", error);
@@ -72,10 +79,15 @@ export const createTransacao = async (transacao: any) => {
   }
 };
 
-// Atualiza uma transação existente
-export const updateTransacao = async (id: string, transacao: any) => {
+// Função para atualizar uma transação existente
+export const updateTransacao = async (id: string, transacao: Partial<Transacao>): Promise<Transacao> => {
   try {
-    const response = await api.put(`/api/transacoes/${id}`, transacao);
+    // Formata a transação para o formato esperado pela API
+    const transacaoFormatada = {
+      ...transacao,
+      data: transacao.data ? new Date(transacao.data.$date).toISOString() : undefined, // Converte a data para ISO
+    };
+    const response = await api.put(`/api/transacoes/${id}`, transacaoFormatada);
     return response.data;
   } catch (error) {
     console.error("Erro ao atualizar transação:", error);
@@ -83,19 +95,22 @@ export const updateTransacao = async (id: string, transacao: any) => {
   }
 };
 
-// Exclui uma transação
-export const deleteTransacao = async (id: string) => {
+// Função para excluir uma transação - Versão corrigida
+// Função para excluir transação
+export const deleteTransacao = async (id: string): Promise<void> => {
   try {
-    const response = await api.delete(`/api/transacoes/${id}`);
-    return response.data;
+    if (!id) {
+      throw new Error("ID inválido fornecido para exclusão");
+    }
+    
+    await api.delete(`/api/transacoes/${id}`);
   } catch (error) {
     console.error("Erro ao excluir transação:", error);
     throw error;
   }
 };
-
-// Busca todos os investimentos
-export const getInvestimentos = async () => {
+// Função para buscar todos os investimentos
+export const getInvestimentos = async (): Promise<Investimento[]> => {
   try {
     const response = await api.get("/api/investimentos");
     return response.data;
@@ -105,8 +120,8 @@ export const getInvestimentos = async () => {
   }
 };
 
-// Adiciona um novo investimento
-export const addInvestimento = async (investimento: any) => {
+// Função para adicionar um novo investimento
+export const addInvestimento = async (investimento: Omit<Investimento, "id">): Promise<Investimento> => {
   try {
     const response = await api.post("/api/investimentos", investimento);
     return response.data;
@@ -116,8 +131,8 @@ export const addInvestimento = async (investimento: any) => {
   }
 };
 
-// Atualiza um investimento existente
-export const updateInvestimento = async (id: string, investimento: any) => {
+// Função para atualizar um investimento existente
+export const updateInvestimento = async (id: string, investimento: Partial<Investimento>): Promise<Investimento> => {
   try {
     const response = await api.put(`/api/investimentos/${id}`, investimento);
     return response.data;
@@ -127,10 +142,11 @@ export const updateInvestimento = async (id: string, investimento: any) => {
   }
 };
 
-// Exclui um investimento
+// Função para excluir um investimento
 export const deleteInvestimento = async (id: string) => {
   try {
-    await api.delete(`/api/investimentos/${id}`);
+    const response = await api.delete(`/investimentos/${id}`);
+    return response.data;
   } catch (error) {
     console.error("Erro ao excluir investimento:", error);
     throw error;

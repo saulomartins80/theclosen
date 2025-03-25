@@ -1,72 +1,52 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Edit, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import ReactPaginate from "react-paginate";
-
-// Interface Transacao
-interface Transacao {
-  _id: { $oid: string }; // MongoDB usa `_id` com um campo `$oid`
-  descricao: string;
-  valor: number;
-  data: { $date: string }; // MongoDB usa `data` com um campo `$date`
-  categoria: string;
-  tipo: "receita" | "despesa" | "transferencia";
-  conta: string;
-  __v?: number; // Adicione `__v` se necessário
-}
+import { Transacao } from "../types/Transacao";
 
 interface TransactionTableProps {
   transacoes: Transacao[];
   onEdit: (transacao: Transacao) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
 }
 
-const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit, onDelete }) => {
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Transacao; direction: "asc" | "desc" } | null>(null);
+const TransactionTable: React.FC<TransactionTableProps> = ({ 
+  transacoes, 
+  onEdit, 
+  onDelete 
+}) => {
+  const [sortConfig, setSortConfig] = useState<{ 
+    key: keyof Transacao; 
+    direction: "asc" | "desc" 
+  } | null>(null);
+  
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 10;
 
+  // Função para extrair o ID como string
+  const getIdString = (transacao: Transacao): string => {
+    return typeof transacao._id === 'object' ? transacao._id.$oid : transacao._id;
+  };
+
+  // Função para formatar a data
+  const formatDate = (dateString: string | { $date: string }): string => {
+    const date = typeof dateString === 'string' 
+      ? new Date(dateString) 
+      : new Date(dateString.$date);
+    return date.toLocaleDateString('pt-BR');
+  };
+
   // Ordenação
-  const sortedTransacoes = React.useMemo(() => {
+  const sortedTransacoes = useMemo(() => {
     if (!sortConfig) return transacoes;
 
     return [...transacoes].sort((a, b) => {
-      const key = sortConfig.key;
-      const valueA = a[key];
-      const valueB = b[key];
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
 
-      if (valueA === undefined || valueB === undefined) return 0;
+      if (aValue === undefined || bValue === undefined) return 0;
 
-      // Tratamento especial para valores numéricos
-      if (key === "valor") {
-        const numA = Number(valueA);
-        const numB = Number(valueB);
-        if (isNaN(numA)) return -1; // Se valueA não for um número, coloca no início
-        if (isNaN(numB)) return 1; // Se valueB não for um número, coloca no final
-        return sortConfig.direction === "asc" ? numA - numB : numB - numA;
-      }
-
-      // Tratamento especial para datas
-      if (key === "data") {
-        // Verifica se valueA e valueB são do tipo { $date: string }
-        if (typeof valueA === "object" && "$date" in valueA && typeof valueB === "object" && "$date" in valueB) {
-          const dateA = new Date(valueA.$date).getTime();
-          const dateB = new Date(valueB.$date).getTime();
-          return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA;
-        } else {
-          return 0; // Caso não sejam do tipo esperado, retorna 0
-        }
-      }
-
-      // Ordenação padrão para strings
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        if (valueA < valueB) {
-          return sortConfig.direction === "asc" ? -1 : 1;
-        }
-        if (valueA > valueB) {
-          return sortConfig.direction === "asc" ? 1 : -1;
-        }
-      }
-
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
   }, [transacoes, sortConfig]);
@@ -83,14 +63,31 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
   // Função para solicitar ordenação
   const requestSort = (key: keyof Transacao) => {
     let direction: "asc" | "desc" = "asc";
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+    if (sortConfig?.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
     setSortConfig({ key, direction });
   };
 
+  // Função para lidar com exclusão
+  const handleDelete = async (id: string) => {
+    if (!id) {
+      console.error('ID inválido para exclusão');
+      return;
+    }
+    
+    if (window.confirm('Tem certeza que deseja excluir esta transação?')) {
+      try {
+        await onDelete(id);
+      } catch (error) {
+        console.error('Erro ao excluir transação:', error);
+        alert('Erro ao excluir transação. Por favor, tente novamente.');
+      }
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg">
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
       <h2 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">Transações Recentes</h2>
 
       {/* Tabela para Desktop */}
@@ -154,32 +151,35 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
             </tr>
           </thead>
           <tbody>
-            {currentTransacoes.map((transacao) => (
+            {currentTransacoes.map((transacao, index) => (
               <tr
-                key={transacao._id.$oid} // Use o $oid como chave
-                className="bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                key={getIdString(transacao)}
+                className={`${
+                  index % 2 === 0 ? "bg-white dark:bg-gray-800" : "bg-gray-50 dark:bg-gray-750"
+                } hover:bg-gray-100 dark:hover:bg-gray-700 transition`}
               >
                 <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{transacao.descricao}</td>
                 <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{transacao.categoria}</td>
                 <td className={`px-6 py-4 text-sm ${
-                  transacao.tipo === "receita" ? "text-green-500" : "text-red-500"
+                  transacao.tipo === "receita" ? "text-green-500" : 
+                  transacao.tipo === "transferencia" ? "text-yellow-500" : "text-red-500"
                 }`}>
                   R$ {transacao.valor.toFixed(2)}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                  {new Date(transacao.data.$date).toLocaleDateString()} {/* Acessa o campo $date */}
+                  {formatDate(transacao.data)}
                 </td>
                 <td className="px-6 py-4 text-sm">
                   <div className="flex items-center space-x-4">
                     <button
-                      onClick={() => onEdit({ ...transacao, conta: transacao.conta || "" })}
+                      onClick={() => onEdit(transacao)}
                       className="p-2 text-blue-500 hover:text-blue-600 transition"
                       title="Editar"
                     >
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => transacao._id && onDelete(transacao._id.$oid)} // Use o $oid para deletar
+                      onClick={() => handleDelete(getIdString(transacao))}
                       className="p-2 text-red-500 hover:text-red-600 transition"
                       title="Excluir"
                     >
@@ -193,49 +193,6 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
         </table>
       </div>
 
-      {/* Cards para Mobile */}
-      <div className="sm:hidden space-y-4">
-        {currentTransacoes.map((transacao) => (
-          <div
-            key={transacao._id.$oid} // Use o $oid como chave
-            className="bg-white dark:bg-gray-800 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{transacao.descricao}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{transacao.categoria}</p>
-              </div>
-              <p className={`text-sm ${
-                transacao.tipo === "receita" ? "text-green-500" : "text-red-500"
-              }`}>
-                R$ {transacao.valor.toFixed(2)}
-              </p>
-            </div>
-            <div className="mt-2 flex justify-between items-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {new Date(transacao.data.$date).toLocaleDateString()} {/* Acessa o campo $date */}
-              </p>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => onEdit({ ...transacao, conta: transacao.conta || "" })}
-                  className="p-1 text-blue-500 hover:text-blue-600 transition"
-                  title="Editar"
-                >
-                  <Edit size={16} />
-                </button>
-                <button
-                  onClick={() => transacao._id && onDelete(transacao._id.$oid)} // Use o $oid para deletar
-                  className="p-1 text-red-500 hover:text-red-600 transition"
-                  title="Excluir"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Paginação */}
       <ReactPaginate
         previousLabel={"Anterior"}
@@ -244,14 +201,9 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transacoes, onEdit,
         onPageChange={handlePageClick}
         containerClassName={"flex justify-center space-x-2 mt-6"}
         activeClassName={"bg-blue-500 text-white"}
-        pageClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white"}
-        previousClassName={`px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white ${
-          currentPage === 0 ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-        nextClassName={`px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white ${
-          currentPage === pageCount - 1 ? "opacity-50 cursor-not-allowed" : ""
-        }`}
-        disabledClassName={"opacity-50 cursor-not-allowed"}
+        pageClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"}
+        previousClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"}
+        nextClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"}
       />
     </div>
   );

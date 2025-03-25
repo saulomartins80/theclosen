@@ -1,69 +1,127 @@
 import React, { useState } from "react";
-import { Transacao } from "../src/types/Transacao";
+import { Transacao } from "../types/Transacao";
 
 interface TransactionFormProps {
-  onClose: () => void;
-  onSave: (transacao: Transacao) => void;
   transacaoEditavel?: Transacao;
+  onSave: (transacao: Transacao) => void;
+  onClose: () => void;
 }
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, transacaoEditavel }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({
+  transacaoEditavel,
+  onSave,
+  onClose,
+}) => {
   const [transacao, setTransacao] = useState<Transacao>({
-    _id: transacaoEditavel?._id || { $oid: "" }, // Use um objeto `{ $oid: "" }` como valor padrão
+    _id: transacaoEditavel?._id || { $oid: "" }, // Inicializa _id corretamente
     descricao: transacaoEditavel?.descricao || "",
     valor: transacaoEditavel?.valor || 0,
-    data: transacaoEditavel?.data || { $date: new Date().toISOString() }, // Use um objeto `{ $date: "" }` como valor padrão
+    data: transacaoEditavel?.data || { $date: new Date().toISOString() }, // Inicializa data corretamente
     categoria: transacaoEditavel?.categoria || "",
-    tipo: transacaoEditavel?.tipo || "receita",
+    tipo: transacaoEditavel?.tipo || "despesa",
     conta: transacaoEditavel?.conta || "",
   });
 
+  const [erros, setErros] = useState<{ [key: string]: string }>({});
+
+  const validarFormulario = () => {
+    const novosErros: { [key: string]: string } = {};
+
+    if (!transacao.descricao) {
+      novosErros.descricao = "Descrição é obrigatória.";
+    }
+
+    if (transacao.valor <= 0) {
+      novosErros.valor = "Valor deve ser maior que zero.";
+    }
+
+    if (!transacao.data?.$date) {
+      novosErros.data = "Data é obrigatória.";
+    }
+
+    if (!transacao.categoria) {
+      novosErros.categoria = "Categoria é obrigatória.";
+    }
+
+    if (!transacao.conta) {
+      novosErros.conta = "Conta é obrigatória.";
+    }
+
+    setErros(novosErros);
+    return Object.keys(novosErros).length === 0;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(transacao);
+
+    if (validarFormulario()) {
+      onSave(transacao);
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div>
-        <label>Descrição</label>
+    <form onSubmit={handleSubmit} className="p-4 space-y-4 bg-white dark:bg-gray-800 shadow-md rounded-lg">
+      <label className="block">
+        Descrição:
         <input
           type="text"
           value={transacao.descricao}
           onChange={(e) => setTransacao({ ...transacao, descricao: e.target.value })}
+          className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: Salário"
+          required
         />
-      </div>
-      <div>
-        <label>Valor</label>
+        {erros.descricao && <span className="text-red-500 text-sm">{erros.descricao}</span>}
+      </label>
+
+      <label className="block">
+        Valor:
         <input
           type="number"
           value={transacao.valor}
-          onChange={(e) => setTransacao({ ...transacao, valor: parseFloat(e.target.value) })}
+          onChange={(e) => setTransacao({ ...transacao, valor: Number(e.target.value) })}
+          className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: 1000"
+          required
         />
-      </div>
-      <div>
-        <label>Data</label>
+        {erros.valor && <span className="text-red-500 text-sm">{erros.valor}</span>}
+      </label>
+
+      <label className="block">
+        Data:
         <input
           type="date"
-          value={new Date(transacao.data.$date).toISOString().split("T")[0]}
-          onChange={(e) =>
-            setTransacao({
-              ...transacao,
-              data: { $date: new Date(e.target.value).toISOString() },
-            })
-          }
+          value={transacao.data?.$date?.split("T")[0] || ""}
+          onChange={(e) => {
+            const dateValue = e.target.value;
+            if (dateValue) {
+              setTransacao({
+                ...transacao,
+                data: { $date: new Date(dateValue).toISOString() },
+              });
+            }
+          }}
+          className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
+          required
         />
-      </div>
-      <div>
-        <label>Categoria</label>
+        {erros.data && <span className="text-red-500 text-sm">{erros.data}</span>}
+      </label>
+
+      <label className="block">
+        Categoria:
         <input
           type="text"
           value={transacao.categoria}
           onChange={(e) => setTransacao({ ...transacao, categoria: e.target.value })}
+          className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: Alimentação"
+          required
         />
-      </div>
-      <div>
-        <label>Tipo</label>
+        {erros.categoria && <span className="text-red-500 text-sm">{erros.categoria}</span>}
+      </label>
+
+      <label className="block">
+        Tipo:
         <select
           value={transacao.tipo}
           onChange={(e) =>
@@ -72,24 +130,35 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onClose, onSave, tran
               tipo: e.target.value as "receita" | "despesa" | "transferencia",
             })
           }
+          className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
         >
           <option value="receita">Receita</option>
           <option value="despesa">Despesa</option>
           <option value="transferencia">Transferência</option>
         </select>
-      </div>
-      <div>
-        <label>Conta</label>
+      </label>
+
+      <label className="block">
+        Conta:
         <input
           type="text"
           value={transacao.conta}
           onChange={(e) => setTransacao({ ...transacao, conta: e.target.value })}
+          className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
+          placeholder="Ex: Conta Corrente"
+          required
         />
+        {erros.conta && <span className="text-red-500 text-sm">{erros.conta}</span>}
+      </label>
+
+      <div className="flex justify-between mt-4">
+        <button type="submit" className="px-4 py-2 bg-green-500 text-white rounded-md">
+          Salvar
+        </button>
+        <button type="button" onClick={onClose} className="px-4 py-2 bg-red-500 text-white rounded-md">
+          Cancelar
+        </button>
       </div>
-      <button type="submit">Salvar</button>
-      <button type="button" onClick={onClose}>
-        Cancelar
-      </button>
     </form>
   );
 };

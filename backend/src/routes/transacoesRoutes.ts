@@ -1,5 +1,6 @@
 import express from "express";
-import Transacao from "../models/Transacao";
+import mongoose from "mongoose"; // Importe o mongoose para validar o ObjectId
+import Transacoes from "../models/Transacoes";
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.post("/transacoes", async (req, res) => {
     }
 
     // Cria a transação no banco de dados
-    const novaTransacao = new Transacao({
+    const novaTransacao = new Transacoes({
       descricao,
       valor: parseFloat(valor), // Converte para número
       data: new Date(data), // Converte para Date
@@ -34,7 +35,7 @@ router.post("/transacoes", async (req, res) => {
 // Rota para buscar todas as transações
 router.get("/transacoes", async (req, res) => {
   try {
-    const transacoes = await Transacao.find();
+    const transacoes = await Transacoes.find();
     res.status(200).json(transacoes);
   } catch (error) {
     console.error("Erro ao buscar transações:", error);
@@ -48,7 +49,12 @@ router.put("/transacoes/:id", async (req, res) => {
     const { id } = req.params;
     const { descricao, valor, data, categoria, tipo, conta } = req.body;
 
-    const transacaoAtualizada = await Transacao.findByIdAndUpdate(
+    // Valida se o ID é um ObjectId válido
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID inválido." });
+    }
+
+    const transacaoAtualizada = await Transacoes.findByIdAndUpdate(
       id,
       { descricao, valor, data, categoria, tipo, conta },
       { new: true }
@@ -69,7 +75,18 @@ router.put("/transacoes/:id", async (req, res) => {
 router.delete("/transacoes/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const transacaoDeletada = await Transacao.findByIdAndDelete(id);
+
+    // Valida se o ID foi fornecido
+    if (!id) {
+      return res.status(400).json({ message: "ID da transação é obrigatório." });
+    }
+
+    // Valida se o ID é um ObjectId válido
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID inválido." });
+    }
+
+    const transacaoDeletada = await Transacoes.findByIdAndDelete(id);
 
     if (!transacaoDeletada) {
       return res.status(404).json({ message: "Transação não encontrada." });

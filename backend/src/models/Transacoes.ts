@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document } from "mongoose";
 
 // Interface para os dados da transação
 export interface ITransacao {
@@ -24,6 +24,6 @@ const transacaoSchema = new Schema<ITransacaoDocument>({
 });
 
 // Crie o modelo usando a interface ITransacaoDocument
-const Transacao = model<ITransacaoDocument>('Transacao', transacaoSchema);
+const Transacoes = model<ITransacaoDocument>("Transacoes", transacaoSchema);
 
-export default Transacao;
+export default Transacoes;

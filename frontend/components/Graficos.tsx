@@ -13,6 +13,7 @@ import {
   Filler,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
+import { Transacao } from "../src/types/Transacao"; // Importe a interface Transacao
 
 ChartJS.register(
   CategoryScale,
@@ -25,21 +26,6 @@ ChartJS.register(
   Legend,
   Filler
 );
-
-interface Transacao {
-  _id: {
-    $oid: string; // MongoDB usa `_id` com um campo `$oid`
-  };
-  descricao: string;
-  valor: number;
-  data: {
-    $date: string; // MongoDB usa `data` com um campo `$date`
-  };
-  categoria: string;
-  tipo: "receita" | "despesa" | "transferencia";
-  conta: string;
-  __v?: number; // Adicione `__v` se necessário
-}
 
 const Graficos = () => {
   const { transactions } = useFinance();
@@ -105,7 +91,14 @@ const Graficos = () => {
   const lineChartData = {
     labels: saldoAcumulado.map((s) => {
       const date = new Date(s.data);
-      return `${date.getDate()}/${date.toLocaleString("default", { month: "short" })}`;
+      if (isNaN(date.getTime())) {
+        console.error("Data inválida:", s.data); // Log para depuração
+        return "Data inválida";
+      }
+      // Formate a data no formato "DD/MMM" (ex: "01/Out")
+      const dia = date.getDate().toString().padStart(2, "0");
+      const mes = date.toLocaleString("pt-BR", { month: "short" });
+      return `${dia}/${mes}`;
     }),
     datasets: [
       {
