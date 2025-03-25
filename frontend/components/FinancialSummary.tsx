@@ -20,7 +20,7 @@ const FinancialSummary: React.FC<FinancialSummaryProps> = ({ saldo, receitas, de
       {/* Card: Receitas */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
         <h2 className="text-lg font-semibold">Receitas</h2>
-        <p className="text-2xl font-bold text-green-500">R$ {receitas.toFixed(2)}</p>
+        <p className="text-2xl font-bold text-blue-500">R$ {receitas.toFixed(2)}</p>
       </div>
 
       {/* Card: Despesas */}

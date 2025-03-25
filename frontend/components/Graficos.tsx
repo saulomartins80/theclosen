@@ -13,7 +13,7 @@ import {
   Filler,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
-import { Transacao } from "../src/types/Transacao"; // Importe a interface Transacao
+import { Transacao } from "../src/types/Transacao";
 
 ChartJS.register(
   CategoryScale,
@@ -30,16 +30,33 @@ ChartJS.register(
 const Graficos = () => {
   const { transactions } = useFinance();
 
+  // Função para verificar e parsear datas corretamente
+  const parseDate = (dateString: string | { $date: string }): Date => {
+    try {
+      const date = typeof dateString === 'string' ? dateString : dateString.$date;
+      return new Date(date);
+    } catch (error) {
+      console.error("Erro ao parsear data:", dateString, error);
+      return new Date(); // Retorna data atual como fallback
+    }
+  };
+
   // Função para agrupar transações por mês
   const agruparPorMes = (transacoes: Transacao[]) => {
     const meses = [
       "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
       "Jul", "Ago", "Set", "Out", "Nov", "Dez",
     ];
+    
     return meses.map((mes, index) => {
-      const transacoesDoMes = transacoes.filter(
-        (t) => new Date(t.data.$date).getMonth() === index // Acesse `t.data.$date`
-      );
+      const transacoesDoMes = transacoes.filter((t) => {
+        try {
+          return parseDate(t.data).getMonth() === index;
+        } catch (error) {
+          console.error("Erro ao filtrar por mês:", t.data, error);
+          return false;
+        }
+      });
 
       const receitas = transacoesDoMes
         .filter((t) => t.tipo === "receita")
@@ -79,26 +96,51 @@ const Graficos = () => {
 
   // Dados para o gráfico de linha (Evolução do Saldo)
   const saldoAcumulado = transactions
-    .sort((a, b) => new Date(a.data.$date).getTime() - new Date(b.data.$date).getTime()) // Acesse `a.data.$date` e `b.data.$date`
+    .slice() // Cria cópia para não modificar o array original
+    .sort((a, b) => {
+      try {
+        return parseDate(a.data).getTime() - parseDate(b.data).getTime();
+      } catch (error) {
+        console.error("Erro ao ordenar transações:", error);
+        return 0;
+      }
+    })
     .reduce((acc, t) => {
       const saldoAnterior = acc.length > 0 ? acc[acc.length - 1].saldo : 0;
-      const novoSaldo =
-        saldoAnterior + (t.tipo === "receita" ? t.valor : -t.valor);
-      acc.push({ data: t.data.$date, saldo: novoSaldo }); // Acesse `t.data.$date`
+      const novoSaldo = saldoAnterior + (t.tipo === "receita" ? t.valor : -t.valor);
+      
+      try {
+        const dataFormatada = parseDate(t.data);
+        acc.push({ 
+          data: dataFormatada.toISOString(), 
+          saldo: novoSaldo 
+        });
+      } catch (error) {
+        console.error("Erro ao processar transação:", t, error);
+      }
+      
       return acc;
     }, [] as { data: string; saldo: number }[]);
 
+  // Adiciona ponto inicial (saldo zero) se não houver transações
+  if (saldoAcumulado.length === 0) {
+    saldoAcumulado.push({ 
+      data: new Date().toISOString(), 
+      saldo: 0 
+    });
+  }
+
   const lineChartData = {
     labels: saldoAcumulado.map((s) => {
-      const date = new Date(s.data);
-      if (isNaN(date.getTime())) {
-        console.error("Data inválida:", s.data); // Log para depuração
+      try {
+        const date = new Date(s.data);
+        const dia = date.getDate().toString().padStart(2, "0");
+        const mes = date.toLocaleString("pt-BR", { month: "short" });
+        return `${dia}/${mes}`;
+      } catch (error) {
+        console.error("Erro ao formatar data:", s.data, error);
         return "Data inválida";
       }
-      // Formate a data no formato "DD/MMM" (ex: "01/Out")
-      const dia = date.getDate().toString().padStart(2, "0");
-      const mes = date.toLocaleString("pt-BR", { month: "short" });
-      return `${dia}/${mes}`;
     }),
     datasets: [
       {
@@ -122,7 +164,15 @@ const Graficos = () => {
         <div className="h-64">
           <Bar
             data={barChartData}
-            options={{ responsive: true, maintainAspectRatio: false }}
+            options={{ 
+              responsive: true, 
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true
+                }
+              }
+            }}
           />
         </div>
       </div>
@@ -135,7 +185,15 @@ const Graficos = () => {
         <div className="h-64">
           <Line
             data={lineChartData}
-            options={{ responsive: true, maintainAspectRatio: false }}
+            options={{ 
+              responsive: true, 
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: false
+                }
+              }
+            }}
           />
         </div>
       </div>

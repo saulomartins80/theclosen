@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Transacao } from "../types/Transacao";
 
 interface TransactionFormProps {
-  transacaoEditavel?: Transacao;
+  transacaoEditavel: Transacao | null;
   onSave: (transacao: Transacao) => void;
   onClose: () => void;
 }
@@ -12,15 +12,17 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
   onSave,
   onClose,
 }) => {
-  const [transacao, setTransacao] = useState<Transacao>({
-    _id: transacaoEditavel?._id || { $oid: "" }, // Inicializa _id corretamente
-    descricao: transacaoEditavel?.descricao || "",
-    valor: transacaoEditavel?.valor || 0,
-    data: transacaoEditavel?.data || { $date: new Date().toISOString() }, // Inicializa data corretamente
-    categoria: transacaoEditavel?.categoria || "",
-    tipo: transacaoEditavel?.tipo || "despesa",
-    conta: transacaoEditavel?.conta || "",
-  });
+  const [transacao, setTransacao] = useState<Transacao>(
+    transacaoEditavel || {
+      _id: { $oid: "" },
+      descricao: "",
+      valor: 0,
+      data: { $date: new Date().toISOString() },
+      categoria: "",
+      tipo: "despesa",
+      conta: "",
+    }
+  );
 
   const [erros, setErros] = useState<{ [key: string]: string }>({});
 
