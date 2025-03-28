@@ -9,6 +9,9 @@ import investimentoRoutes from './routes/investimentoRoutes';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Configuração para Vercel
+const isVercel = process.env.VERCEL === '1';
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -18,15 +21,27 @@ app.use("/api", transacoesRoutes);
 app.use("/api", goalsRoutes);
 app.use('/api', investimentoRoutes);
 
+// Rota de health check para Vercel
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'OK', environment: process.env.NODE_ENV });
+});
+
 // Conectar ao MongoDB
-mongoose
-  .connect(process.env.MONGO_URI as string)
+const mongoUri = isVercel ? process.env.MONGO_URI_PROD : process.env.MONGO_URI;
+
+mongoose.connect(mongoUri as string)
   .then(() => {
     console.log("Conectado ao MongoDB.");
-    app.listen(PORT, () => {
-      console.log(`Servidor rodando na porta ${PORT}.`);
-    });
+    
+    if (!isVercel) {
+      app.listen(PORT, () => {
+        console.log(`Servidor rodando na porta ${PORT}.`);
+      });
+    }
   })
   .catch((error) => {
     console.error("Erro ao conectar ao MongoDB:", error);
   });
+
+// Export para Vercel
+export default app;

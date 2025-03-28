@@ -22,12 +22,15 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   },
+  "engines": {
+    "node": ">=18.x"
+  },
   "scripts": {
-    "build": "tsc && copyfiles -u 1 'src/config/firebaseServiceAccount.json' 'dist/config'",
+    "build": "tsc && copyfiles -u 1 'src/**/*.json' 'dist/'",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
-    "vercel-build": "npm run build",
-    "now-build": "npm run build",
-    "serve": "npm start"
+    "dev": "nodemon src/index.ts",
+    "vercel-build": "npm install && npm run build",
+    "now-build": "npm run vercel-build",
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
