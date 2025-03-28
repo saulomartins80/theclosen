@@ -86,12 +86,22 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
     }
   };
 
+  // Função para determinar a cor do valor baseado no tipo
+  const getValueColor = (tipo: string) => {
+    switch (tipo) {
+      case "receita": return "text-green-500";
+      case "transferencia": return "text-yellow-500";
+      case "despesa": return "text-red-500";
+      default: return "text-gray-500";
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+    <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
       <h2 className="text-lg font-semibold mb-6 text-gray-900 dark:text-white">Transações Recentes</h2>
 
       {/* Tabela para Desktop */}
-      <div className="hidden sm:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full table-auto">
           <thead>
             <tr className="bg-gray-100 dark:bg-gray-700">
@@ -160,10 +170,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
               >
                 <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{transacao.descricao}</td>
                 <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{transacao.categoria}</td>
-                <td className={`px-6 py-4 text-sm ${
-                  transacao.tipo === "receita" ? "text-green-500" : 
-                  transacao.tipo === "transferencia" ? "text-yellow-500" : "text-red-500"
-                }`}>
+                <td className={`px-6 py-4 text-sm ${getValueColor(transacao.tipo)}`}>
                   R$ {transacao.valor.toFixed(2)}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
@@ -193,17 +200,62 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
         </table>
       </div>
 
+      {/* Lista para Mobile */}
+      <div className="md:hidden space-y-4">
+        {currentTransacoes.map((transacao) => (
+          <div 
+            key={getIdString(transacao)} 
+            className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-medium text-gray-900 dark:text-white">{transacao.descricao}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{transacao.categoria}</p>
+              </div>
+              <p className={`text-sm ${getValueColor(transacao.tipo)}`}>
+                R$ {transacao.valor.toFixed(2)}
+              </p>
+            </div>
+            
+            <div className="mt-3 flex justify-between items-center">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {formatDate(transacao.data)}
+              </span>
+              
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => onEdit(transacao)}
+                  className="p-1 text-blue-500 hover:text-blue-600 transition"
+                  title="Editar"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(getIdString(transacao))}
+                  className="p-1 text-red-500 hover:text-red-600 transition"
+                  title="Excluir"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Paginação */}
       <ReactPaginate
         previousLabel={"Anterior"}
         nextLabel={"Próximo"}
         pageCount={pageCount}
         onPageChange={handlePageClick}
-        containerClassName={"flex justify-center space-x-2 mt-6"}
+        containerClassName={"flex justify-center space-x-2 mt-6 flex-wrap"}
         activeClassName={"bg-blue-500 text-white"}
-        pageClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"}
-        previousClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"}
-        nextClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"}
+        pageClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 mb-2"}
+        previousClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 mb-2"}
+        nextClassName={"px-3 py-1 border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 mb-2"}
+        breakClassName={"px-3 py-1 mb-2"}
+        disabledClassName={"opacity-50 cursor-not-allowed"}
       />
     </div>
   );
