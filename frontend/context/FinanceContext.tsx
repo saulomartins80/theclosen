@@ -131,10 +131,10 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
   
-  const addInvestimento = async (novoInvestimento: Omit<Investimento, "id">) => {
+  const addInvestimento = async (novoInvestimento: Omit<Investimento, "_id">) => {
     try {
       const data = await apiAddInvestimento(novoInvestimento);
-      setInvestimentos((prev) => [...prev, { ...novoInvestimento, id: data.id }]); // Usa id
+      setInvestimentos((prev) => [...prev, { ...novoInvestimento, _id: data._id }]); // Usa _id
     } catch (error) {
       console.error("Erro ao adicionar investimento:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");
@@ -145,7 +145,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     try {
       const data = await updateInvestimento(id, updatedInvestimento);
       setInvestimentos((prev) =>
-        prev.map((inv) => (inv.id === id ? { ...inv, ...data } : inv)) // Use inv.id
+        prev.map((inv) => (inv._id === id ? { ...inv, ...data } : inv)) // Usa _id
       );
     } catch (error) {
       console.error("Erro ao editar investimento:", error);
@@ -156,7 +156,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const deleteInvestimento = async (id: string) => {
     try {
       await apiDeleteInvestimento(id);
-      setInvestimentos((prev) => prev.filter((inv) => inv.id !== id)); // Use inv.id
+      setInvestimentos((prev) => prev.filter((inv) => inv._id !== id)); // Usa _id
     } catch (error) {
       console.error("Erro ao excluir investimento:", error);
       setError(error instanceof Error ? error.message : "Erro desconhecido");

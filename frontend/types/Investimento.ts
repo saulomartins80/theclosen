@@ -1,5 +1,6 @@
+// src/types/Investimento.ts
 export interface Investimento {
-  id: string; // Usando id em vez de _id
+  _id: string; // Mude de 'id' para '_id' para compatibilidade com MongoDB
   nome: string;
   tipo: string;
   valor: number;

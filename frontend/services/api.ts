@@ -9,6 +9,20 @@ export const api = axios.create({
   baseURL: API_URL,
 });
 
+// Configuração global para incluir token de autenticação
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Função para buscar todas as metas
 export const getMetas = async (): Promise<Meta[]> => {
   try {
@@ -109,6 +123,7 @@ export const deleteTransacao = async (id: string): Promise<void> => {
     throw error;
   }
 };
+
 // Função para buscar todos os investimentos
 export const getInvestimentos = async (): Promise<Investimento[]> => {
   try {
@@ -116,39 +131,58 @@ export const getInvestimentos = async (): Promise<Investimento[]> => {
     return response.data;
   } catch (error) {
     console.error("Erro ao buscar investimentos:", error);
-    throw error;
+    throw new Error("Não foi possível buscar os investimentos.");
   }
 };
 
 // Função para adicionar um novo investimento
-export const addInvestimento = async (investimento: Omit<Investimento, "id">): Promise<Investimento> => {
+export const addInvestimento = async (investimento: Omit<Investimento, '_id'>): Promise<Investimento> => {
   try {
-    const response = await api.post("/api/investimentos", investimento);
+    console.log('Enviando dados para o backend:', investimento); // Log para debug
+
+    const response = await api.post('/api/investimentos', investimento, {
+      headers: {
+        'Content-Type': 'application/json', // Garante que o conteúdo seja enviado como JSON
+      },
+    });
+
+    console.log('Resposta do backend:', response.data); // Log para debug
     return response.data;
-  } catch (error) {
-    console.error("Erro ao adicionar investimento:", error);
-    throw error;
+  } catch (error: any) {
+    console.error('Erro detalhado na requisição:', {
+      mensagem: error.response?.data?.message || error.message,
+      status: error.response?.status,
+      dados: error.response?.data,
+      config: error.config,
+    });
+
+    throw new Error('Não foi possível adicionar o investimento. Verifique os dados e tente novamente.');
   }
 };
 
 // Função para atualizar um investimento existente
 export const updateInvestimento = async (id: string, investimento: Partial<Investimento>): Promise<Investimento> => {
   try {
-    const response = await api.put(`/api/investimentos/${id}`, investimento);
+    const response = await api.put(`/api/investimentos/${id}`, {
+      ...investimento,
+      data: investimento.data ? new Date(investimento.data).toISOString() : undefined, // Formata a data para ISO
+    });
     return response.data;
   } catch (error) {
     console.error("Erro ao atualizar investimento:", error);
-    throw error;
+    throw new Error("Não foi possível atualizar o investimento.");
   }
 };
 
 // Função para excluir um investimento
-export const deleteInvestimento = async (id: string) => {
+export const deleteInvestimento = async (id: string): Promise<void> => {
   try {
-    const response = await api.delete(`/investimentos/${id}`);
-    return response.data;
+    if (!id) {
+      throw new Error("ID inválido fornecido para exclusão.");
+    }
+    await api.delete(`/api/investimentos/${id}`);
   } catch (error) {
     console.error("Erro ao excluir investimento:", error);
-    throw error;
+    throw new Error("Não foi possível excluir o investimento.");
   }
 };

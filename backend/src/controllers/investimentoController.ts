@@ -2,75 +2,85 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Investimento from '../models/Investimento';
 
-// Função para validar se o ID é um ObjectId válido
-const isValidObjectId = (id: string) => mongoose.Types.ObjectId.isValid(id);
+// Interface para extender o tipo Request do Express
+interface AuthenticatedRequest extends Request {
+  userId?: string; // Adicionamos uma propriedade opcional
+}
 
-export const getInvestimentos = async (req: Request, res: Response) => {
+export const getInvestimentos = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const investimentos = await Investimento.find();
+    const investimentos = await Investimento.find().sort({ data: -1 });
     res.json(investimentos);
   } catch (error) {
     res.status(500).json({ message: 'Erro ao buscar investimentos', error });
   }
 };
 
-export const addInvestimento = async (req: Request, res: Response) => {
-  const { nome, tipo, valor, data } = req.body;
-
+export const addInvestimento = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const novoInvestimento = new Investimento({ nome, tipo, valor, data });
+    // Removemos a verificação de usuário já que você não está usando autenticação
+    const novoInvestimento = new Investimento({
+      ...req.body,
+      // Remova a linha abaixo se não quiser usar o campo usuario
+      usuario: req.userId || new mongoose.Types.ObjectId() // Usamos um ObjectId fictício
+    });
+
     await novoInvestimento.save();
     res.status(201).json(novoInvestimento);
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao adicionar investimento', error });
+    res.status(400).json({ 
+      message: 'Erro ao criar investimento',
+      error: error instanceof Error ? error.message : error
+    });
   }
 };
 
-export const updateInvestimento = async (req: Request, res: Response) => {
+export const updateInvestimento = async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  const { nome, tipo, valor, data } = req.body;
 
-  // Valida se o ID é um ObjectId válido
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'ID inválido' });
   }
 
   try {
-    const investimentoAtualizado = await Investimento.findByIdAndUpdate(
+    const investimento = await Investimento.findByIdAndUpdate(
       id,
-      { nome, tipo, valor, data },
-      { new: true }
+      req.body,
+      { new: true, runValidators: true }
     );
 
-    if (!investimentoAtualizado) {
+    if (!investimento) {
       return res.status(404).json({ message: 'Investimento não encontrado' });
     }
 
-    res.json(investimentoAtualizado);
+    res.json(investimento);
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao atualizar investimento', error });
+    res.status(400).json({
+      message: 'Erro ao atualizar investimento',
+      error: error instanceof Error ? error.message : error
+    });
   }
 };
 
-export const deleteInvestimento = async (req: Request, res: Response) => {
+export const deleteInvestimento = async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  console.log("ID recebido para exclusão:", id); // Log do ID
 
-   // Valida se o ID é um ObjectId válido
-   if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'ID inválido' });
   }
 
-
   try {
-    const investimentoExcluido = await Investimento.findByIdAndDelete(id);
+    const investimento = await Investimento.findByIdAndDelete(id);
 
-    if (!investimentoExcluido) {
+    if (!investimento) {
       return res.status(404).json({ message: 'Investimento não encontrado' });
     }
 
-    res.status(204).send();
+    res.status(204).end();
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao excluir investimento', error });
+    res.status(500).json({
+      message: 'Erro ao excluir investimento',
+      error: error instanceof Error ? error.message : error
+    });
   }
 };
