@@ -1,51 +1,25 @@
-import "dotenv/config";
-import express from "express";
-import cors from "cors";
-import mongoose from "mongoose";
-import transacoesRoutes from "./routes/transacoesRoutes";
-import goalsRoutes from "./routes/goalsRoutes";
-import investimentoRoutes from './routes/investimentoRoutes';
+import express from 'express';
+import mongoose from 'mongoose';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-// Configuração para Vercel
-const isVercel = process.env.VERCEL === '1';
-
-// Middlewares
-app.use(cors());
+// Middleware básico
 app.use(express.json());
 
-// Rota de health check (atualizada)
+// Health Check
 app.get('/', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'online',
     message: 'API do Finanext está funcionando',
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
   });
 });
 
-// Rotas
-app.use("/api", transacoesRoutes);
-app.use("/api", goalsRoutes);
-app.use('/api', investimentoRoutes);
-
-// Conectar ao MongoDB
-const mongoUri = isVercel ? process.env.MONGO_URI_PROD : process.env.MONGO_URI;
-
-mongoose.connect(mongoUri as string)
-  .then(() => {
-    console.log("Conectado ao MongoDB.");
-    
-    if (!isVercel) {
-      app.listen(PORT, () => {
-        console.log(`Servidor rodando na porta ${PORT}.`);
-      });
-    }
-  })
-  .catch((error) => {
-    console.error("Erro ao conectar ao MongoDB:", error);
-  });
+// Conexão com MongoDB
+mongoose.connect(process.env.MONGO_URI || '')
+  .then(() => console.log('Conectado ao MongoDB'))
+  .catch(err => console.error('Erro no MongoDB:', err));
 
 // Export para Vercel
 export default app;
