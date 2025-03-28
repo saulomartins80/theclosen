@@ -16,15 +16,19 @@ const isVercel = process.env.VERCEL === '1';
 app.use(cors());
 app.use(express.json());
 
+// Rota de health check (atualizada)
+app.get('/', (req, res) => {
+  res.status(200).json({ 
+    status: 'online',
+    message: 'API do Finanext está funcionando',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Rotas
 app.use("/api", transacoesRoutes);
 app.use("/api", goalsRoutes);
 app.use('/api', investimentoRoutes);
-
-// Rota de health check para Vercel
-app.get('/', (req, res) => {
-  res.status(200).json({ status: 'OK', environment: process.env.NODE_ENV });
-});
 
 // Conectar ao MongoDB
 const mongoUri = isVercel ? process.env.MONGO_URI_PROD : process.env.MONGO_URI;
