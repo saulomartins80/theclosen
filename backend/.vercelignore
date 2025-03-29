@@ -3,3 +3,6 @@ src/
 tsconfig.json
 *.md
 .gitignore
+.env
+*.local
+.DS_Store
