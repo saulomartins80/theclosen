@@ -1,19 +1,24 @@
-import admin from "firebase-admin";
-import path from "path";
-import fs from "fs";
+import admin from 'firebase-admin';
 
-// Caminho para o arquivo de credenciais
-const serviceAccountPath = path.join(process.cwd(), "src/config/firebaseServiceAccount.json");
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+const serviceAccount = {
+  type: process.env.FIREBASE_TYPE,
+  project_id: process.env.FIREBASE_PROJECT_ID,
+  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+  private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  client_email: process.env.FIREBASE_CLIENT_EMAIL,
+  client_id: process.env.FIREBASE_CLIENT_ID,
+  auth_uri: process.env.FIREBASE_AUTH_URI,
+  token_uri: process.env.FIREBASE_TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
+  client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
+};
 
-// Inicializa o Firebase Admin SDK apenas se ainda não foi inicializado
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
   });
 }
 
-// Exporta os serviços do Firebase para reutilização em outros arquivos
-export const firebaseAdmin = admin;
 export const auth = admin.auth();
 export const db = admin.firestore();

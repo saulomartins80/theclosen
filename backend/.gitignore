@@ -1,3 +1,86 @@
-backend/dist/
+/config/firebase-admin.json
+*.env
 
+# Build do Next.js
+.next/
+out/
+
+# Dependências do Node.js
+node_modules/
+
+# Logs e cache
+*.log
+.cache/
+
+# Arquivos temporários do Webpack
+*.hot-update.js
+
+# CSS gerado automaticamente
+styles/output.css
+
+# Arquivo de configuração do Vercel
 .vercel
+
+# Arquivos de ambiente
+.env
+.env.local
+.env*.local
+
+# Diretórios de desenvolvimento
+dist/
+build/
+
+# Arquivos de IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de depuração
+*.pid
+*.seed
+*.pid.lock
+
+# Arquivos de configuração local
+*.local
+
+# Arquivos de teste
+coverage/
+*.lcov
+
+# Arquivos de pacote
+*.tgz
+
+# Arquivos de lock
+package-lock.json
+yarn.lock
+
+# Arquivos do pnpm
+pnpm-debug.log
+
+# Arquivos do Turbo
+.turbo/
+
+# Arquivos de configuração importantes (exceções)
+!postcss.config.js
+!tailwind.config.js
+
+# Ignorar arquivos sensíveis (Firebase)
+backend/src/config/firebaseServiceAccount.json
+
+# Ignorar pastas específicas de frontend/backend
+frontend/.next/
+frontend/node_modules/
+backend/node_modules/
+
+# Arquivos gerados
+*.dll
+*.map.vercel
+
+# Firebase service account files
+src/config/firebase-admin*.json
+src/config/private/
