@@ -48,10 +48,11 @@ export default function Metas() {
         throw new Error("Erro ao buscar metas.");
       }
       const data = await response.json();
-      setMetas(data.goals);
+      setMetas(data.metas || []);
     } catch (error) {
       toast.error("Erro ao buscar metas.");
       console.error(error);
+      setMetas([]);
     } finally {
       setIsLoading(false);
     }
