@@ -16,7 +16,8 @@
       "@routes/*": ["routes/*"],
       "@controllers/*": ["controllers/*"],
       "@models/*": ["models/*"]
-    }
+    },
+    "resolveJsonModule": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]

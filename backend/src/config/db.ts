@@ -1,16 +1,19 @@
 import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const connectDB = async () => {
   try {
-    // String de conexão do MongoDB
-    const mongoURI = process.env.MONGO_URI || 'mongodb+srv://saulochagas29:230689Scm@cluster0.7dorq.mongodb.net/meu_banco?retryWrites=true&w=majority&appName=Cluster0';
+    if (!process.env.MONGO_URI) {
+      throw new Error('MONGO_URI não definida no .env');
+    }
     
-    // Conectar ao MongoDB
-    const conn = await mongoose.connect(mongoURI);
-    console.log(`MongoDB conectado: ${conn.connection.host}`);
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('✅ Conectado ao MongoDB');
   } catch (error) {
-    console.error('Erro ao conectar ao MongoDB:', error);
-    process.exit(1); // Encerra o processo com falha
+    console.error('❌ Erro ao conectar ao MongoDB:', error);
+    process.exit(1);
   }
 };
 

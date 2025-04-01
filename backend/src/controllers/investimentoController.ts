@@ -1,28 +1,34 @@
+// src/controllers/investimentoController.ts
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Investimento from '../models/Investimento';
 
-// Interface para extender o tipo Request do Express
-interface AuthenticatedRequest extends Request {
-  userId?: string; // Adicionamos uma propriedade opcional
-}
-
-export const getInvestimentos = async (req: AuthenticatedRequest, res: Response) => {
+export const getInvestimentos = async (req: Request, res: Response) => {
   try {
     const investimentos = await Investimento.find().sort({ data: -1 });
     res.json(investimentos);
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao buscar investimentos', error });
+    res.status(500).json({ 
+      message: 'Erro ao buscar investimentos',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
   }
 };
 
-export const addInvestimento = async (req: AuthenticatedRequest, res: Response) => {
+export const addInvestimento = async (req: Request, res: Response) => {
   try {
-    // Removemos a verificação de usuário já que você não está usando autenticação
+    const { nome, valor, data, tipo } = req.body;
+
+    // Validação básica
+    if (!nome || !valor || !data || !tipo) {
+      return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+    }
+
     const novoInvestimento = new Investimento({
-      ...req.body,
-      // Remova a linha abaixo se não quiser usar o campo usuario
-      usuario: req.userId || new mongoose.Types.ObjectId() // Usamos um ObjectId fictício
+      nome,
+      valor: Number(valor),
+      data: new Date(data),
+      tipo
     });
 
     await novoInvestimento.save();
@@ -30,12 +36,12 @@ export const addInvestimento = async (req: AuthenticatedRequest, res: Response) 
   } catch (error) {
     res.status(400).json({ 
       message: 'Erro ao criar investimento',
-      error: error instanceof Error ? error.message : error
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 };
 
-export const updateInvestimento = async (req: AuthenticatedRequest, res: Response) => {
+export const updateInvestimento = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -43,26 +49,26 @@ export const updateInvestimento = async (req: AuthenticatedRequest, res: Respons
   }
 
   try {
-    const investimento = await Investimento.findByIdAndUpdate(
+    const investimentoAtualizado = await Investimento.findByIdAndUpdate(
       id,
       req.body,
       { new: true, runValidators: true }
     );
 
-    if (!investimento) {
+    if (!investimentoAtualizado) {
       return res.status(404).json({ message: 'Investimento não encontrado' });
     }
 
-    res.json(investimento);
+    res.json(investimentoAtualizado);
   } catch (error) {
     res.status(400).json({
       message: 'Erro ao atualizar investimento',
-      error: error instanceof Error ? error.message : error
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 };
 
-export const deleteInvestimento = async (req: AuthenticatedRequest, res: Response) => {
+export const deleteInvestimento = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -80,7 +86,7 @@ export const deleteInvestimento = async (req: AuthenticatedRequest, res: Respons
   } catch (error) {
     res.status(500).json({
       message: 'Erro ao excluir investimento',
-      error: error instanceof Error ? error.message : error
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 };

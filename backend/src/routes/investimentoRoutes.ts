@@ -9,9 +9,10 @@ import {
 
 const router = express.Router();
 
-router.get('/investimentos', getInvestimentos);
-router.post('/investimentos', addInvestimento);
-router.put('/investimentos/:id', updateInvestimento); // Rota de atualização
-router.delete('/investimentos/:id', deleteInvestimento);
+// Rotas corrigidas (removendo o '/investimentos' duplicado)
+router.get('/', getInvestimentos); // Agora será /api/investimentos
+router.post('/', addInvestimento); // Agora será /api/investimentos
+router.put('/:id', updateInvestimento); // Agora será /api/investimentos/:id
+router.delete('/:id', deleteInvestimento); // Agora será /api/investimentos/:id
 
 export default router;

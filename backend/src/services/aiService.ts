@@ -1,3 +1,4 @@
 export const getFinancialAdvice = () => {
-  return "Conselhos financeiros da IA...";
-};
+    return "Conselhos financeiros da IA...";
+  };
+  
