@@ -84,3 +84,4 @@ backend/node_modules/
 # Firebase service account files
 src/config/firebase-admin*.json
 src/config/private/
+src/config/private/
