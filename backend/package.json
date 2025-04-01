@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc --project tsconfig.json && node -e \"const fs = require('fs'); fs.mkdirSync('dist/config', { recursive: true }); fs.copyFileSync('src/config/firebase-admin.json', 'dist/config/firebase-admin.json');\"",
+    "build": "tsc --project tsconfig.json && node -e \"const fs = require('fs'); fs.mkdirSync('dist/config/private', { recursive: true }); fs.copyFileSync('src/config/private/firebase-admin.json', 'dist/config/private/firebase-admin.json');\"",
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"

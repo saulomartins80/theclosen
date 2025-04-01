@@ -1,23 +1,25 @@
-import admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
+import path from 'path';
+import fs from 'fs';
 
-const serviceAccount = {
-  type: process.env.FIREBASE_TYPE,
-  project_id: process.env.FIREBASE_PROJECT_ID,
-  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  client_id: process.env.FIREBASE_CLIENT_ID,
-  auth_uri: process.env.FIREBASE_AUTH_URI,
-  token_uri: process.env.FIREBASE_TOKEN_URI,
-  auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
-  client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
-};
+const credentialPath = path.join(__dirname, 'private/firebase-admin.json');
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
-  });
+try {
+  if (!fs.existsSync(credentialPath)) {
+    throw new Error(`Arquivo de credenciais não encontrado em: ${credentialPath}`);
+  }
+
+  const serviceAccount = require(credentialPath);
+
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+    });
+  }
+} catch (error) {
+  console.error('❌ Erro na inicialização do Firebase Admin:', error);
+  process.exit(1);
 }
 
 export const auth = admin.auth();

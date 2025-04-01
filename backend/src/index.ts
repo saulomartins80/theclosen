@@ -63,7 +63,7 @@ app.get('/health', (req, res) => {
 
 // Rotas da API
 app.use("/api/transacoes", transacoesRouter);
-app.use("/api/goals", goalsRouter);  // Alterado para manter consistência com as outras rotas
+app.use('/api', goalsRouter)  // Alterado para manter consistência com as outras rotas
 app.use("/api/investimentos", investimentoRouter);
 app.use("/api/users", userRouter);
 
