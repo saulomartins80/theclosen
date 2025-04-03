@@ -8,7 +8,6 @@ import {
 
 const router = express.Router();
 
-// Rotas atualizadas (sem /api prefix aqui pois já está no index.ts)
 router.get("/goals", getGoals);
 router.post("/goals", saveGoal);
 router.put("/goals/:id", updateGoal);

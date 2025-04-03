@@ -20,10 +20,11 @@ router.post(
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 })
   ],
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      res.status(400).json({ errors: errors.array() });
+      return;
     }
 
     const { email } = req.body;

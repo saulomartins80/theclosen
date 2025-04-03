@@ -1,9 +1,8 @@
-// src/controllers/investimentoController.ts
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Investimento from '../models/Investimento';
 
-export const getInvestimentos = async (req: Request, res: Response) => {
+export const getInvestimentos = async (req: Request, res: Response): Promise<void> => {
   try {
     const investimentos = await Investimento.find().sort({ data: -1 });
     res.json(investimentos);
@@ -15,13 +14,13 @@ export const getInvestimentos = async (req: Request, res: Response) => {
   }
 };
 
-export const addInvestimento = async (req: Request, res: Response) => {
+export const addInvestimento = async (req: Request, res: Response): Promise<void> => {
   try {
     const { nome, valor, data, tipo } = req.body;
 
-    // Validação básica
     if (!nome || !valor || !data || !tipo) {
-      return res.status(400).json({ message: "Todos os campos são obrigatórios" });
+      res.status(400).json({ message: "Todos os campos são obrigatórios" });
+      return;
     }
 
     const novoInvestimento = new Investimento({
@@ -41,11 +40,12 @@ export const addInvestimento = async (req: Request, res: Response) => {
   }
 };
 
-export const updateInvestimento = async (req: Request, res: Response) => {
+export const updateInvestimento = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'ID inválido' });
+    res.status(400).json({ message: 'ID inválido' });
+    return;
   }
 
   try {
@@ -56,7 +56,8 @@ export const updateInvestimento = async (req: Request, res: Response) => {
     );
 
     if (!investimentoAtualizado) {
-      return res.status(404).json({ message: 'Investimento não encontrado' });
+      res.status(404).json({ message: 'Investimento não encontrado' });
+      return;
     }
 
     res.json(investimentoAtualizado);
@@ -68,18 +69,20 @@ export const updateInvestimento = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteInvestimento = async (req: Request, res: Response) => {
+export const deleteInvestimento = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'ID inválido' });
+    res.status(400).json({ message: 'ID inválido' });
+    return;
   }
 
   try {
     const investimento = await Investimento.findByIdAndDelete(id);
 
     if (!investimento) {
-      return res.status(404).json({ message: 'Investimento não encontrado' });
+      res.status(404).json({ message: 'Investimento não encontrado' });
+      return;
     }
 
     res.status(204).end();

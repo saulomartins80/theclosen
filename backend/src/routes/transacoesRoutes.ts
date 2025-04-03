@@ -4,15 +4,14 @@ import Transacoes from "../models/Transacoes";
 
 const router = express.Router();
 
-// Prefixo de rota para todas as rotas deste arquivo
 router.route('/')
-  // Criar transação
-  .post(async (req, res) => {
+  .post(async (req: express.Request, res: express.Response): Promise<void> => {
     try {
       const { descricao, valor, data, categoria, tipo, conta } = req.body;
 
       if (!descricao || !valor || !data || !categoria || !tipo || !conta) {
-        return res.status(400).json({ message: "Todos os campos são obrigatórios." });
+        res.status(400).json({ message: "Todos os campos são obrigatórios." });
+        return;
       }
 
       const novaTransacao = new Transacoes({
@@ -32,8 +31,7 @@ router.route('/')
     }
   })
   
-  // Listar todas as transações
-  .get(async (req, res) => {
+  .get(async (req: express.Request, res: express.Response): Promise<void> => {
     try {
       const transacoes = await Transacoes.find();
       res.status(200).json(transacoes);
@@ -44,14 +42,14 @@ router.route('/')
   });
 
 router.route('/:id')
-  // Atualizar transação
-  .put(async (req, res) => {
+  .put(async (req: express.Request, res: express.Response): Promise<void> => {
     try {
       const { id } = req.params;
       const { descricao, valor, data, categoria, tipo, conta } = req.body;
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: "ID inválido." });
+        res.status(400).json({ message: "ID inválido." });
+        return;
       }
 
       const transacaoAtualizada = await Transacoes.findByIdAndUpdate(
@@ -61,7 +59,8 @@ router.route('/:id')
       );
 
       if (!transacaoAtualizada) {
-        return res.status(404).json({ message: "Transação não encontrada." });
+        res.status(404).json({ message: "Transação não encontrada." });
+        return;
       }
 
       res.status(200).json(transacaoAtualizada);
@@ -71,19 +70,20 @@ router.route('/:id')
     }
   })
   
-  // Excluir transação
-  .delete(async (req, res) => {
+  .delete(async (req: express.Request, res: express.Response): Promise<void> => {
     try {
       const { id } = req.params;
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: "ID inválido." });
+        res.status(400).json({ message: "ID inválido." });
+        return;
       }
 
       const transacaoDeletada = await Transacoes.findByIdAndDelete(id);
 
       if (!transacaoDeletada) {
-        return res.status(404).json({ message: "Transação não encontrada." });
+        res.status(404).json({ message: "Transação não encontrada." });
+        return;
       }
 
       res.status(200).json({ message: "Transação excluída com sucesso." });
