@@ -90,3 +90,6 @@ frontend/node_modules/
 backend/dist/
 backend/dist/
 backend/dist/
+backend/tsconfig.tsbuildinfo
+frontend/cors.json
+frontend/types/index.ts.backup
