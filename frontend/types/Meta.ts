@@ -1,16 +1,15 @@
-export interface Meta {
-  _id?: string;
-  meta: string;
-  descricao: string;
-  valor_total: number;
-  valor_atual: number;
-  data_conclusao: string;
-  userId: string;
+export type Meta = {
+  _id: string;
+  titulo: string;
+  valorAlvo: number;
+  valorAtual: number;
+  dataLimite: string;
+  concluida: boolean;
   createdAt?: string;
-  observacoes?: string;
-}
+  categoria?: string;
+  prioridade?: 'baixa' | 'media' | 'alta';
+};
 
-// Defina e exporte FormMeta
-export interface FormMeta extends Omit<Meta, "_id" | "createdAt"> {
-  observacoes: string; // Adicione propriedades específicas do formulário
-}
+export type FormMeta = Omit<Meta, "_id" | "createdAt" | "concluida"> & {
+  observacoes?: string;
+};

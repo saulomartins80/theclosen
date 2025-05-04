@@ -1,4 +1,3 @@
-// src/models/Goal.ts
 import mongoose from "mongoose";
 
 const GoalSchema = new mongoose.Schema({
@@ -33,14 +32,23 @@ const GoalSchema = new mongoose.Schema({
     required: [true, "O campo 'userId' é obrigatório"],
     ref: "User"
   },
+  categoria: {
+    type: String,
+    trim: true
+  },
+  prioridade: {
+    type: String,
+    enum: ["baixa", "media", "alta"],
+    default: "media"
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-// Índices para melhor performance
 GoalSchema.index({ userId: 1 });
 GoalSchema.index({ data_conclusao: 1 });
+GoalSchema.index({ categoria: 1 });
 
 export const Goal = mongoose.model("Goal", GoalSchema);

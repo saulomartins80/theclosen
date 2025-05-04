@@ -1,46 +1,42 @@
 import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Download, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { getTransacoes, createTransacao, updateTransacao, deleteTransacao } from "../services/api";
+import { transacaoAPI } from "../services/api";
 import FinancialSummary from "../components/FinancialSummary";
 import ChartsSection from "../components/ChartsSection";
 import TransactionTable from "../components/TransactionTable";
 import TransactionForm from "../components/TransactionForm";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Transacao } from "../types/Transacao";
+import { Transacao, NovaTransacaoPayload } from '../types/Transacao';
+import { useTheme } from "../context/ThemeContext";
 
 const Transacoes = () => {
+  const { theme } = useTheme();
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [transacaoEditavel, setTransacaoEditavel] = useState<Transacao | null>(null);
-  
-  // Estados para os filtros
-  const [filtroTipo, setFiltroTipo] = useState<"todos" | "receita" | "despesa" | "transferencia">("todos");
-  const [filtroCategoria, setFiltroCategoria] = useState("");
-  const [filtroDataInicio, setFiltroDataInicio] = useState("");
-  const [filtroDataFim, setFiltroDataFim] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<{
+    descricao: string;
+    valor: string;
+    data: string;
+    categoria: string;
+    tipo: "receita" | "despesa" | "transferencia";
+    conta: string;
+  }>({
+    descricao: "",
+    valor: "",
+    data: "",
+    categoria: "",
+    tipo: "receita",
+    conta: "",
+  });
 
-  // Estados para paginação
-  const [currentPage, setCurrentPage] = useState(0);
-  const [itemsPerPage] = useState(10);
-
-  // Função para extrair o ID como string
-  const getIdString = (id: string | { $oid: string }): string => {
-    return typeof id === 'object' ? id.$oid : id;
-  };
-
-  // Função para converter data para Date
-  const parseDate = (date: string | { $date: string }): Date => {
-    return typeof date === 'string' ? new Date(date) : new Date(date.$date);
-  };
-
-  // Busca as transações ao carregar a página
   useEffect(() => {
     const fetchTransacoes = async () => {
       try {
-        const data = await getTransacoes();
+        const data = await transacaoAPI.getAll();
         setTransacoes(data);
       } catch (error) {
         console.error("Erro ao buscar transações:", error);
@@ -51,50 +47,111 @@ const Transacoes = () => {
     fetchTransacoes();
   }, []);
 
-  // Função para adicionar ou editar uma transação
-  const handleSaveTransacao = async (transacaoData: Omit<Transacao, "_id"> | Transacao) => {
+  const handleSaveTransacao = async () => {
     try {
-      let updatedTransacoes: Transacao[];
-      
-      if (transacaoEditavel?._id) {
-        // Atualiza transação existente
-        const idString = getIdString(transacaoEditavel._id);
-        const updatedTransacao = await updateTransacao(idString, transacaoData);
-        
-        // Atualiza a lista local
-        updatedTransacoes = transacoes.map(t => 
-          getIdString(t._id) === idString ? updatedTransacao : t
-        );
-        toast.success("Transação atualizada com sucesso!");
-      } else {
-        // Adiciona nova transação
-        const newTransacao = await createTransacao(transacaoData);
-        updatedTransacoes = [newTransacao, ...transacoes];
-        toast.success("Transação criada com sucesso!");
+      // Validação dos campos obrigatórios
+      if (!formData.descricao || !formData.valor || !formData.data || 
+          !formData.categoria || !formData.conta) {
+        toast.error("Preencha todos os campos obrigatórios");
+        return;
       }
-
-      setIsFormOpen(false);
-      setTransacaoEditavel(null);
-      setTransacoes(updatedTransacoes);
-    } catch (error) {
-      console.error("Erro ao salvar transação:", error);
-      toast.error("Erro ao salvar transação.");
+  
+      // Conversão e validação do valor
+      const valorNumerico = Number(
+        formData.valor.toString().replace(/[^0-9,-]/g, '').replace(',', '.')
+      );
+  
+      if (isNaN(valorNumerico)) {
+        toast.error("Valor inválido!");
+        return;
+      }
+  
+      // Validação da data
+      const dataObj = new Date(formData.data);
+      if (isNaN(dataObj.getTime())) {
+        toast.error("Data inválida!");
+        return;
+      }
+  
+      // Criação do payload com o formato correto para a API
+      const commonData = {
+        descricao: formData.descricao.trim(),
+        valor: valorNumerico,
+        categoria: formData.categoria.trim(),
+        tipo: formData.tipo,
+        conta: formData.conta.trim(),
+      };
+  
+      if (editingId) {
+        // Para atualização - envia como string
+        await transacaoAPI.update(editingId, {
+          ...commonData,
+          data: dataObj.toISOString()
+        });
+        toast.success("Transação atualizada!");
+      } else {
+        // Para criação - envia como { $date: string }
+        await transacaoAPI.create({
+          ...commonData,
+          data: { $date: dataObj.toISOString() }
+        });
+        toast.success("Transação criada!");
+      }
+  
+      // Atualização da lista
+      const updatedData = await transacaoAPI.getAll();
+      setTransacoes(updatedData);
+      closeModal();
+  
+    } catch (error: unknown) {
+      console.error('Erro completo:', {
+        message: error instanceof Error ? error.message : 'Erro desconhecido',
+        response: (error as any)?.response?.data,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      toast.error(
+        (error as any)?.response?.data?.message || 
+        (error instanceof Error ? error.message : 'Erro ao salvar transação')
+      );
     }
   };
 
-  // Função para excluir uma transação
-  const handleDeleteTransacao = async (id: string) => {
-    try {
-      await deleteTransacao(id);
-      setTransacoes(prev => prev.filter(t => getIdString(t._id) !== id));
-      toast.success("Transação excluída com sucesso!");
-    } catch (error) {
-      console.error("Erro ao excluir transação:", error);
-      toast.error("Erro ao excluir transação.");
-    }
+  const closeModal = () => {
+    setIsFormOpen(false);
+    setEditingId(null);
+    setFormData({
+      descricao: "",
+      valor: "",
+      data: "",
+      categoria: "",
+      tipo: "receita",
+      conta: "",
+    });
   };
 
-  // Cálculo do resumo financeiro
+  const handleEditTransacao = (transacao: Transacao) => {
+    setEditingId(transacao._id);
+  
+    // Extrai a data corretamente com verificação de tipo segura
+    const rawDate = (typeof transacao.data === 'object' && transacao.data !== null && '$date' in transacao.data) 
+      ? (transacao.data as { $date: string }).$date 
+      : transacao.data as string;
+  
+    const dataTransacao = new Date(rawDate).toISOString().split('T')[0];
+  
+    setFormData({
+      descricao: transacao.descricao,
+      valor: transacao.valor.toString(),
+      data: dataTransacao,
+      categoria: transacao.categoria,
+      tipo: transacao.tipo,
+      conta: transacao.conta,
+    });
+  
+    setIsFormOpen(true);
+  };
+
   const totalReceitas = transacoes
     .filter((t) => t.tipo === "receita")
     .reduce((acc, t) => acc + t.valor, 0);
@@ -103,186 +160,233 @@ const Transacoes = () => {
     .filter((t) => t.tipo === "despesa")
     .reduce((acc, t) => acc + t.valor, 0);
 
-  const saldoAtual = totalReceitas - totalDespesas;
+  // Transferências podem ser positivas (entrada) ou negativas (saída)
+  const totalTransferencias = transacoes
+    .filter((t) => t.tipo === "transferencia")
+    .reduce((acc, t) => acc + t.valor, 0);
 
-  // Filtra as transações
-  const transacoesFiltradas = transacoes.filter((transacao) => {
-    if (filtroTipo !== "todos" && transacao.tipo !== filtroTipo) return false;
-    if (filtroCategoria && transacao.categoria !== filtroCategoria) return false;
-    
-    const transacaoDate = parseDate(transacao.data);
-    const inicioDate = filtroDataInicio ? new Date(filtroDataInicio) : null;
-    const fimDate = filtroDataFim ? new Date(filtroDataFim) : null;
-    
-    if (inicioDate && transacaoDate < inicioDate) return false;
-    if (fimDate && transacaoDate > fimDate) return false;
-    
-    return true;
-  });
+  // Saldo considera tudo
+  const saldoAtual = totalReceitas - totalDespesas + totalTransferencias;
 
-  // Lógica de paginação
-  const offset = currentPage * itemsPerPage;
-  const currentTransacoes = transacoesFiltradas.slice(offset, offset + itemsPerPage);
-  const totalPages = Math.ceil(transacoesFiltradas.length / itemsPerPage);
+  // Separa transferências positivas e negativas para exibição
+  const transferenciasEntrada = transacoes
+    .filter((t) => t.tipo === "transferencia" && t.valor >= 0)
+    .reduce((acc, t) => acc + t.valor, 0);
 
-  // Função para exportar para PDF
+  const transferenciasSaida = transacoes
+    .filter((t) => t.tipo === "transferencia" && t.valor < 0)
+    .reduce((acc, t) => acc + Math.abs(t.valor), 0);
+
   const handleExportPDF = () => {
     const doc = new jsPDF();
 
-    // Título do PDF
+    const textColor = theme === "dark" ? [200, 200, 200] : [20, 20, 20];
+    const backgroundColor = theme === "dark" ? [50, 50, 50] : [255, 255, 255];
+    const headerColor = theme === "dark" ? [30, 30, 30] : [240, 240, 240];
+
+    doc.setFillColor(backgroundColor[0], backgroundColor[1], backgroundColor[2]);
+    doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), "F");
+
+    doc.setTextColor(textColor[0], textColor[1], textColor[2]);
     doc.setFontSize(18);
-    doc.text("Relatório de Transações", 10, 10);
+    doc.text("Relatório Financeiro", 10, 20);
 
-    // Resumo Financeiro
-    doc.setFontSize(12);
-    doc.text(`Saldo Atual: R$ ${saldoAtual.toFixed(2)}`, 10, 20);
-    doc.text(`Total de Receitas: R$ ${totalReceitas.toFixed(2)}`, 10, 30);
-    doc.text(`Total de Despesas: R$ ${totalDespesas.toFixed(2)}`, 10, 40);
-
-    // Cabeçalho da tabela
-    const headers = [["Descrição", "Categoria", "Valor", "Data", "Tipo"]];
-
-    // Dados da tabela
-    const data = transacoesFiltradas.map((transacao) => [
-      transacao.descricao,
-      transacao.categoria,
-      `R$ ${transacao.valor.toFixed(2)}`,
-      parseDate(transacao.data).toLocaleDateString(),
-      transacao.tipo,
-    ]);
-
-    // Adiciona a tabela ao PDF
     autoTable(doc, {
-      head: headers,
-      body: data,
-      startY: 50,
+      head: [["Descrição", "Valor", "Data"]],
+      body: transacoes.map((t) => [
+        t.descricao,
+        `R$ ${t.valor.toFixed(2)}`,
+        new Date(t.data).toLocaleDateString("pt-BR"),
+      ]),
+      headStyles: {
+        fillColor: [headerColor[0], headerColor[1], headerColor[2]],
+        textColor: [textColor[0], textColor[1], textColor[2]],
+      },
+      alternateRowStyles: {
+        fillColor: theme === "dark" ? [70, 70, 70] : [245, 245, 245],        
+      },    
+      margin: { top: 30 },
     });
 
-    // Salva o PDF
-    doc.save("transacoes.pdf");
+    doc.save("relatorio-financeiro.pdf");
   };
 
   return (
-    <div className="p-6 bg-gray-100 dark:bg-gray-900 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Transações</h1>
-
-      <FinancialSummary saldo={saldoAtual} receitas={totalReceitas} despesas={totalDespesas} />
-
-      {/* Filtros */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm mb-6">
-        <h2 className="text-lg font-semibold mb-4">Filtros</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+      }`}
+    >
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
           <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Tipo</label>
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value as "todos" | "receita" | "despesa" | "transferencia")}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="todos">Todos</option>
-              <option value="receita">Receita</option>
-              <option value="despesa">Despesa</option>
-              <option value="transferencia">Transferência</option>
-            </select>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <span className="bg-blue-600 text-white p-2 rounded-lg">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+              </span>
+              Gestão Financeira
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              Controle completo das suas transações financeiras
+            </p>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Categoria</label>
-            <input
-              type="text"
-              value={filtroCategoria}
-              onChange={(e) => setFiltroCategoria(e.target.value)}
-              placeholder="Ex: Alimentação"
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
+        <FinancialSummary 
+          saldo={saldoAtual}
+          receitas={totalReceitas}
+          despesas={totalDespesas}
+          transferenciasEntrada={transferenciasEntrada}
+          transferenciasSaida={transferenciasSaida}
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Data Início</label>
-            <input
-              type="date"
-              value={filtroDataInicio}
-              onChange={(e) => setFiltroDataInicio(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
+        
+        <div
+          className={`rounded-xl shadow-sm overflow-hidden mb-8 ${
+            theme === "dark" ? "bg-gray-800" : "bg-white"
+          }`}
+        >
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Histórico de Transações</h2>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {transacoes.length} registros encontrados
+            </span>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-900 dark:text-white">Data Fim</label>
-            <input
-              type="date"
-              value={filtroDataFim}
-              onChange={(e) => setFiltroDataFim(e.target.value)}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
+          <TransactionTable
+            transacoes={transacoes}
+            onEdit={handleEditTransacao}
+            onDelete={async (id) => {
+              try {
+                await transacaoAPI.delete(id);
+                setTransacoes((prev) => prev.filter((t) => t._id !== id));
+                toast.success("Transação excluída com sucesso!");
+              } catch (error) {
+                toast.error("Erro ao excluir transação");
+                console.error(error);
+              }
+            }}
+            theme={theme}
+          />
         </div>
       </div>
 
-      <ChartsSection transacoes={transacoesFiltradas} />
+      <div className="fixed bottom-8 right-8 flex gap-4">
+        <button
+          onClick={handleExportPDF}
+          className={`p-4 rounded-full shadow-xl transition-all hover:scale-105 ${
+            theme === "dark"
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-green-500 hover:bg-green-600"
+          } text-white flex items-center gap-2`}
+          title="Exportar para PDF"
+        >
+          <Download size={22} />
+          <span className="hidden md:inline">Exportar</span>
+        </button>
 
-      <TransactionTable
-        transacoes={currentTransacoes}
-        onEdit={(transacao) => {
-          setTransacaoEditavel(transacao);
-          setIsFormOpen(true);
-        }}
-        onDelete={handleDeleteTransacao}
-      />
-
-      {/* Paginação */}
-      <div className="flex justify-center mt-6">
-        {Array.from({ length: totalPages }, (_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentPage(index)}
-            className={`mx-1 px-4 py-2 rounded-lg ${
-              currentPage === index
-                ? "bg-blue-500 text-white"
-                : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
-            }`}
-          >
-            {index + 1}
-          </button>
-        ))}
+        <button
+          onClick={() => {
+            setEditingId(null);
+            setFormData({
+              descricao: "",
+              valor: "",
+              data: "",
+              categoria: "",
+              tipo: "receita",
+              conta: "",
+            });
+            setIsFormOpen(true);
+          }}
+          className={`p-5 rounded-full shadow-xl transition-all hover:scale-105 ${
+            theme === "dark"
+              ? "bg-blue-600 hover:bg-blue-700"
+              : "bg-blue-500 hover:bg-blue-600"
+          } text-white`}
+          title="Nova transação"
+        >
+          <Plus size={24} />
+        </button>
       </div>
 
-      {/* Botão para adicionar nova transação */}
-      <button
-        onClick={() => {
-          setTransacaoEditavel(null);
-          setIsFormOpen(true);
-        }}
-        className="fixed bottom-6 right-6 p-4 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition"
-      >
-        <Plus size={24} />
-      </button>
-
-      {/* Botão para exportar PDF */}
-      <button
-        onClick={handleExportPDF}
-        className="fixed bottom-6 right-32 p-4 bg-green-500 text-white rounded-full shadow-lg hover:bg-green-600 transition"
-      >
-        Exportar PDF
-      </button>
-
-      {/* Modal do formulário */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-6">
-              {transacaoEditavel ? "Editar Transação" : "Nova Transação"}
-            </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div
+            className={`p-6 rounded-xl w-full max-w-md transform transition-all duration-300 ${
+              theme === "dark" ? "bg-gray-800" : "bg-white"
+            }`}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">
+                {editingId ? "Editar Transação" : "Nova Transação"}
+              </h2>
+              <button
+                onClick={closeModal}
+                className={`p-1 rounded-full ${
+                  theme === "dark" ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                }`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
             <TransactionForm
-              onClose={() => setIsFormOpen(false)}
+              formData={formData}
+              setFormData={setFormData}
               onSave={handleSaveTransacao}
-              transacaoEditavel={transacaoEditavel}
+              onClose={closeModal}
             />
           </div>
         </div>
       )}
 
-      <ToastContainer />
+      <ToastContainer
+        position="bottom-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={theme === 'dark' ? 'dark' : 'light'}
+        toastClassName={`${
+          theme === "dark"
+          ? "bg-gray-800 text-gray-100"
+          : "bg-white text-gray-800"
+      } rounded-xl shadow-lg`}       
+    />
     </div>
   );
 };

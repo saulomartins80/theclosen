@@ -1,10 +1,54 @@
- /* styles/globals.css */
- @tailwind base;
- @tailwind components;
- @tailwind utilities;
- 
- /* Adicione estilos personalizados para o tema escuro */
- .dark {
-   background-color: #1a202c; /* Exemplo de cor de fundo escura */
-   color: #ffffffe1; /* Exemplo de cor de texto clara */
- }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+/* Permite rolagem global (correção principal) */
+html, body {
+  @apply h-full w-full; /* Remove overflow-hidden */
+}
+
+/* Transições de tema */
+html.light {
+  @apply bg-white text-gray-900;
+}
+
+html.dark {
+  @apply bg-gray-900 text-white;
+}
+
+/* Estilização da barra de rolagem (funcionará agora) */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+/* Força o esquema de cores do input date para light */
+input[type="date"] {
+  color-scheme: light;
+}
+
+/* No modo dark, mantemos o esquema dark */
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
+/* Garante transição suave entre temas */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Melhora a legibilidade no modo escuro */
+.dark {
+  color-scheme: dark;
+}

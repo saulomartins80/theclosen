@@ -1,8 +1,8 @@
-// src/types/Investimento.ts
-export interface Investimento {
-  _id: string; // Mude de 'id' para '_id' para compatibilidade com MongoDB
+export type Investimento = {
+  _id: string;
   nome: string;
-  tipo: string;
+  tipo: 'Renda Fixa' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas';
   valor: number;
   data: string;
-}
+  rentabilidade?: number;
+};

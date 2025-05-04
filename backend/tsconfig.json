@@ -1,24 +1,55 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "CommonJS",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "types": ["node"],
-    "sourceMap": true,
     "baseUrl": "./src",
     "paths": {
-      "@routes/*": ["routes/*"],
       "@controllers/*": ["controllers/*"],
-      "@models/*": ["models/*"]
+      "@services/*": ["services/*"],
+      "@models/*": ["models/*"],
+      "@modules/*": ["modules/*"],
+      "@middlewares/*": ["middlewares/*"],
+      "@core/*": ["core/*"],
+      "@config/*": ["config/*"],
+      "@routes/*": ["routes/*"],
+      "@errors/*": ["core/errors/*"],
+      "@types/*": ["@types/*"],
+      "@jobs/*": ["jobs/*"],
+      "@interfaces/*": ["interfaces/*"], 
+      "@pages/*": ["pages/*"] 
     },
-    "resolveJsonModule": true
+    "types": ["node"],
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/@types" 
+    ],
+    "strictPropertyInitialization": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noImplicitAny": false  
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/pages/**/*" 
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/__tests__/*"
+  ]
 }

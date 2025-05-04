@@ -6,7 +6,7 @@ export const getInvestimentos = async (req: Request, res: Response): Promise<voi
   try {
     const investimentos = await Investimento.find().sort({ data: -1 });
     res.json(investimentos);
-  } catch (error) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: 'Erro ao buscar investimentos',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
@@ -16,26 +16,73 @@ export const getInvestimentos = async (req: Request, res: Response): Promise<voi
 
 export const addInvestimento = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('Corpo recebido:', req.body); // Log para debug
+
     const { nome, valor, data, tipo } = req.body;
 
-    if (!nome || !valor || !data || !tipo) {
-      res.status(400).json({ message: "Todos os campos são obrigatórios" });
+    // Validação mais robusta com mensagens específicas
+    if (!nome?.trim()) {
+      res.status(400).json({ message: "Nome é obrigatório" });
+      return;
+    }
+
+    const valorNumerico = Number(valor);
+    if (isNaN(valorNumerico)) { // CORREÇÃO: Parêntese fechado aqui
+      res.status(400).json({ message: "Valor deve ser um número válido" });
+      return;
+    }
+
+    if (valorNumerico <= 0) {
+      res.status(400).json({ message: "Valor deve ser positivo" });
+      return;
+    }
+
+    // Verifica se o tipo é válido
+    const tiposValidos = ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas'];
+    if (!tipo || !tiposValidos.includes(tipo)) {
+      res.status(400).json({ 
+        message: "Tipo de investimento inválido",
+        tiposValidos // Envia a lista de tipos válidos para ajudar o frontend
+      });
+      return;
+    }
+
+    // Converter e validar data
+    const dataObj = data ? new Date(data) : new Date();
+    if (isNaN(dataObj.getTime())) {
+      res.status(400).json({ message: "Data inválida" });
       return;
     }
 
     const novoInvestimento = new Investimento({
-      nome,
-      valor: Number(valor),
-      data: new Date(data),
+      nome: nome.trim(),
+      valor: valorNumerico,
+      data: dataObj,
       tipo
     });
 
     await novoInvestimento.save();
     res.status(201).json(novoInvestimento);
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error('Erro no servidor:', error);
+    
+    // Mensagem mais amigável para erros de validação do Mongoose
+    if (error instanceof mongoose.Error.ValidationError) {
+      const errors = Object.values(error.errors).map(err => err.message);
+      res.status(400).json({ 
+        message: 'Erro de validação',
+        details: errors 
+      });
+      return;
+    }
+
     res.status(400).json({ 
       message: 'Erro ao criar investimento',
-      error: error instanceof Error ? error.message : 'Erro desconhecido'
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
+      // Mostra stack apenas em desenvolvimento
+      ...(process.env.NODE_ENV === 'development' && {
+        stack: error instanceof Error ? error.stack : undefined
+      })
     });
   }
 };
@@ -49,9 +96,33 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
   }
 
   try {
+    const { nome, valor, data, tipo } = req.body;
+
+    // Validações consistentes com a criação
+    if (nome && !nome.trim()) {
+      res.status(400).json({ message: "Nome não pode ser vazio" });
+      return;
+    }
+
+    if (valor && isNaN(Number(valor))) {
+      res.status(400).json({ message: "Valor deve ser um número válido" });
+      return;
+    }
+
+    const dataObj = data ? new Date(data) : undefined;
+    if (dataObj && isNaN(dataObj.getTime())) {
+      res.status(400).json({ message: "Data inválida" });
+      return;
+    }
+
     const investimentoAtualizado = await Investimento.findByIdAndUpdate(
       id,
-      req.body,
+      {
+        ...(nome && { nome: nome.trim() }),
+        ...(valor && { valor: Number(valor) }),
+        ...(dataObj && { data: dataObj }),
+        ...(tipo && { tipo })
+      },
       { new: true, runValidators: true }
     );
 
@@ -61,7 +132,18 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
     }
 
     res.json(investimentoAtualizado);
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error('Erro ao atualizar:', error);
+    
+    if (error instanceof mongoose.Error.ValidationError) {
+      const errors = Object.values(error.errors).map(err => err.message);
+      res.status(400).json({ 
+        message: 'Erro de validação',
+        details: errors 
+      });
+      return;
+    }
+
     res.status(400).json({
       message: 'Erro ao atualizar investimento',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
@@ -86,7 +168,8 @@ export const deleteInvestimento = async (req: Request, res: Response): Promise<v
     }
 
     res.status(204).end();
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error('Erro ao excluir:', error);
     res.status(500).json({
       message: 'Erro ao excluir investimento',
       error: error instanceof Error ? error.message : 'Erro desconhecido'

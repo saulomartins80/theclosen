@@ -1,53 +1,45 @@
-import admin from 'firebase-admin';
+// src/config/firebase.ts
+import * as admin from 'firebase-admin';
 import path from 'path';
 import fs from 'fs';
 
-const initializeFirebaseAdmin = () => {
-  try {
-    // 1. Definir caminho do arquivo de credenciais
-    const credentialPath = path.resolve(
-      __dirname, 
-      '../config/firebase-admin.json' // Ajuste o caminho conforme sua estrutura
-    );
-
-    // 2. Verificar se o arquivo existe
-    if (!fs.existsSync(credentialPath)) {
-      throw new Error(`Arquivo de credenciais não encontrado em: ${credentialPath}`);
+function loadCredentials() {
+  // 1. Tenta carregar das variáveis de ambiente
+  if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
+    try {
+      return JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
+    } catch (error) {
+      console.error('Erro ao analisar credenciais do ambiente:', error);
     }
-
-    // 3. Carregar e validar as credenciais
-    const serviceAccount = JSON.parse(
-      fs.readFileSync(credentialPath, 'utf8')
-    );
-
-    // Validação mínima dos campos obrigatórios
-    const requiredFields = ['project_id', 'client_email', 'private_key'];
-    for (const field of requiredFields) {
-      if (!serviceAccount[field]) {
-        throw new Error(`Campo obrigatório ausente: ${field}`);
-      }
-    }
-
-    // 4. Inicializar o Firebase Admin
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: serviceAccount.project_id,
-          clientEmail: serviceAccount.client_email,
-          privateKey: serviceAccount.private_key.replace(/\\n/g, '\n')
-        }),
-        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
-      });
-      console.log('✅ Firebase Admin inicializado com sucesso');
-    }
-
-    return admin;
-  } catch (error) {
-    console.error('❌ Falha ao inicializar Firebase Admin:', error);
-    process.exit(1);
   }
-};
 
-export const firebaseAdmin = initializeFirebaseAdmin();
-export const auth = firebaseAdmin.auth();
-export const db = firebaseAdmin.firestore();
+  // 2. Tenta carregar do arquivo
+  const serviceAccountPath = path.join(__dirname, 'private', 'firebase-admin.json');
+  if (fs.existsSync(serviceAccountPath)) {
+    return JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+  }
+
+  throw new Error(`
+    ❌ Credenciais do Firebase Admin não encontradas. Por favor:
+    1. Defina FIREBASE_ADMIN_CREDENTIALS no .env OU
+    2. Coloque o arquivo firebase-admin.json em src/config/private/
+  `);
+}
+
+if (!admin.apps.length) {
+  const serviceAccount = loadCredentials();
+  
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key.replace(/\\n/g, '\n')
+    }),
+    databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+  });
+}
+
+export const adminAuth = admin.auth();
+export const adminDb = admin.firestore();
+export const adminStorage = admin.storage();
+export { admin };

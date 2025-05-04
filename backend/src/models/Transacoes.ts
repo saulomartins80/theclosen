@@ -14,16 +14,22 @@ export interface ITransacao {
 export interface ITransacaoDocument extends ITransacao, Document {}
 
 // Defina o schema do Mongoose
-const transacaoSchema = new Schema<ITransacaoDocument>({
-  descricao: { type: String, required: true },
-  valor: { type: Number, required: true },
-  data: { type: Date, required: true },
-  categoria: { type: String, required: true },
-  tipo: { type: String, required: true, enum: ["receita", "despesa", "transferencia"] },
-  conta: { type: String, required: true },
-});
+const transacaoSchema = new Schema<ITransacaoDocument>(
+  {
+    descricao: { type: String, required: true },
+    valor: { type: Number, required: true },
+    data: { type: Date, required: true },
+    categoria: { type: String, required: true },
+    tipo: { 
+      type: String, 
+      required: true, 
+      enum: ["receita", "despesa", "transferencia"] 
+    },
+    conta: { type: String, required: true },
+  },
+  { timestamps: true } // Adiciona createdAt e updatedAt automaticamente
+);
 
-// Crie o modelo usando a interface ITransacaoDocument
-const Transacoes = model<ITransacaoDocument>("Transacoes", transacaoSchema);
-
+// Exporte tanto o modelo quanto as interfaces
+export const Transacoes = model<ITransacaoDocument>("Transacao", transacaoSchema);
 export default Transacoes;

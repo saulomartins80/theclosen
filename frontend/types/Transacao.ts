@@ -1,12 +1,20 @@
-export interface Transacao {
-  _id: {
-    $oid: string; // MongoDB usa `_id` com um campo `$oid`
-  };
+export type Transacao = {
+  _id: string;
   descricao: string;
   valor: number;
-  data: { $date: string }; // MongoDB usa `data` com um campo `$date`
+  data: string;
   categoria: string;
-  tipo: "receita" | "despesa" | "transferencia";
+  tipo: 'receita' | 'despesa' | 'transferencia';
   conta: string;
-  __v?: number; // Adicione `__v` se necessário
-}
+};
+
+export type NovaTransacaoPayload = {
+  descricao: string;
+  valor: number;
+  data: string | { $date: string };
+  categoria: string;
+  tipo: 'receita' | 'despesa' | 'transferencia';
+  conta: string;
+};
+
+export type AtualizarTransacaoPayload = Partial<Omit<Transacao, '_id'>>;

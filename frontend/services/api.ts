@@ -1,188 +1,138 @@
-import axios from "axios";
-import { Transacao, Meta, Investimento } from "../types"; // Importe os tipos corretos
+// services/api.ts
+import axios from 'axios';
+import { getAuth, getIdToken } from 'firebase/auth';
+import {
+  Transacao,
+  NovaTransacaoPayload,
+  AtualizarTransacaoPayload,
+  Investimento,
+  Meta
+} from "../types";
 
-// Define a URL base da API
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-// Cria uma instância do Axios com a URL base
-export const api = axios.create({
-  baseURL: API_URL,
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Configuração global para incluir token de autenticação
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
+// Interceptor para autenticação
+api.interceptors.request.use(async (config) => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (user) {
+    try {
+      const token = await getIdToken(user);
       config.headers.Authorization = `Bearer ${token}`;
+    } catch (error) {
+      console.error('Error getting token:', error);
     }
-    return config;
-  },
+  }
+
+  return config}, (error) => Promise.reject(error));
+
+// Interceptor para tratamento de erros
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    if (error.code === 'ECONNABORTED') {
+      return Promise.reject(new Error('Request timeout'));
+    }
+    if (error.response?.status === 401) {
+      window.location.href = '/auth/login?redirect=' + 
+        encodeURIComponent(window.location.pathname);
+    }
     return Promise.reject(error);
   }
 );
 
-// Função para buscar todas as metas
-export const getMetas = async (): Promise<Meta[]> => {
-  try {
-    const response = await api.get("/api/goals");
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao buscar metas:", error);
-    throw error;
-  }
-};
-
-// Função para criar uma nova meta
-export const createMeta = async (meta: Omit<Meta, "_id">): Promise<Meta> => {
-  try {
-    const response = await api.post("/api/goals", meta);
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao criar meta:", error);
-    throw error;
-  }
-};
-
-// Função para atualizar uma meta existente
-export const updateMeta = async (id: string, meta: Partial<Meta>): Promise<Meta> => {
-  try {
-    const response = await api.put(`/api/goals/${id}`, meta);
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao atualizar meta:", error);
-    throw error;
-  }
-};
-
-// Função para excluir uma meta
-export const deleteMeta = async (id: string): Promise<void> => {
-  try {
-    await api.delete(`/api/goals/${id}`);
-  } catch (error) {
-    console.error("Erro ao excluir meta:", error);
-    throw error;
-  }
-};
-
-// Função para buscar todas as transações
-export const getTransacoes = async (): Promise<Transacao[]> => {
-  try {
-    const response = await api.get("/api/transacoes");
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao buscar transações:", error);
-    throw error;
-  }
-};
-
-// Função para criar uma nova transação
-export const createTransacao = async (transacao: Omit<Transacao, "_id">): Promise<Transacao> => {
-  try {
-    // Formata a transação para o formato esperado pela API
-    const transacaoFormatada = {
-      ...transacao,
-      data: new Date(transacao.data.$date).toISOString(), // Converte a data para ISO
-    };
-    const response = await api.post("/api/transacoes", transacaoFormatada);
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao criar transação:", error);
-    throw error;
-  }
-};
-
-// Função para atualizar uma transação existente
-export const updateTransacao = async (id: string, transacao: Partial<Transacao>): Promise<Transacao> => {
-  try {
-    // Formata a transação para o formato esperado pela API
-    const transacaoFormatada = {
-      ...transacao,
-      data: transacao.data ? new Date(transacao.data.$date).toISOString() : undefined, // Converte a data para ISO
-    };
-    const response = await api.put(`/api/transacoes/${id}`, transacaoFormatada);
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao atualizar transação:", error);
-    throw error;
-  }
-};
-
-// Função para excluir uma transação - Versão corrigida
-// Função para excluir transação
-export const deleteTransacao = async (id: string): Promise<void> => {
-  try {
-    if (!id) {
-      throw new Error("ID inválido fornecido para exclusão");
-    }
-    
-    await api.delete(`/api/transacoes/${id}`);
-  } catch (error) {
-    console.error("Erro ao excluir transação:", error);
-    throw error;
-  }
-};
-
-// Função para buscar todos os investimentos
-export const getInvestimentos = async (): Promise<Investimento[]> => {
-  try {
+// API para Investimentos
+export const investimentoAPI = {
+  getAll: async (): Promise<Investimento[]> => {
     const response = await api.get("/api/investimentos");
+    return Array.isArray(response.data) ? response.data : [];
+  },
+  create: async (investimento: Omit<Investimento, '_id'>): Promise<Investimento> => {
+    const response = await api.post("/api/investimentos", investimento);
     return response.data;
-  } catch (error) {
-    console.error("Erro ao buscar investimentos:", error);
-    throw new Error("Não foi possível buscar os investimentos.");
-  }
-};
-
-// Função para adicionar um novo investimento
-export const addInvestimento = async (investimento: Omit<Investimento, '_id'>): Promise<Investimento> => {
-  try {
-    console.log('Enviando dados para o backend:', investimento); // Log para debug
-
-    const response = await api.post('/api/investimentos', investimento, {
-      headers: {
-        'Content-Type': 'application/json', // Garante que o conteúdo seja enviado como JSON
-      },
-    });
-
-    console.log('Resposta do backend:', response.data); // Log para debug
+  },
+  update: async (id: string, investimento: Partial<Investimento>): Promise<Investimento> => {
+    const response = await api.put(`/api/investimentos/${id}`, investimento);
     return response.data;
-  } catch (error: any) {
-    console.error('Erro detalhado na requisição:', {
-      mensagem: error.response?.data?.message || error.message,
-      status: error.response?.status,
-      dados: error.response?.data,
-      config: error.config,
-    });
-
-    throw new Error('Não foi possível adicionar o investimento. Verifique os dados e tente novamente.');
-  }
-};
-
-// Função para atualizar um investimento existente
-export const updateInvestimento = async (id: string, investimento: Partial<Investimento>): Promise<Investimento> => {
-  try {
-    const response = await api.put(`/api/investimentos/${id}`, {
-      ...investimento,
-      data: investimento.data ? new Date(investimento.data).toISOString() : undefined, // Formata a data para ISO
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao atualizar investimento:", error);
-    throw new Error("Não foi possível atualizar o investimento.");
-  }
-};
-
-// Função para excluir um investimento
-export const deleteInvestimento = async (id: string): Promise<void> => {
-  try {
-    if (!id) {
-      throw new Error("ID inválido fornecido para exclusão.");
-    }
+  },
+  delete: async (id: string): Promise<void> => {
     await api.delete(`/api/investimentos/${id}`);
-  } catch (error) {
-    console.error("Erro ao excluir investimento:", error);
-    throw new Error("Não foi possível excluir o investimento.");
   }
 };
+
+// API para Transações
+export const transacaoAPI = {
+  getAll: async (): Promise<Transacao[]> => {
+    const response = await api.get("/api/transacoes");
+    return Array.isArray(response.data) ? response.data : [];
+  },
+  create: async (transacao: NovaTransacaoPayload): Promise<Transacao> => {
+    const response = await api.post("/api/transacoes", transacao);
+    return response.data;
+  },
+  update: async (id: string, transacao: AtualizarTransacaoPayload): Promise<Transacao> => {
+    const response = await api.put(`/api/transacoes/${id}`, transacao);
+    return response.data;
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/api/transacoes/${id}`);
+  },
+};
+
+// API para Metas
+export const metaAPI = {
+  getAll: async (): Promise<Meta[]> => {
+    const response = await api.get("/api/goals");
+    const metas = response.data?.metas || response.data || [];
+    return metas.map((meta: any) => ({
+      _id: meta._id,
+      titulo: meta.meta || meta.titulo,
+      valorAlvo: meta.valor_total || meta.valorAlvo,
+      valorAtual: meta.valor_atual || meta.valorAtual,
+      dataLimite: meta.data_conclusao || meta.dataLimite,
+      concluida: (meta.valor_atual >= meta.valor_total) || meta.concluida,
+      categoria: meta.categoria,
+      prioridade: meta.prioridade,
+      createdAt: meta.createdAt
+    }));
+  },
+  create: async (meta: Omit<Meta, '_id'>): Promise<Meta> => {
+    const response = await api.post("/api/goals", {
+      meta: meta.titulo,
+      valor_total: meta.valorAlvo,
+      valor_atual: meta.valorAtual || 0,
+      data_conclusao: meta.dataLimite,
+      categoria: meta.categoria,
+      prioridade: meta.prioridade
+    });
+    return {
+      _id: response.data._id,
+      ...meta,
+      concluida: response.data.valor_atual >= response.data.valor_total,
+      createdAt: response.data.createdAt
+    };
+  },
+  update: async (id: string, meta: Partial<Meta>): Promise<Meta> => {
+    const response = await api.put(`/api/goals/${id}`, {
+      meta: meta.titulo,
+      valor_total: meta.valorAlvo,
+      valor_atual: meta.valorAtual,
+      data_conclusao: meta.dataLimite,
+      categoria: meta.categoria,
+      prioridade: meta.prioridade
+    });
+    return response.data;
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/api/goals/${id}`);
+  }
+};
+
+export default api;

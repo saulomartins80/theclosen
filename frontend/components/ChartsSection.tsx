@@ -16,14 +16,21 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 interface Transacao {
   tipo: string;
   valor: number;
-  data: string | { $date: string }; // Adicionei o campo data
+  data: string | { $date: string };
 }
 
 interface ChartsSectionProps {
   transacoes: Transacao[];
+  theme: 'light' | 'dark';
+  className?: string;
 }
 
-const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
+const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes, theme, className }) => {
+  // Cores baseadas no tema
+  const backgroundColor = theme === 'dark' ? '#1F2937' : '#FFFFFF';
+  const textColor = theme === 'dark' ? '#FFFFFF' : '#111827';
+  const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
   // Função para parsear a data corretamente
   const parseDate = (date: string | { $date: string }): Date => {
     try {
@@ -31,7 +38,7 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
       return new Date(dateString);
     } catch (error) {
       console.error("Erro ao parsear data:", date, error);
-      return new Date(); // Retorna data atual como fallback
+      return new Date();
     }
   };
 
@@ -59,7 +66,7 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
       legend: {
         position: "bottom" as const,
         labels: {
-          color: "#6B7280",
+          color: textColor,
           font: {
             size: 14,
           },
@@ -88,21 +95,18 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
   // Função para agrupar transações por mês e calcular saldo
   const calcularSaldoPorMes = () => {
     const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    const resultado = meses.map(() => 0); // Inicializa com zeros
+    const resultado = meses.map(() => 0);
     
-    // Ordena transações por data
     const transacoesOrdenadas = [...transacoes].sort((a, b) => {
       return parseDate(a.data).getTime() - parseDate(b.data).getTime();
     });
 
-    // Calcula saldo acumulado
     transacoesOrdenadas.forEach(transacao => {
       const mes = parseDate(transacao.data).getMonth();
       const valor = transacao.tipo === "receita" ? transacao.valor : -transacao.valor;
       resultado[mes] += valor;
     });
 
-    // Calcula saldo acumulativo
     for (let i = 1; i < resultado.length; i++) {
       resultado[i] += resultado[i - 1];
     }
@@ -110,7 +114,7 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
     return resultado;
   };
 
-  // Dados para o gráfico de barras horizontais
+  // Dados para o gráfico de barras
   const saldoPorMes = calcularSaldoPorMes();
   const mesesComDados = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -149,14 +153,18 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
     scales: {
       x: {
         grid: {
-          display: false,
+          color: gridColor,
+        },
+        ticks: {
+          color: textColor,
         },
       },
       y: {
         grid: {
-          color: "rgba(229, 231, 235, 0.2)",
+          color: gridColor,
         },
         ticks: {
+          color: textColor,
           callback: (value: number | string) => {
             if (typeof value === 'number') {
               return `R$ ${value.toFixed(2)}`;
@@ -172,18 +180,22 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ transacoes }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      {/* Gráfico de Rosca (Doughnut) */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Distribuição por Tipo</h2>
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${className}`}>
+      {/* Gráfico de Rosca */}
+      <div className={`p-6 rounded-lg shadow-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          Distribuição por Tipo
+        </h2>
         <div className="h-64">
           <Doughnut data={dataRosca} options={optionsRosca} />
         </div>
       </div>
 
-      {/* Gráfico de Barras Horizontais */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Evolução do Saldo</h2>
+      {/* Gráfico de Barras */}
+      <div className={`p-6 rounded-lg shadow-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+        <h2 className={`text-lg font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          Evolução do Saldo
+        </h2>
         <div className="h-64">
           <Bar data={dataBarras} options={optionsBarras} />
         </div>

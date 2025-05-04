@@ -1,30 +1,43 @@
-import mongoose, { Document, Schema } from 'mongoose';
+// src/models/Investimento.ts
+import { Document, Schema, model } from 'mongoose';
 
 export interface IInvestimento extends Document {
   nome: string;
-  tipo: string;
+  tipo: 'Renda Fixa' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas';
   valor: number;
   data: Date;
-  usuario?: mongoose.Types.ObjectId; // Tornamos opcional
 }
 
-const InvestimentoSchema: Schema = new Schema({
-  nome: { type: String, required: true },
+const InvestimentoSchema = new Schema({
+  nome: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
   tipo: { 
     type: String, 
     required: true,
-    enum: ['Renda Fixa', 'Ações', 'Fundos Imobiliários'],
-    default: 'Renda Fixa'
+    enum: ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas']
   },
-  valor: { type: Number, required: true },
-  data: { type: Date, required: true },
-  usuario: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: false // Alterado para false
+  valor: { 
+    type: Number, 
+    required: true,
+    min: 0.01
+  },
+  data: { 
+    type: Date, 
+    required: true,
+    validate: {
+      validator: function(value: Date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return value >= today;
+      },
+      message: 'Data deve ser hoje ou futura'
+    }
   }
-}, {
+}, { 
   timestamps: true
 });
 
-export default mongoose.model<IInvestimento>('Investimento', InvestimentoSchema);
+export default model<IInvestimento>('Investimento', InvestimentoSchema);

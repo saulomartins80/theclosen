@@ -1,611 +1,726 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash, Filter, X } from 'lucide-react';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { 
-  getInvestimentos, 
-  addInvestimento, 
-  updateInvestimento, 
-  deleteInvestimento 
-} from '../services/api';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash, Filter, X, DollarSign, PieChart, Loader2 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
+import { investimentoAPI } from '../services/api';
+import 'react-toastify/dist/ReactToastify.css';
 
-// Carrega os gráficos dinamicamente (para SSR)
-const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
-
-interface Investimento {
+// Tipagem melhorada
+type Investimento = {
   _id: string;
   nome: string;
-  tipo: string;
+  tipo: 'Renda Fixa' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas';
   valor: number;
   data: string;
+};
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
 }
 
-const InvestimentosPage = () => {
+// Componente dinâmico para os gráficos
+const Chart = dynamic(() => import('react-apexcharts'), { 
+  ssr: false,
+  loading: () => (
+    <div className="flex justify-center items-center h-64">
+      <Loader2 className="animate-spin text-blue-500" size={24} />
+    </div>
+  )
+});
+
+const InvestimentosDashboard = () => {
   // Estados
   const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [currentInvestimento, setCurrentInvestimento] = useState<Investimento | null>(null);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filtros, setFiltros] = useState({
+  const [error, setError] = useState<string | null>(null);
+  
+  const [filters, setFilters] = useState({
     tipo: '',
     dataInicio: '',
-    dataFim: ''
-  });
-  
-  // Estado para o formulário de adição
-  const [addFormData, setAddFormData] = useState<Omit<Investimento, '_id'>>({
-    nome: '',
-    tipo: 'Renda Fixa',
-    valor: 0,
-    data: new Date().toISOString().split('T')[0]
+    dataFim: '',
+    ordenacao: 'recentes',
+    open: false
   });
 
-  // Estado para o formulário de edição
-  const [editFormData, setEditFormData] = useState<Omit<Investimento, '_id'>>({
-    nome: '',
-    tipo: 'Renda Fixa',
-    valor: 0,
-    data: new Date().toISOString().split('T')[0]
+  const [form, setForm] = useState({
+    open: false,
+    mode: 'add' as 'add' | 'edit',
+    data: {} as Partial<Investimento>
   });
 
-  // Busca investimentos
-  useEffect(() => {
-    const fetchInvestimentos = async () => {
-      try {
-        const data = await getInvestimentos();
-        setInvestimentos(data);
-      } catch (error) {
-        toast.error('Erro ao carregar investimentos');
-        console.error(error);
-      } finally {
-        setLoading(false);
+  // Cores para tipos de investimento
+  const tipoCores = {
+    'Renda Fixa': { bg: 'bg-blue-100', text: 'text-blue-800', dark: { bg: 'dark:bg-blue-900', text: 'dark:text-blue-200' } },
+    'Ações': { bg: 'bg-green-100', text: 'text-green-800', dark: { bg: 'dark:bg-green-900', text: 'dark:text-green-200' } },
+    'Fundos Imobiliários': { bg: 'bg-purple-100', text: 'text-purple-800', dark: { bg: 'dark:bg-purple-900', text: 'dark:text-purple-200' } },
+    'Criptomoedas': { bg: 'bg-yellow-100', text: 'text-yellow-800', dark: { bg: 'dark:bg-yellow-900', text: 'dark:text-yellow-200' } }
+  };
+
+  // Buscar investimentos com tratamento robusto
+  const fetchInvestimentos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await investimentoAPI.getAll();
+      
+      // Verificação em múltiplos níveis
+      const rawData = (response as any)?.data?.data || (response as any)?.data || response;
+      
+      if (!Array.isArray(rawData)) {
+        throw new Error('Formato de dados inválido recebido da API');
       }
-    };
 
+      // Formatação consistente dos dados
+      const formattedData = rawData.map((item: any) => ({
+        _id: item._id?.$oid || item._id || Math.random().toString(36).substring(2, 9),
+        nome: item.nome || 'Sem nome',
+        tipo: ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas'].includes(item.tipo) 
+          ? item.tipo 
+          : 'Renda Fixa',
+        valor: Number(item.valor) || 0,
+        data: item.data ? new Date(item.data).toISOString() : new Date().toISOString()
+      }));
+
+      setInvestimentos(formattedData);
+    } catch (err) {
+      console.error('Erro ao buscar investimentos:', err);
+      setError(err instanceof Error ? err.message : 'Erro desconhecido ao carregar investimentos');
+      setInvestimentos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchInvestimentos();
   }, []);
 
-  // Aplica filtros
-  const investimentosFiltrados = investimentos.filter(inv => {
-    const dataInvestimento = new Date(inv.data);
-    const dataInicio = filtros.dataInicio ? new Date(filtros.dataInicio) : null;
-    const dataFim = filtros.dataFim ? new Date(filtros.dataFim) : null;
-    
-    return (
-      (!filtros.tipo || inv.tipo === filtros.tipo) &&
-      (!dataInicio || dataInvestimento >= dataInicio) &&
-      (!dataFim || dataInvestimento <= dataFim)
-    );
-  });
+  // Filtra e ordena os investimentos com segurança
+  const investimentosFiltrados = useMemo(() => {
+    if (!Array.isArray(investimentos)) return [];
 
-  // Dados para gráficos
-  const tiposInvestimento = Array.from(new Set(investimentosFiltrados.map(inv => inv.tipo)));
-  
-  const dadosGraficoPizza = {
-    series: tiposInvestimento.map(tipo => 
-      investimentosFiltrados
-        .filter(inv => inv.tipo === tipo)
-        .reduce((total, inv) => total + inv.valor, 0)
-    ),
-    labels: tiposInvestimento
-  };
-
-  const dadosGraficoBarras = {
-    series: [{
-      name: 'Valor Investido',
-      data: tiposInvestimento.map(tipo => 
-        investimentosFiltrados
-          .filter(inv => inv.tipo === tipo)
-          .reduce((total, inv) => total + inv.valor, 0)
-      )
-    }],
-    labels: tiposInvestimento
-  };
-
-  // Manipuladores de eventos
-  const handleAddInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setAddFormData({
-      ...addFormData,
-      [name]: name === 'valor' ? Number(value) : value
-    });
-  };
-
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setEditFormData({
-      ...editFormData,
-      [name]: name === 'valor' ? Number(value) : value
-    });
-  };
-
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFiltros({
-      ...filtros,
-      [name]: value
-    });
-  };
-
-  const resetFilters = () => {
-    setFiltros({
-      tipo: '',
-      dataInicio: '',
-      dataFim: ''
-    });
-  };
-
-  const handleAdd = async () => {
-    try {
-      if (!addFormData.nome || !addFormData.tipo || addFormData.valor <= 0 || !addFormData.data) {
-        toast.error('Preencha todos os campos corretamente');
-        return;
-      }
-
-      const dadosParaEnviar = {
-        ...addFormData,
-        valor: Number(addFormData.valor),
-        data: new Date(addFormData.data).toISOString(),
-      };
-
-      const novoInvestimento = await addInvestimento(dadosParaEnviar);
-      setInvestimentos([...investimentos, novoInvestimento]);
-      toast.success('Investimento adicionado com sucesso!');
-
-      setAddFormData({
-        nome: '',
-        tipo: 'Renda Fixa',
-        valor: 0,
-        data: new Date().toISOString().split('T')[0],
+    return investimentos
+      .filter(inv => {
+        if (!inv) return false;
+        
+        try {
+          const invDate = new Date(inv.data);
+          const startDate = filters.dataInicio ? new Date(filters.dataInicio) : null;
+          const endDate = filters.dataFim ? new Date(filters.dataFim) : null;
+          
+          return (
+            (!filters.tipo || inv.tipo === filters.tipo) &&
+            (!startDate || invDate >= startDate) &&
+            (!endDate || invDate <= endDate)
+          );
+        } catch {
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        try {
+          return filters.ordenacao === 'recentes' 
+            ? new Date(b.data).getTime() - new Date(a.data).getTime() 
+            : new Date(a.data).getTime() - new Date(b.data).getTime();
+        } catch {
+          return 0;
+        }
       });
-      setIsFormOpen(false);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(`Falha ao adicionar: ${error.message}`);
-      } else {
-        toast.error('Falha ao adicionar: Erro desconhecido');
-      }
-    }
-  };
+  }, [investimentos, filters]);
 
-  const handleEdit = async () => {
-    if (!currentInvestimento?._id) {
-      toast.error('Nenhum investimento selecionado');
+  // Dados para gráficos com validação
+  const chartData = useMemo(() => {
+    const tiposValidos = ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas'];
+    const tiposPresentes = Array.from(
+  new Set<Investimento['tipo']>(
+    investimentosFiltrados
+      .map(inv => inv?.tipo)
+      .filter((tipo): tipo is Investimento['tipo'] => 
+        tiposValidos.includes(tipo as any)
+      )
+  )
+);
+    return {
+      pie: {
+        series: tiposPresentes.map(tipo => 
+          investimentosFiltrados
+            .filter(inv => inv?.tipo === tipo)
+            .reduce((total, inv) => total + (inv?.valor || 0), 0)
+        ),
+        labels: tiposPresentes,
+        colors: tiposPresentes.map(tipo => {
+          switch(tipo) {
+            case 'Renda Fixa': return '#3B82F6';
+            case 'Ações': return '#10B981';
+            case 'Fundos Imobiliários': return '#8B5CF6';
+            case 'Criptomoedas': return '#F59E0B';
+            default: return '#6B7280';
+          }
+        })
+      },
+      donut: {
+        series: tiposPresentes.map(tipo => 
+          investimentosFiltrados
+            .filter(inv => inv?.tipo === tipo)
+            .length
+        ),
+        labels: tiposPresentes,
+        colors: tiposPresentes.map(tipo => {
+          switch(tipo) {
+            case 'Renda Fixa': return '#60A5FA';
+            case 'Ações': return '#34D399';
+            case 'Fundos Imobiliários': return '#A78BFA';
+            case 'Criptomoedas': return '#FBBF24';
+            default: return '#9CA3AF';
+          }
+        })
+      }
+    };
+  }, [investimentosFiltrados]);
+
+  const handleFormSubmit = async () => {
+  try {
+    // Validação dos campos
+    if (!form.data.nome?.trim()) {
+      toast.error('Nome é obrigatório');
+      return;
+    }
+    if (!form.data.tipo) {
+      toast.error('Tipo é obrigatório');
+      return;
+    }
+    if (!form.data.valor || isNaN(Number(form.data.valor))) {
+      toast.error('Valor inválido');
+      return;
+    }
+    if (!form.data.data) {
+      toast.error('Data é obrigatória');
       return;
     }
 
-    try {
-      const investimentoAtualizado = await updateInvestimento(
-        currentInvestimento._id,
-        editFormData
-      );
+    // Restante da lógica de formatação e envio...
+    const dataSelecionada = new Date(form.data.data);
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-      setInvestimentos(investimentos.map((inv) =>
-        inv._id === currentInvestimento._id ? { ...investimentoAtualizado } : inv
-      ));
-
-      toast.success('Investimento atualizado com sucesso!');
-      setIsEditFormOpen(false);
-      setCurrentInvestimento(null);
-    } catch (err) {
-      if (err instanceof Error) {
-        toast.error(`Erro ao atualizar: ${err.message}`);
-      } else {
-        toast.error('Erro ao atualizar investimento');
-      }
-      console.error('Erro ao editar:', err);
+    if (dataSelecionada < hoje) {
+      toast.error('A data deve ser hoje ou futura');
+      return;
     }
-  };
+
+    const payload = {
+      nome: form.data.nome.trim(),
+      tipo: form.data.tipo,
+      valor: Number(form.data.valor),
+      data: dataSelecionada.toISOString()
+    };
+
+    if (payload.valor <= 0) {
+      toast.error('Valor deve ser positivo');
+      return;
+    }
+
+    if (isNaN(dataSelecionada.getTime())) {
+      toast.error('Data inválida');
+      return;
+    }
+
+    // Operação de criação/atualização
+    if (form.mode === 'edit' && form.data._id) {
+      await investimentoAPI.update(form.data._id, payload);
+      toast.success('Investimento atualizado com sucesso!');
+    } else {
+      await investimentoAPI.create(payload);
+      toast.success('Investimento criado com sucesso!');
+    }
+
+    await fetchInvestimentos();
+    setForm({ ...form, open: false });
+
+  } catch (err) {
+    console.error('Erro no formulário:', err);
+    // Mensagem genérica caso ocorra outro tipo de erro
+    toast.error('Ocorreu um erro ao processar a solicitação');
+  }
+};
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este investimento?')) {
-      return;
-    }
+    if (!window.confirm('Tem certeza que deseja excluir este investimento?')) return;
 
     try {
-      await deleteInvestimento(id);
-      setInvestimentos(investimentos.filter((inv) => inv._id !== id));
+      await investimentoAPI.delete(id);
       toast.success('Investimento excluído com sucesso!');
+      await fetchInvestimentos();
     } catch (err) {
-      if (err instanceof Error) {
-        toast.error(`Erro ao excluir: ${err.message}`);
-      } else {
-        toast.error('Erro ao excluir investimento');
-      }
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao excluir investimento';
+      toast.error(errorMessage);
       console.error('Erro ao excluir:', err);
     }
   };
 
-  const openEditForm = (investimento: Investimento) => {
-    setCurrentInvestimento(investimento);
-    setEditFormData({
-      nome: investimento.nome,
-      tipo: investimento.tipo,
-      valor: investimento.valor,
-      data: investimento.data.split('T')[0]
-    });
-    setIsEditFormOpen(true);
-  };
+  // Componente de Badge
+  const Badge = ({ tipo }: { tipo: keyof typeof tipoCores }) => (
+    <span className={`px-2 py-1 text-xs font-medium rounded-full ${tipoCores[tipo].bg} ${tipoCores[tipo].text} ${tipoCores[tipo].dark.bg} ${tipoCores[tipo].dark.text}`}>
+      {tipo}
+    </span>
+  );
+
+  // Renderização condicional
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="animate-spin text-blue-500" size={32} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 max-w-md text-center">
+          <h3 className="font-bold mb-2">Erro ao carregar investimentos</h3>
+          <p>{error}</p>
+          <button
+            onClick={fetchInvestimentos}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 bg-gray-100 dark:bg-gray-900 min-h-screen pb-20">
-      {/* Cabeçalho e botões */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Investimentos</h1>
-        
-        <div className="flex gap-2 w-full md:w-auto">
-          <button
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-          >
-            {isFilterOpen ? <X size={18} /> : <Filter size={18} />}
-            <span className="hidden md:inline">Filtrar</span>
-          </button>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+      {/* Cabeçalho */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-100 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <DollarSign className="text-blue-600 dark:text-blue-400" size={24} />
+              Meus Investimentos
+            </h1>
+            <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg inline-block">
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                Total: <span className="text-blue-600 dark:text-blue-400">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                  }).format(
+                    investimentosFiltrados.reduce((sum, inv) => sum + (inv?.valor || 0), 0)
+                  )}
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-3 w-full md:w-auto">
+            <button
+              onClick={() => setFilters({ ...filters, open: !filters.open })}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+            >
+              {filters.open ? <X size={18} /> : <Filter size={18} />}
+              <span className="hidden md:inline">Filtrar</span>
+            </button>
+            <button
+              onClick={() => setForm({ 
+                open: true, 
+                mode: 'add', 
+                data: { 
+                  tipo: 'Renda Fixa',
+                  data: new Date().toISOString().split('T')[0]
+                } 
+              })}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors hidden md:flex items-center gap-2"
+            >
+              <Plus size={18} />
+              Novo
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Filtros */}
-      {isFilterOpen && (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {filters.open && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6 border border-gray-100 dark:border-gray-700">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block mb-2 text-sm">Tipo</label>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo</label>
               <select
-                name="tipo"
-                value={filtros.tipo}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                value={filters.tipo}
+                onChange={(e) => setFilters({ ...filters, tipo: e.target.value })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               >
                 <option value="">Todos</option>
-                <option value="Renda Fixa">Renda Fixa</option>
-                <option value="Ações">Ações</option>
-                <option value="Fundos Imobiliários">Fundos Imobiliários</option>
+                {Object.keys(tipoCores).map(tipo => (
+                  <option key={tipo} value={tipo}>{tipo}</option>
+                ))}
               </select>
             </div>
             
             <div>
-              <label className="block mb-2 text-sm">Data Início</label>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">De</label>
               <input
                 type="date"
-                name="dataInicio"
-                value={filtros.dataInicio}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                value={filters.dataInicio}
+                onChange={(e) => setFilters({ ...filters, dataInicio: e.target.value })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               />
             </div>
             
             <div>
-              <label className="block mb-2 text-sm">Data Fim</label>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Até</label>
               <input
                 type="date"
-                name="dataFim"
-                value={filtros.dataFim}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                value={filters.dataFim}
+                onChange={(e) => setFilters({ ...filters, dataFim: e.target.value })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               />
             </div>
-          </div>
-          
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600"
-            >
-              Limpar Filtros
-            </button>
+            
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Ordenar</label>
+              <select
+                value={filters.ordenacao}
+                onChange={(e) => setFilters({ ...filters, ordenacao: e.target.value })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="recentes">Mais recentes</option>
+                <option value="antigos">Mais antigos</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
 
       {/* Gráficos */}
-      {investimentosFiltrados.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-4">Distribuição por Tipo</h2>
-            <div className="h-64">
-              {typeof window !== 'undefined' && (
-                <Chart
-                  options={{
-                    labels: dadosGraficoPizza.labels,
-                    colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'],
-                    legend: {
-                      position: 'bottom'
-                    },
-                    responsive: [{
-                      breakpoint: 480,
-                      options: {
-                        legend: {
-                          position: 'bottom'
-                        }
-                      }
-                    }]
-                  }}
-                  series={dadosGraficoPizza.series}
-                  type="pie"
-                  width="100%"
-                  height="100%"
-                />
-              )}
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Gráfico de Pizza - Distribuição por Valor */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-4">
+            <PieChart className="text-blue-600 dark:text-blue-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Distribuição por Valor</h2>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-            <h2 className="text-lg font-semibold mb-4">Valor por Tipo</h2>
-            <div className="h-64">
-              {typeof window !== 'undefined' && (
-                <Chart
-                  options={{
-                    chart: {
-                      type: 'bar',
-                      toolbar: {
-                        show: false
-                      }
-                    },
-                    plotOptions: {
-                      bar: {
-                        borderRadius: 4,
-                        horizontal: true,
-                      }
-                    },
-                    dataLabels: {
-                      enabled: false
-                    },
-                    xaxis: {
-                      categories: dadosGraficoBarras.labels,
-                    },
-                    colors: ['#3B82F6'],
-                    responsive: [{
-                      breakpoint: 480,
-                      options: {
-                        plotOptions: {
-                          bar: {
-                            horizontal: false
-                          }
-                        }
-                      }
-                    }]
-                  }}
-                  series={dadosGraficoBarras.series}
-                  type="bar"
-                  width="100%"
-                  height="100%"
-                />
-              )}
-            </div>
-          </div>
+          <Chart
+            options={{
+              chart: {
+                type: 'pie',
+                foreColor: '#6B7280',
+              },
+              labels: chartData.pie.labels,
+              colors: chartData.pie.colors,
+              legend: {
+                position: 'bottom',
+                labels: {
+                  colors: ['#6B7280']
+                }
+              },
+              responsive: [{
+                breakpoint: 480,
+                options: {
+                  chart: {
+                    width: '100%'
+                  },
+                  legend: {
+                    position: 'bottom'
+                  }
+                }
+              }]
+            }}
+            series={chartData.pie.series}
+            type="pie"
+            height={300}
+          />
         </div>
-      )}
 
-      {/* Lista de investimentos */}
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        {/* Gráfico de Rosca - Distribuição por Quantidade */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-4">
+            <PieChart className="text-green-600 dark:text-green-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Distribuição por Quantidade</h2>
+          </div>
+          <Chart
+            options={{
+              chart: {
+                type: 'donut',
+                foreColor: '#6B7280',
+              },
+              labels: chartData.donut.labels,
+              colors: chartData.donut.colors,
+              legend: {
+                position: 'bottom',
+                labels: {
+                  colors: ['#6B7280']
+                }
+              },
+              plotOptions: {
+                pie: {
+                  donut: {
+                    labels: {
+                      show: true,
+                      total: {
+                        show: true,
+                        label: 'Total',
+                        color: '#6B7280'
+                      }
+                    }
+                  }
+                }
+              },
+              responsive: [{
+                breakpoint: 480,
+                options: {
+                  chart: {
+                    width: '100%'
+                  },
+                  legend: {
+                    position: 'bottom'
+                  }
+                }
+              }]
+            }}
+            series={chartData.donut.series}
+            type="donut"
+            height={300}
+          />
         </div>
-      ) : investimentosFiltrados.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow text-center">
-          <p className="text-gray-600 dark:text-gray-400">
-            {investimentos.length === 0 
-              ? 'Nenhum investimento cadastrado' 
-              : 'Nenhum investimento encontrado com os filtros atuais'}
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-gray-800 p-4 md:p-6 rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tipo</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Valor</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Data</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {investimentosFiltrados.map((investimento) => (
-                  <tr key={investimento._id}>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {investimento.nome}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      {investimento.tipo}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      R$ {investimento.valor.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                      {new Date(investimento.data).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openEditForm(investimento)}
-                          className="text-blue-500 hover:text-blue-700"
-                          aria-label="Editar"
-                        >
-                          <Edit size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(investimento._id)}
-                          className="text-red-500 hover:text-red-700"
-                          aria-label="Excluir"
-                        >
-                          <Trash size={18} />
-                        </button>
-                      </div>
-                    </td>
+      </div>
+
+      {/* Tabela */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-700">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="animate-spin text-blue-600 dark:text-blue-400" size={32} />
+            <span className="ml-2 text-gray-600 dark:text-gray-300">Carregando...</span>
+          </div>
+        ) : investimentosFiltrados.length === 0 ? (
+          <div className="text-center py-12">
+            <DollarSign className="mx-auto text-gray-400 mb-3" size={48} />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Nenhum investimento encontrado</h3>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">
+              {investimentos.length === 0 
+                ? 'Comece adicionando seu primeiro investimento' 
+                : 'Tente ajustar os filtros'}
+            </p>
+            <button
+              onClick={() => setForm({ open: true, mode: 'add', data: {} })}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+            >
+              <Plus size={18} />
+              Adicionar Investimento
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Desktop */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nome</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Valor</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {investimentosFiltrados.map((investimento) => (
+                    <tr key={investimento._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {investimento.nome}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <Badge tipo={investimento.tipo} />
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL'
+                        }).format(investimento.valor)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(investimento.data).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex justify-start gap-2">
+                          <button
+                            onClick={() => setForm({ open: true, mode: 'edit', data: investimento })}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                            aria-label="Editar"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(investimento._id)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                            aria-label="Excluir"
+                          >
+                            <Trash size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-      {/* Botão flutuante para adicionar */}
+            {/* Mobile */}
+            <div className="md:hidden space-y-3">
+              {investimentosFiltrados.map((investimento) => (
+                <div key={investimento._id} className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-100 dark:border-gray-700">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">{investimento.nome}</h3>
+                      <div className="mt-1">
+                        <Badge tipo={investimento.tipo} />
+                      </div>
+                    </div>
+                    <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL'
+                      }).format(investimento.valor)}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-3 flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(investimento.data).toLocaleDateString('pt-BR')}
+                    </span>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setForm({ open: true, mode: 'edit', data: investimento })}
+                        className="text-blue-600 dark:text-blue-400 p-1 rounded-full hover:bg-blue-50 dark:hover:bg-gray-700"
+                        aria-label="Editar"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(investimento._id)}
+                        className="text-red-600 dark:text-red-400 p-1 rounded-full hover:bg-red-50 dark:hover:bg-gray-700"
+                        aria-label="Excluir"
+                      >
+                        <Trash size={18} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Botão Flutuante para Mobile */}
       <button
-        onClick={() => setIsFormOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 flex items-center justify-center z-40"
-        aria-label="Adicionar investimento"
+        onClick={() => setForm({ open: true, mode: 'add', data: {} })}
+        className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
       >
         <Plus size={24} />
       </button>
 
-      {/* Modal de Adição */}
-      {isFormOpen && (
+      {/* Modal do Formulário */}
+      {form.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Novo Investimento</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block mb-2">Nome</label>
-                <input
-                  type="text"
-                  name="nome"
-                  value={addFormData.nome}
-                  onChange={handleAddInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                />
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md animate-fade-in">
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+                {form.mode === 'add' ? 'Novo Investimento' : 'Editar Investimento'}
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
+                  <input
+                    type="text"
+                    value={form.data.nome || ''}
+                    onChange={(e) => setForm({ ...form, data: { ...form.data, nome: e.target.value } })}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                    placeholder="Ex: CDB Banco XYZ"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo *</label>
+                  <select
+                    value={form.data.tipo || 'Renda Fixa'}
+                    onChange={(e) => setForm({ ...form, data: { ...form.data, tipo: e.target.value as Investimento['tipo'] } })}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                  >
+                    {Object.keys(tipoCores).map(tipo => (
+                      <option key={tipo} value={tipo}>{tipo}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Valor (R$) *</label>
+                  <input
+                    type="number"
+                    value={form.data.valor || ''}
+                    onChange={(e) => setForm({ ...form, data: { ...form.data, valor: Number(e.target.value) } })}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                    min="0.01"
+                    step="0.01"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Data *</label>
+                  <input
+                    type="date"
+                    value={form.data.data ? new Date(form.data.data).toISOString().split('T')[0] : ''}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      const selectedDate = e.target.value;
+                      const today = new Date().toISOString().split('T')[0];
+                      const finalDate = selectedDate < today ? today : selectedDate;
+
+                      setForm({
+                        ...form,
+                        data: {
+                          ...form.data,
+                          data: new Date(finalDate).toISOString()
+                        } 
+                      });
+                    }}                        
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-wh
+      ite dark:bg-gray-700"
+                  />
+                  {form.data.data && new Date(form.data.data) < new Date() && (
+                    <p className="text-red-500 text-xs mt-1">
+                      A data será ajustada para hoje
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <label className="block mb-2">Tipo</label>
-                <select
-                  name="tipo"
-                  value={addFormData.tipo}
-                  onChange={handleAddInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                >
-                  <option value="Renda Fixa">Renda Fixa</option>
-                  <option value="Ações">Ações</option>
-                  <option value="Fundos Imobiliários">Fundos Imobiliários</option>
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2">Valor (R$)</label>
-                <input
-                  type="number"
-                  name="valor"
-                  value={addFormData.valor}
-                  onChange={handleAddInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                  min="0.01"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block mb-2">Data</label>
-                <input
-                  type="date"
-                  name="data"
-                  value={addFormData.data}
-                  onChange={handleAddInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2">
+              
+              <div className="flex justify-end gap-3 mt-6">
                 <button
-                  onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 bg-gray-500 text-white rounded"
+                  onClick={() => setForm({ ...form, open: false })}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={handleAdd}
-                  className="px-4 py-2 bg-blue-500 text-white rounded"
+                  onClick={handleFormSubmit}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
-                  Adicionar
+                  {form.mode === 'add' ? 'Adicionar' : 'Salvar'}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Modal de Edição */}
-      {isEditFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Editar Investimento</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block mb-2">Nome</label>
-                <input
-                  type="text"
-                  name="nome"
-                  value={editFormData.nome}
-                  onChange={handleEditInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block mb-2">Tipo</label>
-                <select
-                  name="tipo"
-                  value={editFormData.tipo}
-                  onChange={handleEditInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                >
-                  <option value="Renda Fixa">Renda Fixa</option>
-                  <option value="Ações">Ações</option>
-                  <option value="Fundos Imobiliários">Fundos Imobiliários</option>
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2">Valor (R$)</label>
-                <input
-                  type="number"
-                  name="valor"
-                  value={editFormData.valor}
-                  onChange={handleEditInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                  min="0.01"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <label className="block mb-2">Data</label>
-                <input
-                  type="date"
-                  name="data"
-                  value={editFormData.data}
-                  onChange={handleEditInputChange}
-                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setIsEditFormOpen(false)}
-                  className="px-4 py-2 bg-gray-500 text-white rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleEdit}
-                  className="px-4 py-2 bg-blue-500 text-white rounded"
-                >
-                  Salvar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ToastContainer position="bottom-right" autoClose={3000} />
     </div>
   );
 };
 
-export default InvestimentosPage;
+export default InvestimentosDashboard;

@@ -1,15 +1,41 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+//src/config/firebasecofig.ts
+import admin from 'firebase-admin';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import path from 'path';
+import fs from 'fs';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAuMpESwxOiUS4hi8i4b259zl39wsB__S4",
-  authDomain: "finup-saas-2025.firebaseapp.com",
-  projectId: "finup-saas-2025",
-  storageBucket: "finup-saas-2025.appspot.com",
-  messagingSenderId: "656351422904-667dmh0muaenmccb1dbp1qvjop5g7vf0.apps.googleusercontent.com656351422904",
-  appId: "SEU_APP_ID",
+// Client Config
+export const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
+// Client App
+const clientApp = initializeApp(firebaseConfig);
+export const clientAuth = getAuth(clientApp);
 
-const auth = getAuth(app);
+// Admin Initialization
+const serviceAccountPath = path.join(__dirname, 'private/firebase-admin.json');
+
+if (!fs.existsSync(serviceAccountPath)) {
+  throw new Error(`Firebase Admin credentials missing at ${serviceAccountPath}`);
+}
+
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+
+if (admin.apps.length === 0) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+  });
+}
+
+// Admin Services
+export const adminAuth = admin.auth();
+export const adminFirestore = admin.firestore();
+export const adminStorage = admin.storage();

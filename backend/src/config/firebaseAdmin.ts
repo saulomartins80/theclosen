@@ -1,26 +1,20 @@
-import * as admin from 'firebase-admin';
-import path from 'path';
-import fs from 'fs';
+// src/config/firebaseAdmin.ts
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
-const credentialPath = path.join(__dirname, 'private/firebase-admin.json');
-
-try {
-  if (!fs.existsSync(credentialPath)) {
-    throw new Error(`Arquivo de credenciais não encontrado em: ${credentialPath}`);
-  }
-
-  const serviceAccount = require(credentialPath);
-
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+const adminApp = getApps().length > 0 
+  ? getApps()[0] 
+  : initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_ADMIN_PROJECT_ID, // Padronizado para FIREBASE_ADMIN_
+        clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n') 
+      }),
+      databaseURL: `https://${process.env.FIREBASE_ADMIN_PROJECT_ID}.firebaseio.com`
     });
-  }
-} catch (error) {
-  console.error('❌ Erro na inicialização do Firebase Admin:', error);
-  process.exit(1);
-}
 
-export const auth = admin.auth();
-export const db = admin.firestore();
+export const adminAuth = getAuth(adminApp);
+export const adminFirestore = getFirestore(adminApp);
+export const adminStorage = getStorage(adminApp);

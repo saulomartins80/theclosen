@@ -1,15 +1,14 @@
-import { useState, useEffect } from "react";
-import { Plus, Edit, Trash } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import LoadingSpinner from "../components/LoadingSpinner";
-import { Pie } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import { FormMeta } from '../types/Meta'; // Ajuste o caminho conforme necessário
-ChartJS.register(ArcElement, Tooltip, Legend);
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash, ChevronDown, ChevronUp, Trophy, Flag, Calendar, DollarSign } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, LinearScale, BarElement, CategoryScale } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
+import CountUp from 'react-countup';
+import ProgressBar from "@ramonak/react-progress-bar";
+
+ChartJS.register(ArcElement, Tooltip, Legend, LinearScale, BarElement, CategoryScale);
 
 interface Meta {
   _id?: string;
@@ -20,340 +19,501 @@ interface Meta {
   data_conclusao: string;
   userId: string;
   createdAt?: string;
-  observacoes?: string; // Adicione se necessário
+  categoria?: string;
+  prioridade?: 'baixa' | 'media' | 'alta';
 }
 
-export default function Metas() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [metaEditavel, setMetaEditavel] = useState<Meta | null>(null);
+interface DadosCategoria {
+  categoria: string;
+  percentual_conclusao: number;
+  valor_total: number;
+  valor_atual: number;
+  count: number;
+}
+
+const MetasDashboard = () => {
   const [metas, setMetas] = useState<Meta[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [filtro, setFiltro] = useState<"todas" | "concluidas" | "em-andamento">("todas");
+  const [dadosCategorias, setDadosCategorias] = useState<DadosCategoria[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState({
+    form: {
+      open: false,
+      mode: 'add' as 'add' | 'edit',
+      data: {} as Partial<Meta>
+    },
+    filters: {
+      status: 'todas' as 'todas' | 'concluidas' | 'em-andamento',
+      categoria: '',
+      prioridade: ''
+    },
+    expandedMeta: null as string | null
+  });
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  // Função para buscar metas
+  // Busca metas
   const fetchMetas = async () => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       const response = await fetch("http://localhost:5000/api/goals");
-      if (!response.ok) {
-        throw new Error("Erro ao buscar metas.");
-      }
       const data = await response.json();
       setMetas(data.metas || []);
     } catch (error) {
-      toast.error("Erro ao buscar metas.");
-      console.error(error);
-      setMetas([]);
+      toast.error("Erro ao buscar metas");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Busca as metas ao carregar o componente
+  // Busca progresso por categoria
+  const fetchProgressoPorCategoria = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/goals/progress-by-category");
+      const data = await response.json();
+      setDadosCategorias(data);
+    } catch (error) {
+      console.error("Erro ao buscar progresso por categoria:", error);
+      toast.error("Erro ao carregar dados do gráfico");
+    }
+  };
+
+  // Carrega todos os dados
   useEffect(() => {
-    fetchMetas();
+    const loadData = async () => {
+      setLoading(true);
+      await fetchMetas();
+      await fetchProgressoPorCategoria();
+      setLoading(false);
+    };
+    loadData();
   }, []);
 
-  const handleSaveMeta = async (meta: Omit<Meta, "_id" | "createdAt">) => {
-    setIsLoading(true);
-    try {
-      // Verifica se todos os campos obrigatórios estão presentes
-      if (!meta.meta || !meta.descricao || !meta.valor_total || !meta.valor_atual || !meta.data_conclusao || !meta.userId) {
-        throw new Error("Todos os campos são obrigatórios.");
-      }
-  
-      console.log("Dados sendo enviados para a API:", meta); // Log dos dados
-  
-      const response = await fetch("http://localhost:5000/api/goals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Adicione o token de autenticação se necessário
-          // Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(meta),
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json(); // Captura a mensagem de erro do servidor
-        throw new Error(errorData.message || "Erro ao salvar meta.");
-      }
-  
-      const data = await response.json();
-      console.log("Resposta da API:", data); // Log da resposta
-  
-      toast.success("Meta salva com sucesso!");
-      fetchMetas(); // Atualiza a lista de metas
-      setIsFormOpen(false); // Fecha o formulário
-    } catch (error) {
-      console.error("Erro ao salvar meta:", error);
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar meta.");
-    } finally {
-      setIsLoading(false);
+  // Atualiza os dados quando metas são modificadas
+  useEffect(() => {
+    if (metas.length > 0) {
+      fetchProgressoPorCategoria();
     }
-  };
+  }, [metas]);
 
-  // Função para atualizar uma meta
-  const handleUpdateMeta = async (id: string | undefined, meta: Omit<Meta, "_id" | "createdAt">) =>
-  {
-    if (!id) {
-      console.error("ID da meta não encontrado.");
-      return;
-    }
-
-    setIsLoading(true);
+  // Operações CRUD
+  const handleSaveMeta = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/goals/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(meta),
+      const url = state.form.mode === 'add' 
+        ? "http://localhost:5000/api/goals" 
+        : `http://localhost:5000/api/goals/${state.form.data._id}`;
+      
+      const method = state.form.mode === 'add' ? 'POST' : 'PUT';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state.form.data)
       });
 
-      if (response.ok) {
-        toast.success("Meta atualizada com sucesso!");
-        fetchMetas(); // Busca as metas atualizadas
-        setIsFormOpen(false);
-      } else {
-        toast.error("Erro ao atualizar meta.");
-      }
+      if (!response.ok) throw new Error();
+      
+      toast.success(`Meta ${state.form.mode === 'add' ? 'adicionada' : 'atualizada'}!`);
+      fetchMetas();
+      closeForm();
     } catch (error) {
-      console.error("Erro ao atualizar meta:", error);
-      toast.error("Erro ao atualizar meta.");
-    } finally {
-      setIsLoading(false);
+      toast.error(`Erro ao ${state.form.mode === 'add' ? 'adicionar' : 'atualizar'} meta`);
     }
   };
 
-  // Função para excluir uma meta
-  const handleDeleteMeta = async (id: string | undefined) => {
-    if (!id) {
-      console.error("ID da meta não encontrado.");
-      return;
-    }
-
-    setIsLoading(true);
+  const handleDeleteMeta = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta meta?")) return;
+    
     try {
-      const response = await fetch(`http://localhost:5000/api/goals/${id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Meta excluída com sucesso!");
-        fetchMetas(); // Busca as metas atualizadas
-      } else {
-        toast.error("Erro ao excluir meta.");
-      }
+      await fetch(`http://localhost:5000/api/goals/${id}`, { method: 'DELETE' });
+      toast.success("Meta excluída!");
+      fetchMetas();
     } catch (error) {
-      console.error("Erro ao excluir meta:", error);
-      toast.error("Erro ao excluir meta.");
-    } finally {
-      setIsLoading(false);
+      toast.error("Erro ao excluir meta");
     }
   };
 
-  // Função para abrir o formulário de edição
-  const handleEditMeta = (meta: Meta) => {
-    setMetaEditavel(meta);
-    setIsFormOpen(true);
-  };
+  // Filtros e dados calculados
+  const metasFiltradas = useMemo(() => {
+    return metas.filter(meta => {
+      return (
+        (state.filters.status === 'todas' ||
+         (state.filters.status === 'concluidas' && meta.valor_atual >= meta.valor_total) ||
+         (state.filters.status === 'em-andamento' && meta.valor_atual < meta.valor_total)) &&
+        (!state.filters.categoria || meta.categoria === state.filters.categoria) &&
+        (!state.filters.prioridade || meta.prioridade === state.filters.prioridade)
+      );
+    });
+  }, [metas, state.filters]);
 
-  // Filtra as metas
-  const metasFiltradas = metas.filter((meta) => {
-    if (filtro === "concluidas") return meta.valor_atual >= meta.valor_total;
-    if (filtro === "em-andamento") return meta.valor_atual < meta.valor_total;
-    return true;
-  });
+  const categorias = useMemo(() => {
+    const categoriasUnicas = new Set<string>();
+    metas.forEach(m => {
+      if (m.categoria) {
+        categoriasUnicas.add(m.categoria);
+      }
+    });
+    return Array.from(categoriasUnicas);
+  }, [metas]);
 
-  // Dados para o gráfico de progresso
-  const data = {
-    labels: ["Concluídas", "Em andamento"],
-    datasets: [
-      {
-        data: [
-          metas.filter((meta) => meta.valor_atual >= meta.valor_total).length,
-          metas.filter((meta) => meta.valor_atual < meta.valor_total).length,
-        ],
-        backgroundColor: ["#10B981", "#FBBF24"],
-      },
-    ],
-  };
-
-  // Metas próximas do prazo
   const hoje = new Date();
-  const metasProximas = metas.filter((meta) => {
-    const diasRestantes = Math.ceil(
-      (new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-    );
+  
+  const metasProximas = metas.filter(meta => {
+    const diasRestantes = Math.ceil((new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
     return diasRestantes <= 7 && meta.valor_atual < meta.valor_total;
   });
 
+  // Dados para gráficos
+  const dadosGraficos = useMemo(() => ({
+    pizza: {
+      labels: ['Concluídas', 'Em andamento'],
+      datasets: [{
+        data: [
+          metas.filter(m => m.valor_atual >= m.valor_total).length,
+          metas.filter(m => m.valor_atual < m.valor_total).length
+        ],
+        backgroundColor: ['#10B981', '#F59E0B']
+      }]
+    },
+    barras: {
+      labels: categorias,
+      datasets: [{
+        label: 'Valor Total',
+        data: categorias.map(cat => 
+          metas.filter(m => m.categoria === cat).reduce((sum, m) => sum + m.valor_total, 0)
+        ),
+        backgroundColor: '#3B82F6'
+      }, {
+        label: 'Valor Atual',
+        data: categorias.map(cat => 
+          metas.filter(m => m.categoria === cat).reduce((sum, m) => sum + m.valor_atual, 0)
+        ),
+        backgroundColor: '#10B981'
+      }]
+    }
+  }), [metas, categorias]); // Dependências ajustadas
+
+  // UI Helpers
+  const toggleExpandMeta = (id: string) => {
+    setState(prev => ({
+      ...prev,
+      expandedMeta: prev.expandedMeta === id ? null : id
+    }));
+  };
+
+  const openForm = (meta?: Meta) => {
+    setState(prev => ({
+      ...prev,
+      form: {
+        open: true,
+        mode: meta ? 'edit' : 'add',
+        data: meta ? { 
+          ...meta,
+          data_conclusao: meta.data_conclusao.split('T')[0]
+        } : {
+          meta: '',
+          descricao: '',
+          valor_total: 0,
+          valor_atual: 0,
+          data_conclusao: new Date().toISOString().split('T')[0],
+          userId: '67c3958bcab45f406385e309',
+          categoria: '',
+          prioridade: 'media'
+        }
+      }
+    }));
+  };
+
+  const closeForm = () => {
+    setState(prev => ({ ...prev, form: { ...prev.form, open: false } }));
+  };
+
+  const getPrioridadeCor = (prioridade?: string) => {
+    switch(prioridade) {
+      case 'alta': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'media': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      default: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      <ToastContainer position="top-right" autoClose={3000} />
-      {/* Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-
-      {/* Conteúdo principal */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        {/* Header */}
-        <Header toggleSidebar={toggleSidebar} />
-
-        {/* Conteúdo da página */}
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Metas
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
+      <ToastContainer position="bottom-right" />
+      
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+            <Trophy className="text-yellow-500" size={28} />
+            Minhas Metas Financeiras
           </h1>
-
-          {/* Gráfico de Progresso Geral */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6 max-w-2xl mx-auto">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Progresso Geral</h2>
-            <div className="w-full max-w-md mx-auto h-64">
-              <Pie data={data} />
+          <div className="mt-2 flex flex-wrap gap-3">
+            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+              <p className="text-gray-600 dark:text-gray-300 text-sm">Total em Metas</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                R$ <CountUp end={metas.reduce((sum, m) => sum + m.valor_total, 0)} decimals={2} separator="." decimal="," />
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+              <p className="text-gray-600 dark:text-gray-300 text-sm">Total Alcançado</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                R$ <CountUp end={metas.reduce((sum, m) => sum + m.valor_atual, 0)} decimals={2} separator="." decimal="," />
+              </p>
             </div>
           </div>
+        </div>
+        
+        <button
+          onClick={() => openForm()}
+          className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hove
+        r:bg-blue-700 transition-colors"
+        >
+          <Plus size={20} />
+          Nova Meta
+        </button>
+      </div>
 
-          {/* Notificações de Metas Próximas */}
-          {metasProximas.length > 0 && (
-            <div className="bg-yellow-100 dark:bg-yellow-800 p-4 rounded-lg mb-6">
-              <h2 className="text-lg font-bold mb-2 text-gray-900 dark:text-white">Metas Próximas do Prazo</h2>
-              <ul>
-                {metasProximas.map((meta) => (
-                  <li key={meta._id} className="text-sm text-gray-900 dark:text-white">
-                    {meta.meta} - {Math.ceil(
-                      (new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
-                    )} dias restantes
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Filtros */}
-          <div className="flex space-x-4 mb-6">
-            <button
-              onClick={() => setFiltro("todas")}
-              className={`px-4 py-2 rounded-lg ${filtro === "todas" ? "bg-blue-500 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
-            >
-              Todas
-            </button>
-            <button
-              onClick={() => setFiltro("concluidas")}
-              className={`px-4 py-2 rounded-lg ${filtro === "concluidas" ? "bg-blue-500 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
-            >
-              Concluídas
-            </button>
-            <button
-              onClick={() => setFiltro("em-andamento")}
-              className={`px-4 py-2 rounded-lg ${filtro === "em-andamento" ? "bg-blue-500 text-white" : "bg-gray-200 dark:bg-gray-700 dark:text-white"}`}
-            >
-              Em andamento
-            </button>
-          </div>
-
-          {/* Lista de Metas */}
-          {isLoading ? (
-            <LoadingSpinner />
-          ) : metasFiltradas.length === 0 ? (
-            <p className="text-gray-900 dark:text-white">Nenhuma meta encontrada.</p>
-          ) : (
-            <ul className="space-y-4">
-              {metasFiltradas.map((meta) => (
-                <li
-                  key={meta._id}
-                  className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-                >
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                    {meta.meta}
-                  </h2>
-                  <p className="mt-2 text-gray-600 dark:text-gray-300">
-                    {meta.descricao}
+      {/* Alertas de Metas Próximas */}
+      {metasProximas.length > 0 && (
+        <div className="bg-yellow-50 dark:bg-yellow-900 border-l-4 border-yellow-500 dark:border-yellow-400 p-4 mb-6 rounded-r-lg">
+          <h3 className="font-bold text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+            <Flag size={18} />
+            Metas com prazo próximo!
+          </h3>
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {metasProximas.map(meta => {
+              const diasRestantes = Math.ceil((new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+              return (
+                <div key={meta._id} className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-xs">
+                  <p className="font-medium text-gray-900 dark:text-white">{meta.meta}</p>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-300">
+                    {diasRestantes} {diasRestantes === 1 ? 'dia restante' : 'dias restantes'}
                   </p>
-                  <div className="mt-4">
-                    <p className="text-gray-700 dark:text-gray-200">
-                      <span className="font-semibold">Progresso:</span> R${" "}
-                      {(meta.valor_atual || 0).toLocaleString()} / R${" "}
-                      {(meta.valor_total || 0).toLocaleString()}
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-200">
-                      <span className="font-semibold">Data de Conclusão:</span>{" "}
-                      {new Date(meta.data_conclusao).toLocaleDateString()}
-                    </p>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm">
-                      <span className="font-semibold">Criado em:</span>{" "}
-                      {meta.createdAt ? new Date(meta.createdAt).toLocaleDateString() : "Data não disponível"}
-                    </p>
-                  </div>
-                  <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-                      <div
-                        className="bg-blue-600 h-2.5 rounded-full"
-                        style={{ width: `${(meta.valor_atual / meta.valor_total) * 100}%` }}
-                      ></div>
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                      {((meta.valor_atual / meta.valor_total) * 100).toFixed(2)}% concluído
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2 mt-4">
-                    {meta.valor_atual >= meta.valor_total ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                        Concluída
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
-                        Em andamento
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-4 flex space-x-4">
-                    <button
-                      onClick={() => handleEditMeta(meta)}
-                      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-                    >
-                      <Edit size={16} className="mr-2" />
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDeleteMeta(meta._id)}
-                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-                    >
-                      <Trash size={16} className="mr-2" />
-                      Excluir
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-          {/* Botão para Adicionar Meta */}
-          <button
-            onClick={() => {
-              setMetaEditavel(null);
-              setIsFormOpen(true);
-            }}
-            className="fixed bottom-6 right-6 p-4 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition"
-            disabled={isLoading}
-          >
-            <Plus size={24} />
-          </button>
+      {/* Gráficos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Status das Metas</h3>
+          <div className="h-64">
+            <Pie data={dadosGraficos.pizza} options={{ responsive: true, maintainAspectRatio: false }} />
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Progresso por Categoria</h3>
+          <div className="h-64">
+            <Bar 
+              data={dadosGraficos.barras} 
+              options={{ 
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+              }} 
+            />
+          </div>
         </div>
       </div>
 
-      {/* Modal de Adicionar/Editar Meta */}
+      {/* Filtros */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+            <select
+              value={state.filters.status}
+              onChange={(e) => setState(prev => ({ ...prev, filters: { ...prev.filters, status: e.target.value as any } }))}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+            >
+              <option value="todas">Todas</option>
+              <option value="concluidas">Concluídas</option>
+              <option value="em-andamento">Em andamento</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
+            <select
+              value={state.filters.categoria}
+              onChange={(e) => setState(prev => ({ ...prev, filters: { ...prev.filters, categoria: e.target.value } }))}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+            >
+              <option value="">Todas</option>
+              {categorias.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Prioridade</label>
+            <select
+              value={state.filters.prioridade}
+              onChange={(e) => setState(prev => ({ ...prev, filters: { ...prev.filters, prioridade: e.target.value } }))}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+            >
+              <option value="">Todas</option>
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de Metas */}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      ) : metasFiltradas.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm text-center">
+          <Trophy className="mx-auto text-gray-400 mb-4" size={48} />
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white">Nenhuma meta encontrada</h3>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            {metas.length === 0 
+              ? 'Comece criando sua primeira meta financeira!' 
+              : 'Tente ajustar os filtros para encontrar suas metas'}
+          </p>
+          <button
+            onClick={() => openForm()}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Criar Meta
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {metasFiltradas.map(meta => (
+            <div 
+              key={meta._id} 
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden transition-all duration-200"
+            >
+              <div 
+                className="p-5 cursor-pointer flex justify-between items-center"
+                onClick={() => toggleExpandMeta(meta._id!)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-lg ${meta.valor_atual >= meta.valor_total ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}`}>
+                    {meta.valor_atual >= meta.valor_total ? (
+                      <Trophy size={24} />
+                    ) : (
+                      <Flag size={24} />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-white">{meta.meta}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {meta.categoria && <span className="mr-2">{meta.categoria}</span>}
+                      {meta.prioridade && (
+                        <span className={`px-2 py-1 text-xs rounded-full ${getPrioridadeCor(meta.prioridade)}`}>
+                          {meta.prioridade}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Progresso</p>
+                    <p className="font-bold text-gray-900 dark:text-white">
+                      {((meta.valor_atual / meta.valor_total) * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                  {state.expandedMeta === meta._id ? (
+                    <ChevronUp className="text-gray-500" />
+                  ) : (
+                    <ChevronDown className="text-gray-500" />
+                  )}
+                </div>
+              </div>
+              
+              <AnimatePresence>
+                {state.expandedMeta === meta._id && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-5 pb-5 pt-0 border-t border-gray-200 dark:border-gray-700">
+                      <div className="mb-4">
+                        <ProgressBar
+                          completed={((meta.valor_atual / meta.valor_total) * 100)}
+                          bgColor={meta.valor_atual >= meta.valor_total ? '#10B981' : '#3B82F6'}
+                          height="12px"
+                          borderRadius="6px"
+                          labelAlignment="center"
+                          labelColor="#ffffff"
+                          animateOnRender
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Valor Atual</p>
+                          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                            R$ <CountUp end={meta.valor_atual} decimals={2} separator="." decimal="," />
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Valor Total</p>
+                          <p className="text-lg font-bold text-gray-900 dark:text-white">
+                            R$ <CountUp end={meta.valor_total} decimals={2} separator="." decimal="," />
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Data Limite</p>
+                          <p className="text-gray-900 dark:text-white flex items-center gap-1">
+                            <Calendar size={16} />
+                            {new Date(meta.data_conclusao).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Faltam</p>
+                          <p className="text-gray-900 dark:text-white">
+                            {Math.ceil((new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))} dias
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">Descrição</p>
+                        <p className="text-gray-900 dark:text-white">{meta.descricao}</p>
+                      </div>
+                      
+                      <div className="flex justify-end gap-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openForm(meta); }}
+                          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+                        >
+                          <Edit size={16} />
+                          Editar
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteMeta(meta._id!); }}
+                          className="px-4 py-2 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition-colors flex items-center gap-2"
+                        >
+                          <Trash size={16} />
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal do Formulário (Flutuante) */}
       <AnimatePresence>
-        {isFormOpen && (
+        {state.form.open && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -361,191 +521,193 @@ export default function Metas() {
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
           >
             <motion.div
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -50, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md"
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md"
             >
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-                {metaEditavel ? "Editar Meta" : "Adicionar Meta"}
-              </h2>
-              <FormularioMeta
-                onClose={() => {
-                  setIsFormOpen(false);
-                  setMetaEditavel(null);
-                }}
-                onSaveMeta={metaEditavel ? (meta) => handleUpdateMeta(metaEditavel._id, meta) : handleSaveMeta}
-                metaEditavel={metaEditavel}
-                isLoading={isLoading}
-              />
+              <div className="p-6">
+                <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">
+                    {state.form.mode === 'add' ? 'Nova Meta' : 'Editar Meta'}
+                </h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Nome da Meta *
+                    </label>
+                    <input
+                      type="text"
+                      value={state.form.data.meta || ''}
+                      onChange={(e) => setState(prev => ({ 
+                        ...prev, 
+                        form: { 
+                          ...prev.form, 
+                          data: { ...prev.form.data, meta: e.target.value } 
+                        } 
+                      }))}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Ex: Comprar um carro"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Descrição *
+                    </label>
+                    <textarea
+                      value={state.form.data.descricao || ''}
+                      onChange={(e) => setState(prev => ({ 
+                        ...prev, 
+                        form: { 
+                          ...prev.form, 
+                          data: { ...prev.form.data, descricao: e.target.value } 
+                        } 
+                      }))}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      rows={3}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Valor Total (R$) *
+                      </label>
+                      <input
+                        type="number"
+                        value={state.form.data.valor_total || ''}
+                        onChange={(e) => setState(prev => ({ 
+                          ...prev, 
+                          form: { 
+                            ...prev.form, 
+                            data: { ...prev.form.data, valor_total: Number(e.target.value) } 
+                          } 
+                        }))}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        min="0.01"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Valor Atual (R$) *
+                      </label>
+                      <input
+                        type="number"
+                        value={state.form.data.valor_atual || ''}
+                        onChange={(e) => setState(prev => ({ 
+                          ...prev, 
+                          form: { 
+                            ...prev.form, 
+                            data: { ...prev.form.data, valor_atual: Number(e.target.value) } 
+                          } 
+                        }))}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Data Limite *
+                      </label>
+                      <input
+                        type="date"
+                        value={state.form.data.data_conclusao || ''}
+                        onChange={(e) => setState(prev => ({ 
+                          ...prev, 
+                          form: { 
+                            ...prev.form, 
+                            data: { ...prev.form.data, data_conclusao: e.target.value } 
+                          } 
+                        }))}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white [color-scheme:light dark]"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Prioridade *
+                      </label>
+                      <select
+                        value={state.form.data.prioridade || 'media'}
+                        onChange={(e) => setState(prev => ({ 
+                          ...prev, 
+                          form: { 
+                            ...prev.form, 
+                            data: { ...prev.form.data, prioridade: e.target.value as any } 
+                          } 
+                        }))}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Categoria
+                    </label>
+                    <input
+                      type="text"
+                      value={state.form.data.categoria || ''}
+                      onChange={(e) => setState(prev => ({ 
+                        ...prev, 
+                        form: { 
+                          ...prev.form, 
+                          data: { ...prev.form.data, categoria: e.target.value } 
+                        } 
+                      }))}
+                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Ex: Veículo, Casa, Viagem"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveMeta}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {state.form.mode === 'add' ? 'Adicionar Meta' : 'Salvar Alterações'}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Botão Flutuante para Mobile - Correto posicionamento */}
+      <button
+        onClick={() => openForm()}
+        className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
+        aria-label="Adicionar nova meta"
+      >
+        <Plus size={24} />
+      </button>
     </div>
   );
-}
-
-// Componente do Formulário de Meta
-interface FormularioMetaProps {
-  onClose: () => void;
-  onSaveMeta: (meta: Omit<Meta, "_id" | "createdAt">) => void;
-  metaEditavel: Meta | null;
-  isLoading: boolean;
-}
-
-const FormularioMeta: React.FC<FormularioMetaProps> = ({
-  onClose,
-  onSaveMeta,
-  metaEditavel,
-  isLoading,
-}) => {
-  const [meta, setMeta] = useState<FormMeta>(
-    metaEditavel
-      ? {
-          ...metaEditavel,
-          observacoes: metaEditavel.observacoes || "", // Valor padrão
-        }
-      : {
-          meta: "",
-          descricao: "",
-          valor_total: 0,
-          valor_atual: 0,
-          data_conclusao: "",
-          observacoes: "",
-          userId: "67c3958bcab45f406385e309", // Adicione o userId do usuário logado
-        }
-  );
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-
-    // Converte valor_total e valor_atual para números
-    const parsedValue = name === "valor_total" || name === "valor_atual" ? (value === "" ? 0 : parseFloat(value)) : value;
-
-    setMeta({
-      ...meta,
-      [name]: parsedValue,
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Verifica se os valores numéricos são válidos
-    if (isNaN(meta.valor_total) || isNaN(meta.valor_atual)) {
-      toast.error("Valores numéricos inválidos.");
-      return;
-    }
-
-    // Verifica se os valores são maiores ou iguais a zero
-    if (meta.valor_total < 0 || meta.valor_atual < 0) {
-      toast.error("Os valores devem ser maiores ou iguais a zero.");
-      return;
-    }
-
-    onSaveMeta(meta);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Meta
-        </label>
-        <input
-          type="text"
-          name="meta"
-          value={meta.meta}
-          onChange={handleChange}
-          placeholder="Ex: Comprar um carro"
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Descrição
-        </label>
-        <textarea
-          name="descricao"
-          value={meta.descricao}
-          onChange={handleChange}
-          placeholder="Ex: Economizar para comprar um carro novo"
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Valor Total
-        </label>
-        <input
-          type="number"
-          name="valor_total"
-          value={meta.valor_total}
-          onChange={handleChange}
-          placeholder="Ex: 50000"
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Valor Atual
-        </label>
-        <input
-          type="number"
-          name="valor_atual"
-          value={meta.valor_atual}
-          onChange={handleChange}
-          placeholder="Ex: 1200"
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Data de Conclusão
-        </label>
-        <input
-          type="date"
-          name="data_conclusao"
-          value={meta.data_conclusao}
-          onChange={handleChange}
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          required
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-900 dark:text-white">
-          Observações
-        </label>
-        <textarea
-          name="observacoes"
-          value={meta.observacoes || ""}
-          onChange={handleChange}
-          placeholder="Adicione observações ou detalhes"
-          className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-        />
-      </div>
-      <div className="flex justify-end space-x-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition"
-          disabled={isLoading}
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-          disabled={isLoading}
-        >
-          {isLoading ? "Salvando..." : "Salvar"}
-        </button>
-      </div>
-    </form>
-  );
 };
+
+export default MetasDashboard;

@@ -1,172 +1,81 @@
-import React, { useState, useEffect } from "react";
-import Header from "../components/Header";
-import Sidebar from "../components/Sidebar";
-import { motion } from "framer-motion";
-import { useFinance } from "../context/FinanceContext";
-import Graficos from "../components/Graficos";
+import { useAuth } from '../context/AuthContext';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
 
-// Função para determinar a saudação com base na hora do dia
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) {
-    return "Bom dia";
-  } else if (hour >= 12 && hour < 18) {
-    return "Boa tarde";
-  } else {
-    return "Boa noite";
-  }
-};
+export default function HomePage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-export default function Dashboard() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { transactions, investimentos, loading, error, fetchData } = useFinance();
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  const userName = "Saulo Martins"; // Substitua pelo nome do usuário dinâmico
-
-  // Calcula totais
-  const totalReceitas = transactions
-    ? transactions.filter((t) => t.tipo === "receita").reduce((acc, t) => acc + t.valor, 0)
-    : 0;
-
-  const totalDespesas = transactions
-    ? transactions.filter((t) => t.tipo === "despesa").reduce((acc, t) => acc + t.valor, 0)
-    : 0;
-
-  const saldoAtual = totalReceitas - totalDespesas;
-  const saldoColor = saldoAtual >= 0 ? "text-green-500" : "text-red-500";
-
-  const totalInvestimentos = investimentos
-    ? investimentos.reduce((acc, inv) => acc + inv.valor, 0)
-    : 0;
-
-  // Atualização automática dos dados
+  // Redireciona usuários logados para o dashboard
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData(); // Atualiza os dados a cada 60 segundos
-    }, 60000); // 60 segundos
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
 
-    return () => clearInterval(interval); // Limpa o intervalo ao desmontar o componente
-  }, [fetchData]);
-
-  if (loading) {
-    return <p>Carregando...</p>;
-  }
-
-  if (error) {
-    return <p>Erro: {error}</p>;
+  if (loading || user) {
+    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
-      {/* Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
-
-      {/* Conteúdo principal */}
-      <div className="flex-1 flex flex-col overflow-y-auto min-h-screen pt-16">
-        {/* Header */}
-        <Header toggleSidebar={toggleSidebar} />
-
-        {/* Mensagem de Boas-Vindas */}
-        <div className="p-6">
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-2xl md:text-4xl font-bold"
-          >
-            {getGreeting()},{" "}
-            <span className="text-blue-500">{userName}</span>!
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-gray-600 dark:text-gray-400 mt-2 text-sm md:text-base"
-          >
-            Aqui está o seu resumo financeiro.
-          </motion.p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100">
+      {/* Cabeçalho Público */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-blue-600">Finanext</h1>
+          <div className="space-x-4">
+            <Link href="/auth/login" className="text-blue-600 hover:underline">
+              Login
+            </Link>
+            <Link 
+              href="/auth/register" 
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              Cadastre-se
+            </Link>
+          </div>
         </div>
+      </header>
 
-        {/* Cards de Resumo */}
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Saldo Atual */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Saldo Atual
-            </h2>
-            <p className={`text-2xl font-bold ${saldoColor} mt-2`}>
-              R$ {saldoAtual.toFixed(2)}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {saldoAtual >= 0 ? "+2% em relação ao mês passado" : "-2% em relação ao mês passado"}
-            </p>
-          </motion.div>
+      {/* Conteúdo Principal */}
+      <main className="max-w-7xl mx-auto px-4 py-12">
+        <section className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Controle suas finanças com o Finanext
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            A ferramenta completa para gerenciar seus investimentos, despesas e receitas.
+          </p>
+        </section>
 
-          {/* Receitas */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Receitas
-            </h2>
-            <p className="text-2xl font-bold text-blue-500 mt-2">R$ {totalReceitas.toFixed(2)}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              +15% em relação ao mês passado
-            </p>
-          </motion.div>
-
-          {/* Despesas */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.8 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Despesas
-            </h2>
-            <p className="text-2xl font-bold text-red-500 mt-2">R$ {totalDespesas.toFixed(2)}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              -10% em relação ao mês passado
-            </p>
-          </motion.div>
-
-          {/* Investimentos */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 1 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"
-          >
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Investimentos
-            </h2>
-            <p className="text-2xl font-bold text-purple-500 mt-2">R$ {totalInvestimentos.toFixed(2)}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              +8% em relação ao mês passado
-            </p>
-          </motion.div>
+        {/* Recursos */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            {
+              icon: '📊',
+              title: "Controle Total",
+              description: "Gerencie todas suas transações em um só lugar"
+            },
+            {
+              icon: '📈',
+              title: "Relatórios Detalhados",
+              description: "Visualize gráficos e relatórios completos"
+            },
+            {
+              icon: '🔒',
+              title: "Segurança",
+              description: "Seus dados protegidos com criptografia"
+            }
+          ].map((feature, index) => (
+            <div key={index} className="bg-white p-6 rounded-lg shadow-md">
+              <div className="text-4xl mb-4">{feature.icon}</div>
+              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+              <p className="text-gray-600">{feature.description}</p>
+            </div>
+          ))}
         </div>
-
-        {/* Gráficos */}
-        <Graficos />
-      </div>
+      </main>
     </div>
   );
 }
