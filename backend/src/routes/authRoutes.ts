@@ -3,7 +3,7 @@ import express from 'express';
 import { container } from '@core/container';
 import { TYPES } from '@core/types';
 import { UserController } from '@modules/users/controllers/UserController';
-import { SubscriptionService } from '../services/subscriptionService';
+import { SubscriptionService } from '../services/subscriptionService'; // Caminho ajustado
 import { authenticate } from '@middlewares/authMiddleware';
 import admin from 'firebase-admin';
 import { AppError } from '@core/errors/AppError';
@@ -19,7 +19,7 @@ const router = express.Router();
 const userController = container.get<UserController>(TYPES.UserController);
 const subscriptionService = container.get<SubscriptionService>(TYPES.SubscriptionService);
 
-// Handler assíncrono corrigido
+// Handler assíncrono (verifique se este asyncHandler é necessário ou se você tem um global)
 const asyncHandler = <T = any>(
   fn: (req: express.Request<T>, res: express.Response, next: express.NextFunction) => Promise<void>
 ) => {
@@ -32,7 +32,7 @@ const asyncHandler = <T = any>(
   };
 };
 
-// Função para processar sessão (ajustada)
+// Função para processar sessão (ajustada - VERIFICAR SE AINDA É NECESSÁRIA AQUI OU SE O CONTROLLER FAZ ISSO)
 const processSession = async (userId: string, res: express.Response) => {
   try {
     const firebaseUser = await auth.getUser(userId);
@@ -53,85 +53,50 @@ const processSession = async (userId: string, res: express.Response) => {
   }
 };
 
-// Rotas públicas ajustadas
+// Rotas públicas ajustadas (chamando controller com req, res, next)
 router.post('/register', 
   validate(userValidators.register),
-  asyncHandler(async (req, res) => {
-    await userController.register(req, res);
-  })
+  asyncHandler((req, res, next) => userController.register(req, res, next)) // Passa next
 );
 
 router.post('/login',
   validate(userValidators.login),
-  asyncHandler(async (req, res) => {
-    await userController.login(req, res);
-  })
+  asyncHandler((req, res, next) => userController.login(req, res, next)) // Passa next
 );
 
-// Rota de verificação de token corrigida
+// Rota de verificação de token (chamando controller com req, res, next)
 router.post('/verify-token',
-  asyncHandler(async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1] || req.body.token;
-    
-    if (!token) {
-      res.status(401).json({ error: 'Token não fornecido' });
-      return;
-    }
-
-    try {
-      if (token.startsWith('eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9')) {
-        const decodedToken = await auth.verifyIdToken(token);
-        await processSession(decodedToken.uid, res);
-      } 
-      else if (token.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')) {
-        const decoded = jwt.verify(token, JWT_SECRET) as { id: string, email: string };
-        res.status(200).json({
-          status: 'success',
-          data: {
-            user: {
-              id: decoded.id,
-              email: decoded.email
-            },
-            valid: true,
-            tokenType: 'system-jwt'
-          }
-        });
-      }
-      else {
-        res.status(400).json({ error: 'Tipo de token não reconhecido' });
-      }
-    } catch (error) {
-      console.error('Token verification error:', error);
-      res.status(401).json({ error: 'Token inválido ou expirado' });
-    }
-  })
+  asyncHandler((req, res, next) => userController.verifyToken(req, res, next)) // verifyToken no controller agora espera req, res, next
 );
 
-// Rotas protegidas ajustadas
+// Rotas protegidas ajustadas (chamando controller com req, res, next)
 router.get('/session', 
   authenticate,
-  asyncHandler(async (req, res) => {
+   // Se o controller.getSession existir e esperar req, res, next
+  // asyncHandler((req, res, next) => userController.getSession(req, res, next))
+  // Se processSession for usada aqui, ajuste para usar next(error)
+   asyncHandler(async (req, res, next) => {
     if (!req.user) {
-      res.status(401).json({ error: 'Usuário não autenticado' });
-      return;
+      return next(new AppError(401, 'Usuário não autenticado'));
     }
-    await processSession(req.user.uid, res);
+    // Assumindo que processSession ainda é usado aqui
+    try {
+       await processSession(req.user.uid, res);
+    } catch (error) {
+       next(error);
+    }
   })
 );
 
 router.get('/profile',
   authenticate,
-  asyncHandler(async (req, res) => {
-    await userController.getProfile(req, res);
-  })
+  asyncHandler((req, res, next) => userController.getProfile(req, res, next)) // Passa next
 );
 
 router.put('/profile',
   authenticate,
   validate(userValidators.updateProfile),
-  asyncHandler(async (req, res) => {
-    await userController.updateProfile(req, res);
-  })
+  asyncHandler((req, res, next) => userController.updateProfile(req, res, next)) // Passa next
 );
 
 export default router;

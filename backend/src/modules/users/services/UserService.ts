@@ -5,7 +5,7 @@ import { User } from '@models/User';
 import bcrypt from 'bcryptjs';
 import { getAuth } from 'firebase-admin/auth';
 import { AppError } from '@core/errors/AppError';
-import { UserRepository } from '../repositories/UserRepository';
+import { UserRepository } from '../repositories/UserRepository'; // Importação ajustada
 import { IUser, IUserProfile, IUserWithTokens } from '../interfaces/user.interface';
 import { TYPES } from '@core/types';
 
@@ -15,14 +15,19 @@ export class UserService {
 
   constructor(
     @inject(TYPES.UserRepository) private readonly userRepository: UserRepository
-  ) {}
+  ) {
+    // Adicionar log de depuração aqui
+    console.log('UserService constructor: this.userRepository is', this.userRepository);
+  }
 
+  // ... restante da classe UserService
   async register(userData: {
     name: string;
     email: string;
     password: string;
   }): Promise<IUserWithTokens> {
     try {
+      console.log('UserService register: this.userRepository is', this.userRepository); // Log adicional no método
       // Verifica se email já existe
       if (await this.userRepository.findByEmail(userData.email)) {
         throw new AppError(400, 'Email já está em uso');
@@ -59,6 +64,7 @@ export class UserService {
 
   async login(email: string, password: string): Promise<IUserWithTokens> {
     try {
+      console.log('UserService login: this.userRepository is', this.userRepository); // Log adicional no método
       const user = await this.userRepository.findByEmail(email);
       if (!user || !await bcrypt.compare(password, user.password)) {
         throw new AppError(401, 'Credenciais inválidas');
@@ -76,6 +82,7 @@ export class UserService {
 
   async loginWithGoogle(idToken: string): Promise<IUserWithTokens> {
     try {
+       console.log('UserService loginWithGoogle: this.userRepository is', this.userRepository); // Log adicional
       // Verifica o token do Google
       const decodedToken = await this.auth.verifyIdToken(idToken);
       const { uid, email, name, picture } = decodedToken;
@@ -110,6 +117,7 @@ export class UserService {
 
   async getProfile(userId: string): Promise<IUserProfile> {
     try {
+       console.log('UserService getProfile: this.userRepository is', this.userRepository); // Log adicional
       const user = await this.userRepository.findById(userId);
       if (!user) throw new AppError(404, 'Usuário não encontrado');
       return this.formatUserProfile(user);
@@ -120,6 +128,7 @@ export class UserService {
 
   async getUserByFirebaseUid(firebaseUid: string): Promise<IUser | null> {
     try {
+       console.log('UserService getUserByFirebaseUid: this.userRepository is', this.userRepository); // Log adicional
       return await this.userRepository.findByFirebaseUid(firebaseUid);
     } catch (error) {
       throw new AppError(500, 'Erro ao buscar usuário', this.getErrorMessage(error));
@@ -128,6 +137,7 @@ export class UserService {
 
   async updateProfile(userId: string, updateData: Partial<IUser>): Promise<IUserProfile> {
     try {
+       console.log('UserService updateProfile: this.userRepository is', this.userRepository); // Log adicional
       if (updateData.email) {
         const existingUser = await this.userRepository.findByEmail(updateData.email);
         if (existingUser && existingUser.id !== userId) {
@@ -153,6 +163,7 @@ export class UserService {
   }
 
   async updateSettings(userId: string, settings: any): Promise<IUserProfile> {
+       console.log('UserService updateSettings: this.userRepository is', this.userRepository); // Log adicional
     const updatedUser = await this.userRepository.update(userId, { settings });
     if (!updatedUser) {
       throw new AppError(404, 'Usuário não encontrado');
@@ -162,6 +173,7 @@ export class UserService {
 
   async verifyToken(token: string): Promise<IUser> {
     try {
+      console.log('UserService verifyToken: this.userRepository is', this.userRepository); // Log adicional
       // Tenta verificar como token Firebase primeiro
       const decoded = await this.auth.verifyIdToken(token);
       const user = await this.userRepository.findByFirebaseUid(decoded.uid);
@@ -169,11 +181,12 @@ export class UserService {
       return user;
     } catch (firebaseError) {
       // Se falhar, tenta como JWT
-      if (!process.env.JWT_SECRET) {
+      const jwtSecret = 'c601'; // Hardcoded secret
+      if (!jwtSecret) {
         throw new AppError(500, 'Configuração JWT inválida');
       }
-      
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as { id: string };
+
+      const decoded = jwt.verify(token, jwtSecret) as { id: string };
       const user = await this.userRepository.findById(decoded.id);
       if (!user) throw new AppError(404, 'Usuário não encontrado');
       return user;
@@ -185,6 +198,7 @@ export class UserService {
     status: string;
     expiresAt: Date;
   }): Promise<IUserProfile> {
+       console.log('UserService updateSubscription: this.userRepository is', this.userRepository); // Log adicional
     const updatedUser = await this.userRepository.update(userId, {
       subscription: subscriptionData
     });
@@ -194,17 +208,20 @@ export class UserService {
     return this.formatUserProfile(updatedUser);
   }
 
+
   private async generateTokens(user: IUser): Promise<{ token: string; firebaseToken: string }> {
-    if (!process.env.JWT_SECRET) {
-      throw new AppError(500, 'Configuração JWT inválida');
+    const jwtSecret = 'c601'; // Hardcoded secret
+    if (!jwtSecret) {
+      throw new AppError(500, 'Configuração JWT inválida: JWT_SECRET não definido.');
     }
 
     const token = jwt.sign(
       { 
         id: user.id,
-        email: user.email
+        email: user.email,
+        uid: user.firebaseUid // Incluir firebaseUid no payload para consistência com req.user
       },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: '7d' }
     );
 
