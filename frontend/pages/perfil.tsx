@@ -1,5 +1,12 @@
 //pages/profile.tsx
 import { useAuth } from '../context/AuthContext';
+import { useState, useEffect, useMemo } from 'react';
+import { FiUser, FiMail, FiLock, FiCreditCard, FiEdit, FiCamera, FiCheck, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { toast } from 'react-toastify';
+import Image from 'next/image';
+import DeepSeekChat from '../components/DeepSeekChat';
+import api from '../services/api'; // Import your API service
 
 // Extend the SessionUser type to include displayName
 declare module '../context/AuthContext' {
@@ -7,52 +14,59 @@ declare module '../context/AuthContext' {
     displayName?: string;
   }
 }
-import { useState, useEffect, useMemo } from 'react';
-import { FiUser, FiMail, FiLock, FiCreditCard, FiEdit, FiCamera, FiCheck, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider, User as FirebaseUser } from 'firebase/auth';
-import { toast } from 'react-toastify';
-import Image from 'next/image';
-import DeepSeekChat from '../components/DeepSeekChat';
+
+// Define a type for the expected user structure from useAuth
+interface AuthUserData {
+  uid: string;
+  email: string | null;
+  name: string | null; // Use 'name' to match backend/MongoDB
+  photoUrl: string | null;
+  subscription?: { plan?: string; status?: string; expiresAt?: string } | null;
+}
+
+// Define a type for the AuthContext return value we expect
+interface ProfileAuthContextType {
+  user: AuthUserData | null;
+  subscription: { plan?: string; status?: string; expiresAt?: string } | null;
+  loadingSubscription: boolean;
+  refreshSubscription: () => Promise<void>;
+  // Add other necessary properties/methods from useAuth if used directly
+}
 
 export default function ProfilePage() {
-  const { user, subscription, loadingSubscription, refreshSubscription } = useAuth() as {
-    user: { displayName?: string; email?: string; photoUrl?: string; uid: string } | null;
-    subscription: { plan?: string; status?: string; expiresAt?: string } | null;
-    loadingSubscription: boolean;
-    refreshSubscription: () => Promise<void>;
-  };
+  // Use the defined interface for better type safety
+  const { user, subscription, loadingSubscription, refreshSubscription } = useAuth() as ProfileAuthContextType;
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    displayName: '',
+    name: '', // Use 'name' to match backend/MongoDB
     email: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  const [avatar, setAvatar] = useState('/default-avatar.png');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Inicializa serviços do Firebase
+  // Initialize Firebase Storage (still needed for photo upload)
   const storage = getStorage();
-  const db = getFirestore();
 
   useEffect(() => {
     if (user) {
       setFormData({
-        displayName: user.displayName || '',
+        name: user.name || '', // Use user.name
         email: user.email || '',
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-      setAvatar(user.photoUrl || '/default-avatar.png');
+      setAvatarPreview(user.photoUrl || '/default-avatar.png');
     }
   }, [user]);
 
@@ -61,74 +75,27 @@ export default function ProfilePage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user) {
-      toast.error('Você precisa estar logado para alterar a foto');
-      return;
-    }
-
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validações
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Tipo de arquivo inválido. Use JPEG, PNG ou WEBP');
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('A imagem deve ter menos de 2MB');
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      // Upload para Storage
-      const timestamp = Date.now();
-      const storageRef = ref(storage, `avatars/${user.uid}/avatar_${timestamp}`);
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-
-      // Atualiza Firestore com merge: true
-      const userRef = doc(db, 'users', user.uid);
-      await setDoc(userRef, {
-        photoURL: downloadURL,
-        updatedAt: serverTimestamp(),
-        ...(user.displayName && { displayName: user.displayName }),
-        ...(user.email && { email: user.email }),
-        createdAt: serverTimestamp()
-      }, { merge: true });
-
-      // Atualiza o perfil do auth
-      await updateProfile(user as unknown as FirebaseUser, { photoURL: downloadURL });
-
-      setAvatar(downloadURL);
-      toast.success('Foto atualizada com sucesso!');
-    } catch (error: unknown) {
-      console.error('Erro no upload:', error);
-
-      const errorMessages = {
-        'storage/unauthorized': 'Sem permissão para upload',
-        'storage/retry-limit-exceeded': 'Tempo limite excedido',
-        'not-found': 'Documento não encontrado'
-      };
-
-      let errorMessage = 'Erro ao atualizar foto';
-
-      if (error instanceof Error) {
-        // Verifica se é um erro do Firebase com código
-        const firebaseError = error as { code?: string };
-        if (firebaseError.code && errorMessages.hasOwnProperty(firebaseError.code)) {
-          errorMessage = errorMessages[firebaseError.code as keyof typeof errorMessages];
-        } else {
-          errorMessage = error.message || errorMessage;
-        }
+    if (file) {
+      // Validações
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Tipo de arquivo inválido. Use JPEG, PNG ou WEBP');
+        setAvatarFile(null);
+        setAvatarPreview(user?.photoUrl || '/default-avatar.png');
+        return;
       }
 
-      toast.error(errorMessage);
-    } finally {
-      setIsUploading(false);
+      if (file.size > 2 * 1024 * 1024) { // 2MB
+        toast.error('A imagem deve ter menos de 2MB');
+        setAvatarFile(null);
+        setAvatarPreview(user?.photoUrl || '/default-avatar.png');
+        return;
+      }
+
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file)); // Create a preview URL
     }
   };
 
@@ -137,109 +104,111 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
-      if (!user) throw new Error('Usuário não autenticado');
-
-      const updates: Record<string, any> = {};
-      
-      // Verifica mudanças antes de atualizar
-      if (user && formData.displayName !== user.displayName) {
-        updates.displayName = formData.displayName;
-        await updateProfile(user as unknown as FirebaseUser, { displayName: formData.displayName });
+      if (!user?.uid) {
+        throw new Error('Usuário não autenticado');
       }
 
-      if (user && formData.email !== user.email) {
-        if (!formData.currentPassword) {
-          throw new Error('Forneça sua senha atual para alterar o email');
-        }
+      const updatePayload: any = {};
+      let photoUrl = user.photoUrl; // Start with current photoUrl
 
-        const currentEmail = user.email;
-        if (!currentEmail) {
-          throw new Error('Email do usuário não está disponível');
-        }
-
+      // 1. Handle Photo Upload if a new file is selected
+      if (avatarFile) {
+        setIsUploading(true);
         try {
-          const credential = EmailAuthProvider.credential(
-            currentEmail,
-            formData.currentPassword
-          );
-
-          // Reautentica o usuário antes de atualizar o email
-          await reauthenticateWithCredential(user as unknown as FirebaseUser, credential);
-
-          // Atualiza o email do usuário
-          await updateEmail(user as unknown as FirebaseUser, formData.email);
-          updates.email = formData.email;
-
-        } catch (error: any) {
-          console.error('Erro ao atualizar email:', error);
-
-          // Lança um erro com uma mensagem clara para o usuário
-          throw new Error('Falha ao atualizar email. Verifique sua senha atual.');
+          const timestamp = Date.now();
+          const storageRef = ref(storage, `avatars/${user.uid}/avatar_${timestamp}`);
+          await uploadBytes(storageRef, avatarFile);
+          photoUrl = await getDownloadURL(storageRef);
+          updatePayload.photoUrl = photoUrl; // Add new photoUrl to payload
+        } catch (error) {
+          console.error('Erro no upload da foto:', error);
+          toast.error('Falha ao carregar a nova foto.');
+          setIsUploading(false);
+          setIsLoading(false);
+          return; // Stop submission if photo upload fails
+        } finally {
+           setIsUploading(false);
         }
+      }
+
+      // 2. Check for other profile updates
+      if (formData.name !== user.name) {
+        updatePayload.name = formData.name;
+      }
+
+      if (formData.email !== user.email) {
+         if (!formData.currentPassword) {
+            throw new Error('Forneça sua senha atual para alterar o email');
+          }
+         updatePayload.email = formData.email;
+         updatePayload.currentPassword = formData.currentPassword; // Send current password for reauth on backend
       }
 
       if (formData.newPassword) {
         if (formData.newPassword !== formData.confirmPassword) {
-          throw new Error('As senhas não coincidem');
-        }
-        if (!user.email) {
-          throw new Error('Email do usuário não está disponível');
+          throw new Error('As novas senhas não coincidem');
         }
         if (!formData.currentPassword) {
           throw new Error('Forneça sua senha atual para alterar a senha');
         }
-
-        const firebaseUser = user as unknown as FirebaseUser;
-
-        const credential = EmailAuthProvider.credential(firebaseUser.email!, formData.currentPassword);
-        await reauthenticateWithCredential(firebaseUser, credential);
-        await updatePassword(firebaseUser, formData.newPassword);
+        updatePayload.newPassword = formData.newPassword;
+        // Current password for password change will also be sent as currentPassword
       }
 
-      // Atualiza Firestore apenas se houver mudanças
-      if (Object.keys(updates).length > 0) {
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(userRef, {
-          ...updates,
-          updatedAt: serverTimestamp(),
-        });
+      // 3. Send updatePayload to the backend API
+      if (Object.keys(updatePayload).length > 0) {
+         console.log('Sending update payload to backend:', updatePayload);
+         const response = await api.put('/api/profile', updatePayload);
+         
+         if (!response.data.success) {
+            throw new Error(response.data.message || 'Falha ao atualizar perfil no backend');
+         }
+
+         // Optionally, refresh user data in context after successful backend update
+         // This depends on how your backend response is structured and if it returns the updated user
+         // If backend returns the updated user, you can update the context state directly.
+         // Otherwise, calling refreshSubscription or a general refreshUser function might be needed.
+         // For now, let's assume the backend update is sufficient.
+         // A full user refresh from backend might be better if backend is the source of truth.
+         // Assuming refreshSubscription might also refresh user details if backend /session provides it.
+         await refreshSubscription(); // Re-fetch user data including potential profile updates
+
+      } else {
+         toast.info('Nenhuma mudança para salvar.');
       }
 
       toast.success('Perfil atualizado com sucesso!');
       setIsEditing(false);
+      setAvatarFile(null); // Clear selected file after successful upload/update
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
       toast.error(error.message || 'Erro ao atualizar perfil');
     } finally {
       setIsLoading(false);
+      setIsUploading(false); // Ensure this is false even if photo upload failed earlier
     }
   };
 
   const handleManageSubscription = async () => {
     try {
-      if (!user) throw new Error('Usuário não autenticado');
+      if (!user?.uid) throw new Error('Usuário não autenticado');
       
-      // Aqui você pode implementar a lógica para abrir um modal
-      // ou redirecionar para uma página de gerenciamento
-      // Exemplo básico de atualização:
-      const response = await fetch('/api/subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await (user as FirebaseUser).getIdToken()}`
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          plan: 'premium',
-          status: 'active',
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // +1 ano
-        })
-      });
+      // Example: Redirect to backend route to manage subscription (e.g., Stripe portal)
+      // You would replace '/api/subscription/manage' with your actual backend endpoint
+      // This backend endpoint should handle creating a session with your payment provider
+      // and redirecting the user to their portal.
+      const response = await api.post('/api/subscription/manage', { userId: user.uid });
 
-      if (!response.ok) throw new Error('Failed to update subscription');
+      if (response.data && response.data.redirectUrl) {
+        window.location.href = response.data.redirectUrl; // Redirect user
+      } else {
+         throw new Error(response.data.message || 'Não foi possível iniciar o gerenciamento da assinatura.');
+      }
       
-      await refreshSubscription();
-      toast.success('Assinatura atualizada com sucesso!');
+      // You might not need refreshSubscription here if the user is redirected away.
+      // If managing is done via modal, you might need it after modal closes.
+      // await refreshSubscription();
+
     } catch (error: any) {
       console.error('Error managing subscription:', error);
       toast.error(error.message || 'Erro ao gerenciar assinatura');
@@ -248,29 +217,24 @@ export default function ProfilePage() {
 
   const handleUpgrade = async () => {
     try {
-      if (!user) throw new Error('Usuário não autenticado');
+      if (!user?.uid) throw new Error('Usuário não autenticado');
 
-      // Atualiza a assinatura para o plano "premium"
-      // Replace this with the actual implementation or import of subscriptionService
-      const response = await fetch('/api/subscription/upgrade', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await (user as FirebaseUser).getIdToken()}`
-        },
-        body: JSON.stringify({ userId: user.uid, plan: 'premium' })
-      });
+      // Example: Call backend API to initiate upgrade process
+      // This backend endpoint should interact with your payment provider to upgrade the subscription
+      const response = await api.post('/api/subscription/upgrade', { userId: user.uid, plan: 'premium' });
 
-      if (!response.ok) {
-        throw new Error('Failed to upgrade subscription');
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Falha ao solicitar upgrade');
       }
 
-      // Atualiza o estado ou exibe uma mensagem de sucesso
-      await refreshSubscription();
-      toast.success('Assinatura atualizada para o plano Premium com sucesso!');
+      // Assuming the backend handles the payment provider interaction and updates the DB.
+      // We should refresh the subscription status after the backend confirms the upgrade.
+      await refreshSubscription(); 
+      toast.success('Solicitação de upgrade enviada! Sua assinatura será atualizada em breve.');
+
     } catch (error: any) {
-      console.error('Erro ao atualizar assinatura:', error);
-      toast.error(error.message || 'Erro ao atualizar assinatura. Tente novamente.');
+      console.error('Erro ao solicitar upgrade:', error);
+      toast.error(error.message || 'Erro ao solicitar upgrade. Tente novamente.');
     }
   };
 
@@ -289,19 +253,21 @@ export default function ProfilePage() {
     return `Status: ${statusMap[subscription.status as keyof typeof statusMap] || subscription.status}`;
   }, [subscription]);
 
+  const currentAvatarSrc = avatarPreview || user?.photoUrl || '/default-avatar.png';
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Chatbot */}
-      <DeepSeekChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      {/* <DeepSeekChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} /> */}
       
-      <button 
+      {/* <button 
         onClick={() => setIsChatOpen(true)}
         className="fixed bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all z-50"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
-      </button>
+      </button> */}
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Cabeçalho */}
@@ -315,17 +281,31 @@ export default function ProfilePage() {
           {isEditing ? (
             <div className="flex space-x-2">
               <button
-                onClick={() => setIsEditing(false)}
+                type="button" // Specify type button to prevent form submission
+                onClick={() => {
+                   setIsEditing(false);
+                   setAvatarFile(null); // Clear selected file on cancel
+                   setAvatarPreview(user?.photoUrl || '/default-avatar.png'); // Reset preview
+                   // Reset form data to original user data
+                   setFormData({
+                      name: user?.name || '',
+                      email: user?.email || '',
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: ''
+                   });
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <FiX className="inline mr-2" /> Cancelar
               </button>
               <button
+                type="submit" // Specify type submit for form submission
                 onClick={handleSubmit}
-                disabled={isLoading}
+                disabled={isLoading || isUploading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                {isLoading ? 'Salvando...' : (
+                {isLoading || isUploading ? 'Salvando...' : (
                   <>
                     <FiCheck className="inline mr-2" /> Salvar
                   </>
@@ -334,6 +314,7 @@ export default function ProfilePage() {
             </div>
           ) : (
             <button
+              type="button" // Specify type button
               onClick={() => setIsEditing(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
@@ -350,7 +331,7 @@ export default function ProfilePage() {
               <div className="relative group">
                 <div className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-200 overflow-hidden">
                   <Image
-                    src={avatar}
+                    src={currentAvatarSrc}
                     alt="Foto de perfil"
                     width={128}
                     height={128}
@@ -387,13 +368,13 @@ export default function ProfilePage() {
                 {isEditing ? (
                   <input
                     type="text"
-                    name="displayName"
-                    value={formData.displayName}
+                    name="name" // Use name
+                    value={formData.name}
                     onChange={handleInputChange}
                     className="bg-transparent border-b border-white text-center text-white focus:outline-none"
                   />
                 ) : (
-                  user?.displayName || 'Usuário'
+                  user?.name || 'Usuário' // Use user.name
                 )}
               </h2>
               <p className="text-blue-100">
@@ -413,22 +394,22 @@ export default function ProfilePage() {
                   </h3>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
-                      <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Nome Completo
                       </label>
                       {isEditing ? (
                         <input
                           type="text"
-                          id="displayName"
-                          name="displayName"
-                          value={formData.displayName}
+                          id="name" // Use name
+                          name="name" // Use name
+                          value={formData.name}
                           onChange={handleInputChange}
                           className="w-full px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                           required
                         />
                       ) : (
                         <p className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-md">
-                          {user?.displayName || 'Não informado'}
+                          {user?.name || 'Não informado'} // Use user.name
                         </p>
                       )}
                     </div>
@@ -553,6 +534,7 @@ export default function ProfilePage() {
                           {subscription?.expiresAt && ` - Válido até ${new Date(subscription.expiresAt).toLocaleDateString()}`}
                         </p>
                       </div>
+                      {/* Consider conditional rendering for these buttons based on subscription status */}
                       <button 
                         type="button"
                         onClick={handleManageSubscription}

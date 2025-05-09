@@ -85,3 +85,4 @@ backend/node_modules/
 src/config/firebase-admin*.json
 src/config/private/
 src/config/private/
+.env

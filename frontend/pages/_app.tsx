@@ -7,17 +7,14 @@ import { FinanceProvider } from '../context/FinanceContext';
 import { DashboardProvider } from '../context/DashboardContext';
 import type { AppProps } from 'next/app';
 import Layout from '../components/Layout';
+import '../tailwind-output.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../styles/globals.css';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const publicRoutes = [
-  '/auth/login', 
-  '/auth/register', 
-  '/', 
-  '/auth/forgot-password'
-];
+const authRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password'];
+const publicOnlyRoutes = ['/']; // Routes accessible to everyone
 
 function GlobalErrorHandler() {
   useEffect(() => {
@@ -69,39 +66,62 @@ function AppWrapper({ Component, pageProps }: AppProps) {
 
   // Redirecionamento baseado no estado de autenticação
   useEffect(() => {
-    if (!authChecked ) return;
-  
-    const isPublicRoute = publicRoutes.some(route => 
-      router.pathname.startsWith(route)
-    );
-  
-    // Verificação adicional para evitar loops
-    if (!user && !isPublicRoute && !router.pathname.startsWith('/auth')) {
-      const redirectUrl = `/auth/login?redirect=${encodeURIComponent(router.asPath)}`;
-      if (router.asPath !== redirectUrl) {
-        router.replace(redirectUrl);
-      }
-    } else if (user && isPublicRoute && router.pathname !== '/') {
-      if (router.pathname !== '/dashboard') {
+    if (!authChecked) return;
+
+    const { pathname } = router;
+
+    const isAuthPage = authRoutes.includes(pathname);
+    const isPublicOnlyPage = publicOnlyRoutes.includes(pathname);
+    const isProtectedRoute = !isAuthPage && !isPublicOnlyPage;
+
+    if (user) {
+      // User is authenticated
+      if (isAuthPage) {
+        // Authenticated user on an auth page -> Redirect to dashboard
         router.replace('/dashboard');
       }
+      // If on '/' or a protected route, do nothing here. 
+      // ProtectedRoute component will handle subscription check.
+    } else {
+      // User is NOT authenticated
+      if (isProtectedRoute) {
+        // Unauthenticated user on a protected page -> Redirect to login
+        const redirectUrl = `/auth/login?redirect=${encodeURIComponent(router.asPath)}`;
+        // Only redirect if not already on the login page
+        if (pathname !== '/auth/login') {
+           router.replace(redirectUrl);
+        }
+      }
+      // If on '/' or an auth route, do nothing (allow access)
     }
   }, [authChecked, user, router]);
 
-  const showLoading = (!authChecked && !publicRoutes.includes(router.pathname)) || routeChanging;
-  const showLayout = !publicRoutes.includes(router.pathname) && authChecked;
+  // Determine if layout should be shown
+  // Show layout only for protected routes when auth check is complete and user is present
+  const showLayout = authChecked && user && !authRoutes.includes(router.pathname) && !publicOnlyRoutes.includes(router.pathname);
+
+  // Determine if loading spinner should be shown
+  // Show loading if auth check is not complete OR if route is changing
+  const showLoading = !authChecked || routeChanging;
 
   return (
     <>
       <GlobalErrorHandler />
       {showLoading && <LoadingSpinner fullScreen />}
-      {showLayout ? (
-        <Layout>
+      {!showLoading && (
+        showLayout ? (
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        ) : (
           <Component {...pageProps} />
-        </Layout>
-      ) : (
-        <Component {...pageProps} />
+        )
       )}
+      <ToastContainer 
+        position="top-right" 
+        autoClose={5000}
+        pauseOnFocusLoss={false}
+      />
     </>
   );
 }
@@ -112,11 +132,7 @@ export default function MyApp(props: AppProps) {
       <AuthProvider>
         <FinanceProvider>
           <DashboardProvider>
-            <ToastContainer 
-              position="top-right" 
-              autoClose={5000}
-              pauseOnFocusLoss={false}
-            />
+            
             <AppWrapper {...props} />
           </DashboardProvider>
         </FinanceProvider>

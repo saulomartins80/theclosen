@@ -1,4 +1,3 @@
-import 'module-alias/register'; 
 import 'reflect-metadata';
 import 'dotenv/config';
 import express from 'express';
@@ -13,6 +12,7 @@ import { adminAuth } from '@config/firebaseAdmin';
 import { Server } from 'http';
 import morgan from 'morgan';
 import compression from 'compression';
+import cookieParser from 'cookie-parser'; // Adicionado: Importar cookie-parser
 
 // Rotas
 import transacoesRouter from './routes/transacoesRoutes';
@@ -88,6 +88,12 @@ app.use(helmet());
 app.use(morgan('dev'));
 app.use(compression());
 
+// Parsers de corpo - MOVIDOS PARA CIMA
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+app.use(cookieParser()); // Adicionado: Usar cookie-parser para analisar cookies
+
 // Configuração do CORS unificada
 app.use(cors({
   origin: [
@@ -107,10 +113,6 @@ const apiLimiter = rateLimit({
   message: 'Muitas requisições deste IP, tente novamente mais tarde.'
 });
 app.use('/api/', apiLimiter);
-
-// Parsers de corpo
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // Headers de segurança adicionais
 app.use((req, res, next) => {

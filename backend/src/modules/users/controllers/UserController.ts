@@ -1,32 +1,27 @@
 // src/modules/users/controllers/UserController.ts
 import { injectable, inject } from 'inversify';
-import { Request, Response, NextFunction } from 'express'; // Import Request, Response, NextFunction
-import { UserService } from '../services/UserService'; // Importação ajustada
+import { Request, Response, NextFunction } from 'express';
+import { UserService } from '../services/UserService';
 import { TYPES } from '@core/types';
 import { AppError } from '@core/errors/AppError';
 
 @injectable()
 export class UserController {
   constructor(
-    @inject(TYPES.UserService) private readonly userService: UserService // Injeta o UserService
+    @inject(TYPES.UserService) private readonly userService: UserService
   ) {}
-
-  // Métodos do controlador que recebem req, res, next e delegam ao UserService
 
   async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { name, email, password } = req.body;
-      // Chama o método register do UserService
       const result = await this.userService.register({ name, email, password });
-
-      // Envia a resposta
       res.status(201).json({
         success: true,
         data: {
-          user: {
+          user: { // Retornando dados formatados do perfil
             id: result.user.id,
             email: result.user.email,
-            displayName: result.user.name,
+            name: result.user.name, // Usar name que está no IUserProfile
             photoURL: result.user.photoUrl || null
           },
           token: result.token,
@@ -34,48 +29,40 @@ export class UserController {
         }
       });
     } catch (error) {
-      next(error); // Passa o erro para o próximo middleware/manipulador de erros
+      next(error);
     }
   }
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { email, password } = req.body;
-
-      // Chama o método login do UserService
       const { user, token, firebaseToken } = await this.userService.login(email, password);
-
-      // Envia a resposta
       res.status(200).json({
         success: true,
-        user: {
+        user: { // Retornando dados formatados do perfil
           id: user.id,
           email: user.email,
           name: user.name,
-          displayName: user.name,
           photoURL: user.photoUrl || null
         }, 
         token,
         firebaseToken
       });
     } catch (error) {
-      next(error); // Passa o erro
+      next(error);
     }
   }
 
-   async loginWithGoogle(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async loginWithGoogle(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { idToken } = req.body;
-      
       if (!idToken) {
         throw new AppError(400, 'Token do Google é obrigatório');
       }
-
       const result = await this.userService.loginWithGoogle(idToken);
-      
       res.status(200).json({
         success: true,
-        user: {
+        user: { // Retornando dados formatados do perfil
           id: result.user.id,
           email: result.user.email,
           name: result.user.name,
@@ -89,39 +76,33 @@ export class UserController {
     }
   }
 
-
   async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // Após o middleware authenticate, req.user deve estar populado
-      // Usar req.user.id (ID do MongoDB) para buscar o perfil no UserService
       if (!req.user?.id) { 
-         throw new AppError(401, 'ID de usuário não disponível na requisição autenticada');
+         throw new AppError(401, 'ID de usuário (MongoDB) não disponível na requisição autenticada');
       }
-      // Chama o método getProfile do UserService com o ID do MongoDB
-      const user = await this.userService.getProfile(req.user.id); 
-
-      // Envia a resposta
-      res.json(user);
+      // userService.getProfile espera o ID do MongoDB
+      const userProfile = await this.userService.getProfile(req.user.id); 
+      res.status(200).json({ success: true, data: userProfile });
     } catch (error) {
-      next(error); // Passa o erro
+      next(error);
     }
   }
 
   async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // Após o middleware authenticate, req.user deve estar populado
-       if (!req.user?.uid) { // Usar uid para atualizar no Firebase se o service precisar
-         throw new AppError(401, 'Usuário não autenticado');
+      if (!req.user?.id) { // Precisamos do ID do MongoDB para atualizar no DB
+         throw new AppError(401, 'Usuário não autenticado ou ID do MongoDB não encontrado.');
        }
+      const mongoUserId = req.user.id; // ID do MongoDB do usuário autenticado
+      const { name, email, photoUrl } = req.body;
 
-      const { name, email } = req.body;
-
-      if (!name && !email) {
-        throw new AppError(400, 'Nenhum dado para atualização fornecido');
+      if (!name && !email && !photoUrl) {
+        throw new AppError(400, 'Nenhum dado para atualização fornecido (nome, email ou photoUrl)');
       }
 
-      // Chama o método updateProfile do UserService
-      const updatedProfile = await this.userService.updateProfile(req.user.uid, { name, email }); // Assumindo que updateProfile no service usa UID
+      // userService.updateProfile espera o ID do MongoDB
+      const updatedProfile = await this.userService.updateProfile(mongoUserId, { name, email, photoUrl });
 
       res.status(200).json({
         success: true,
@@ -135,23 +116,22 @@ export class UserController {
 
   async updateSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
      try {
-       // Após o middleware authenticate, req.user deve estar populado
-       if (!req.user?.uid) {
-          throw new AppError(401, 'Usuário não autenticado');
+       if (!req.user?.id) { // Precisamos do ID do MongoDB para atualizar no DB
+          throw new AppError(401, 'Usuário não autenticado ou ID do MongoDB não encontrado.');
        }
-       const userIdToUpdate = req.user.uid; // Usar o UID do usuário autenticado
-
+       const mongoUserId = req.user.id; // ID do MongoDB do usuário autenticado
        const { settings } = req.body;
 
-       if (!settings) {
-         throw new AppError(400, 'Configurações são obrigatórias');
+       if (!settings || typeof settings !== 'object') {
+         throw new AppError(400, 'Objeto de configurações é obrigatório e deve ser um objeto.');
        }
-       // Chama o método updateSettings do UserService
-       const updatedProfile = await this.userService.updateSettings(userIdToUpdate, settings);
+       // userService.updateSettings espera o ID do MongoDB
+       const updatedProfile = await this.userService.updateSettings(mongoUserId, settings);
 
        res.status(200).json({
          success: true,
-         data: updatedProfile
+         data: updatedProfile,
+         message: 'Configurações atualizadas com sucesso.'
        });
      } catch (error) {
        next(error);
@@ -160,21 +140,17 @@ export class UserController {
 
   async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
       try {
-        // Este método é chamado por uma rota pública, então req.user não está populado pelo authenticate
         const token = req.body.token || req.headers.authorization?.split(' ')[1];
         if (!token) {
           throw new AppError(400, 'Token é obrigatório');
         }
-        // Chama o método verifyToken do UserService
-        const user = await this.userService.verifyToken(token); // UserService verifyToken lida com ambos os tipos de token
+        // userService.verifyToken espera o token do Firebase Auth
+        const userFromDb = await this.userService.verifyToken(token);
 
+        // Retorna um perfil formatado, não o objeto IUser completo do DB
         res.status(200).json({
           success: true,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name
-          }
+          user: this.userService.formatUserProfile(userFromDb) // Usando formatUserProfile do serviço
         });
       } catch (error) {
          next(error);
@@ -183,51 +159,47 @@ export class UserController {
 
    async getUser(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { uid } = req.params;
-      // Chama o método do UserService para buscar usuário por Firebase UID
-      const userByUid = await this.userService.getUserByFirebaseUid(uid);
-       if (!userByUid) { 
-           throw new AppError(404, 'Usuário não encontrado');
+      const { uid } = req.params; // uid aqui é o firebaseUid
+      const userByFirebaseUid = await this.userService.getUserByFirebaseUid(uid);
+       if (!userByFirebaseUid) { 
+           throw new AppError(404, 'Usuário não encontrado.');
        }
-
+      // Retorna um perfil formatado
       res.status(200).json({
         success: true,
-        data: userByUid
+        data: this.userService.formatUserProfile(userByFirebaseUid)
       });
     } catch (error) {
       next(error);
     }
   }
 
-    async updateSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
-      try {
-        const { uid } = req.params;
-        const userIdToUpdate = uid;
-        const subscriptionData = req.body;
+  // Rota para atualizar a assinatura de um usuário (ex: admin ou webhook)
+  // O firebaseUid vem dos parâmetros da rota, e os dados da assinatura do corpo.
+  async updateSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { uid } = req.params; // uid aqui é o firebaseUid
+      const subscriptionData = req.body;
 
-        if (!subscriptionData || !subscriptionData.plan || !subscriptionData.status || !subscriptionData.expiresAt) { 
-          throw new AppError(400, 'Dados da assinatura são obrigatórios');
-        }
-
-        // Primeiro, obtenha o ID do MongoDB a partir do Firebase UID
-        const user = await this.userService.getUserByFirebaseUid(userIdToUpdate);
-         if (!user) { 
-             throw new AppError(404, 'Usuário não encontrado');
-         }
-        const mongoId = user.id;
-
-        // Chama o método updateSubscription do UserService com o ID do MongoDB
-        const updatedUser = await this.userService.updateSubscription(mongoId, subscriptionData);
-
-        res.status(200).json({
-          success: true,
-          data: updatedUser
-        });
-      } catch (error) {
-        next(error);
+      if (!uid) {
+        throw new AppError(400, 'Firebase UID do usuário é obrigatório nos parâmetros da rota.');
       }
-   }
+      // Validação básica dos dados da assinatura
+      if (!subscriptionData || typeof subscriptionData !== 'object') { 
+        throw new AppError(400, 'Dados da assinatura são obrigatórios e devem ser um objeto.');
+      }
+      // Adicione mais validações para plan, status, expiresAt se necessário aqui
 
-  // Remove o método handleError local, assumindo um manipulador de erros global
-  // private handleError... 
+      // O método updateSubscription no UserService agora espera o firebaseUid
+      const updatedUserProfile = await this.userService.updateSubscription(uid, subscriptionData);
+
+      res.status(200).json({
+        success: true,
+        data: updatedUserProfile,
+        message: 'Assinatura do usuário atualizada com sucesso.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

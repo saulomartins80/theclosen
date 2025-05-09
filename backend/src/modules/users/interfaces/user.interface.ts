@@ -1,38 +1,26 @@
-// src/modules/users/interfaces/user.interface.ts
-export interface IUser {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-  photoUrl?: string; 
-  firebaseUid?: string;
-  settings?: any;
-  subscription?: {
-    plan: string;
-    status: string;
-    expiresAt: Date;
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
+// backend/src/modules/users/interfaces/user.interface.ts
+import { ISubscription } from '@models/User'; // Importar ISubscription do modelo
 
 export interface IUserProfile {
-  id: string;
-  email: string;
+  id: string; 
   name: string;
+  email: string;
   photoUrl?: string;
-  settings: any;
-  subscription?: {
-    plan: string;
-    status: string;
-    expiresAt: Date;
+  firebaseUid: string; 
+  settings?: {
+    theme?: string;
+    notifications?: boolean;
   };
-  createdAt: Date;
-  updatedAt: Date;
+  subscription?: ISubscription; // Usar a ISubscription do modelo
+  createdAt?: Date; // Opcional para corresponder ao modelo Mongoose
+  updatedAt?: Date; // Opcional para corresponder ao modelo Mongoose
 }
 
+// A interface IUser local é removida para evitar conflito com a IUser de @models/User.
+// Os serviços e repositórios devem usar a IUser de @models/User.
+
 export interface IUserWithTokens {
-  user: IUserProfile;
-  token: string;
-  firebaseToken: string;
+  user: IUserProfile; 
+  token: string;       
+  firebaseToken: string; 
 }

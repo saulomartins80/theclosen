@@ -427,28 +427,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => unsubscribe();
   }, [syncSessionWithBackend]);
 
-  // Efeito para verificar assinatura quando o usuário muda
-  useEffect(() => {
-    if (state.user?.uid && !state.loading) {
-      fetchSubscription(state.user.uid);
-    }
-  }, [state.user?.uid, state.loading, fetchSubscription]);
-
-  // Efeito para redirecionamento após autenticação
-  useEffect(() => {
-    if (state.authChecked && !state.loading) {
-      const isAuthPage = router.pathname.startsWith('/auth');
-      const isPublicPage = ['/', '/pricing'].includes(router.pathname);
-
-      if (state.user && (isAuthPage || isPublicPage)) {
-        const { redirect } = router.query;
-        router.push(typeof redirect === 'string' ? redirect : '/dashboard');
-      } else if (!state.user && !isAuthPage && !isPublicPage) {
-        router.push(`/auth/login?redirect=${router.pathname}`);
-      }
-    }
-  }, [state.user, state.authChecked, state.loading, router]);
-
   const value: AuthContextType = useMemo(() => ({
     ...state,
     refreshSubscription,
