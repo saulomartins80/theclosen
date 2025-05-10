@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
-// Helper para debounce (movido para fora do componente)
 const debounce = (func: Function, wait: number) => {
   let timeout: NodeJS.Timeout;
   return (...args: any[]) => {
@@ -13,13 +12,13 @@ const debounce = (func: Function, wait: number) => {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(false);
   const { user } = useAuth();
 
   const handleResize = useCallback(() => {
-    if (window.innerWidth >= 768) {
-      setIsSidebarOpen(false);
+    if (window.innerWidth >= 768) { // md breakpoint
+      setIsMobileSidebarOpen(false);
     }
   }, []);
 
@@ -29,39 +28,39 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', debouncedResize);
   }, [handleResize]);
 
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
+  const toggleMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(prev => !prev);
+  }, []);
+
+  const toggleDesktopSidebarCollapse = useCallback(() => {
+    setIsDesktopSidebarCollapsed(prev => !prev);
   }, []);
 
   if (!user) return <>{children}</>;
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Sidebar Mobile */}
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
       <Sidebar 
-        isOpen={isSidebarOpen}
-        onClose={toggleSidebar}
+        isOpen={isMobileSidebarOpen}
+        onClose={toggleMobileSidebar}
         isMobile={true}
       />
 
-      {/* Sidebar Desktop */}
-      <div className={`hidden md:block fixed inset-y-0 left-0 z-30 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
-        <Sidebar 
-          isOpen={true}
-          onClose={() => {}}
-          onToggle={() => setSidebarCollapsed(prev => !prev)}
-          isMobile={false}
-        />
-      </div>
+      <Sidebar 
+        isMobile={false}
+        initialCollapsed={isDesktopSidebarCollapsed}
+        onToggle={toggleDesktopSidebarCollapse}
+      />
 
       {/* Conteúdo principal */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <div 
+        className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isDesktopSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+      >
         <Header 
-          isSidebarOpen={isSidebarOpen}
-          toggleSidebar={toggleSidebar}
+          toggleMobileSidebar={toggleMobileSidebar}
         />
         
-        <main className="flex-1 overflow-y-auto pt-16 px-6">
+        <main className="flex-1 overflow-y-auto pt-16 md:pt-20 px-4 sm:px-6 lg:px-8 pb-8">
           {children}
         </main>
       </div>

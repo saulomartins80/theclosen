@@ -229,23 +229,20 @@ const BOOK_CONTENT: { [key: string]: SectionContent } = {
 };
 
 const EbookReader = () => {
-  // Estados
   const [activeSection, setActiveSection] = useState<string>("introducao");
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [fontSize, setFontSize] = useState(18);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mantido o nome original que você tinha
   const [searchQuery, setSearchQuery] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Carrega dados salvos
   useEffect(() => {
     const savedData = {
       highlights: localStorage.getItem('highlights'),
       lastSection: localStorage.getItem('lastSection'),
       fontSize: localStorage.getItem('fontSize')
     };
-
     if (savedData.highlights) {
       try {
         setHighlights(JSON.parse(savedData.highlights));
@@ -253,11 +250,9 @@ const EbookReader = () => {
         console.error("Erro ao carregar destaques:", e);
       }
     }
-
     if (savedData.lastSection && BOOK_CONTENT[savedData.lastSection as keyof typeof BOOK_CONTENT]) {
       setActiveSection(savedData.lastSection);
     }
-
     if (savedData.fontSize) {
       const size = Number(savedData.fontSize);
       if (!isNaN(size) && size >= 14 && size <= 24) {
@@ -266,7 +261,6 @@ const EbookReader = () => {
     }
   }, []);
 
-  // Funções
   const handleDownload = () => {
     setIsDownloading(true);
     setTimeout(() => {
@@ -278,14 +272,12 @@ const EbookReader = () => {
   const addHighlight = () => {
     const selection = window.getSelection();
     if (!selection || !selection.toString().trim()) return;
-
     const newHighlight: Highlight = {
       id: Date.now().toString(),
       text: selection.toString(),
       section: activeSection,
       createdAt: new Date()
     };
-
     const updatedHighlights = [...highlights, newHighlight];
     setHighlights(updatedHighlights);
     localStorage.setItem('highlights', JSON.stringify(updatedHighlights));
@@ -295,31 +287,27 @@ const EbookReader = () => {
     contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Seção atual com fallback seguro
   const currentSection = BOOK_CONTENT[activeSection as keyof typeof BOOK_CONTENT] || BOOK_CONTENT.introducao;
 
-  // Filtro de seções
   const filteredSections = Object.keys(BOOK_CONTENT).filter(key =>
     BOOK_CONTENT[key as keyof typeof BOOK_CONTENT].titulo.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 shadow-xl transform ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } transition-transform duration-300 ease-in-out`}>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      {/* Sidebar do Ebook */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-800 shadow-xl transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
         <div className="p-4 h-full flex flex-col">
-          <h2 className="text-xl font-bold mb-4">Índice</h2>
+          <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Índice</h2>
           
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
             <input
               type="text"
               placeholder="Buscar capítulo..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border dark:border-gray-600 dark:bg-gray-700"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border bg-white text-gray-900 border-gray-300 placeholder-gray-400 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:placeholder-gray-500"
             />
           </div>
 
@@ -330,16 +318,16 @@ const EbookReader = () => {
                   onClick={() => {
                     setActiveSection(sectionId);
                     localStorage.setItem('lastSection', sectionId);
-                    setIsSidebarOpen(false);
+                    setIsSidebarOpen(false); // Fecha ao clicar, independente do tamanho da tela
                   }}
-                  className={`w-full text-left px-4 py-3 rounded-lg transition ${
-                    activeSection === sectionId
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-sm font-medium 
+                    ${activeSection === sectionId
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                    }`}
                 >
                   <span className="flex items-center">
-                    <BookOpen size={16} className="mr-2" />
+                    <BookOpen size={16} className="mr-2.5 flex-shrink-0" />
                     {BOOK_CONTENT[sectionId as keyof typeof BOOK_CONTENT].titulo}
                   </span>
                 </button>
@@ -347,31 +335,34 @@ const EbookReader = () => {
             ))}
           </ul>
 
-          <div className="mt-4 pt-4 border-t dark:border-gray-700">
-            <h3 className="font-medium mb-2">Seus Destaques</h3>
-            <ul className="space-y-2 max-h-40 overflow-y-auto">
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="font-medium mb-2 text-gray-900 dark:text-white">Seus Destaques</h3>
+            <ul className="space-y-2 max-h-40 overflow-y-auto text-sm">
               {highlights
                 .filter(h => h.section === activeSection)
                 .map(highlight => (
                   <li 
                     key={highlight.id}
-                    className="p-2 rounded bg-yellow-100 dark:bg-yellow-900 text-gray-900 dark:text-gray-100 text-sm"
+                    className="p-2 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-700/30 dark:text-yellow-300"
                   >
                     {highlight.text}
                   </li>
                 ))}
+              {highlights.filter(h => h.section === activeSection).length === 0 && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Nenhum destaque nesta seção.</p>
+              )}
             </ul>
           </div>
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
+      {/* Conteúdo Principal */} 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-800 shadow-sm p-4">
+        <header className="bg-white dark:bg-gray-800 shadow-sm p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center max-w-7xl mx-auto">
             <button 
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+              className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <BookText size={24} />
             </button>
@@ -394,13 +385,12 @@ const EbookReader = () => {
           className="flex-1 overflow-y-auto p-6 md:p-10 bg-white dark:bg-gray-800"
         >
           <div className="max-w-4xl mx-auto">
-            {/* Capa do Livro */}
             <div className="text-center mb-12">
-              <h1 className="text-4xl font-bold mb-4">Rumo à Prosperidade</h1>
+              <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-white">Rumo à Prosperidade</h1>
               <p className="text-xl text-gray-600 dark:text-gray-400 mb-8">
                 Transformando sua vida financeira, emocional e espiritual
               </p>
-              <div className="w-48 h-64 mx-auto relative shadow-xl rounded-lg overflow-hidden">
+              <div className="w-48 h-64 mx-auto relative shadow-xl rounded-lg overflow-hidden ring-1 ring-gray-200 dark:ring-gray-700">
                 <Image
                   src="/rumo.pdf.png"
                   alt="Capa do Livro"
@@ -412,14 +402,13 @@ const EbookReader = () => {
               </div>
             </div>
 
-            {/* Conteúdo do Capítulo */}
-            <article style={{ fontSize: `${fontSize}px` }} className="prose dark:prose-invert max-w-none">
-              <h2 className="text-3xl font-bold mb-6 text-blue-600 dark:text-blue-400">
+            <article style={{ fontSize: `${fontSize}px` }} className="prose dark:prose-invert max-w-none leading-relaxed sm:leading-loose">
+              <h2 className="text-3xl font-bold mb-6 text-blue-600 dark:text-blue-400 border-b pb-2 border-gray-200 dark:border-gray-700">
                 {currentSection.titulo}
               </h2>
               
               {currentSection.conteudo.map((paragraph, index) => (
-                <p key={index} className="mb-6 leading-relaxed text-gray-800 dark:text-gray-200">
+                <p key={index} className="mb-6 text-gray-700 dark:text-gray-300">
                   {paragraph}
                 </p>
               ))}
@@ -427,8 +416,7 @@ const EbookReader = () => {
           </div>
         </div>
 
-        {/* Controles */}
-        <div className="bg-white dark:bg-gray-800 border-t dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
           <div className="flex justify-between items-center max-w-4xl mx-auto">
             <div className="flex items-center space-x-4">
               <button 
@@ -437,12 +425,12 @@ const EbookReader = () => {
                   setFontSize(newSize);
                   localStorage.setItem('fontSize', newSize.toString());
                 }}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <span className="text-lg">A-</span>
               </button>
               
-              <span className="text-sm w-12 text-center">
+              <span className="text-sm w-12 text-center text-gray-700 dark:text-gray-300">
                 {fontSize}px
               </span>
               
@@ -452,7 +440,7 @@ const EbookReader = () => {
                   setFontSize(newSize);
                   localStorage.setItem('fontSize', newSize.toString());
                 }}
-                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <span className="text-lg">A+</span>
               </button>

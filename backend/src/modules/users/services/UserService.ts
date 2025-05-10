@@ -10,7 +10,6 @@ import { IUserProfile, IUserWithTokens } from '../interfaces/user.interface';
 import { TYPES } from '@core/types';
 import { SubscriptionService as FirestoreSubscriptionService } from '@services/subscriptionService';
 
-// Extend the updateData type to include optional password fields
 interface UpdateProfileData extends Partial<Pick<IUser, 'name' | 'email' | 'photoUrl'>> {
   currentPassword?: string;
   newPassword?: string;
@@ -22,28 +21,23 @@ export class UserService {
 
   constructor(
     @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
-    // NOTE: Injecting FirestoreSubscriptionService here might be a leftover if you are fully on MongoDB.
-    // Consider removing if not used, but keeping for now based on existing code.
     @inject(TYPES.SubscriptionService) private readonly firestoreSubscriptionService: FirestoreSubscriptionService
   ) {}
 
-  // Tornando público para ser usado pelo UserController
   public formatUserProfile(user: IUser): IUserProfile {
     if (!user) {
         throw new AppError(500, 'Tentativa de formatar perfil de usuário nulo.');
     }
-    // Garantir que os campos opcionais no IUser sejam tratados ao mapear para IUserProfile
-    // Se IUserProfile tiver campos obrigatórios que são opcionais em IUser, você precisa de uma lógica aqui.
     return {
-      id: user.id!, // id é um virtual getter no Mongoose, deve existir se o documento existe
+      id: user.id!,
       name: user.name,
       email: user.email,
-      firebaseUid: user.firebaseUid, // Adicionado firebaseUid ao IUserProfile
-      photoUrl: user.photoUrl, // photoUrl é opcional em IUser e IUserProfile
-      settings: user.settings || { theme: 'light', notifications: true }, // Fornece um default se settings for undefined
-      subscription: user.subscription, // subscription é opcional em IUser e IUserProfile, e usa ISubscription
-      createdAt: user.createdAt, // createdAt é opcional em IUser e IUserProfile
-      updatedAt: user.updatedAt, // updatedAt é opcional em IUser e IUserProfile
+      firebaseUid: user.firebaseUid,
+      photoUrl: user.photoUrl,
+      settings: user.settings || { theme: 'light', notifications: true },
+      subscription: user.subscription,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 
@@ -82,7 +76,6 @@ export class UserService {
         ...await this.generateTokens(user)
       };
     } catch (error) {
-      // Handle Firebase Auth errors specifically if needed
       const firebaseError = error as any;
        if (firebaseError.code === 'auth/email-already-in-use') {
            throw new AppError(400, 'Este email já está em uso.');
@@ -170,72 +163,55 @@ export class UserService {
       const payload: Partial<IUser> = {};
       const firebaseUpdatePayload: { email?: string; displayName?: string; photoURL?: string; password?: string } = {};
 
-      // Handle email change
       if (fieldsToUpdate.email && fieldsToUpdate.email !== userToUpdate.email) {
-        // Check if email is already in use by another user
         const existingUserWithEmail = await this.userRepository.findByEmail(fieldsToUpdate.email);
         if (existingUserWithEmail && existingUserWithEmail.id !== mongoUserId) {
           throw new AppError(400, 'Email já está em uso por outro usuário.');
         }
-        
-        // Reauthentication is required for email change
         if (!currentPassword) {
            throw new AppError(400, 'Senha atual é necessária para alterar o email.');
         }
-        // Verify current password against MongoDB hash (assuming email/password user)
         if (!userToUpdate.password || !(await bcrypt.compare(currentPassword, userToUpdate.password))) {
             throw new AppError(401, 'Senha atual incorreta.');
         }
-
-        payload.email = fieldsToUpdate.email; // Update email in MongoDB
-        firebaseUpdatePayload.email = fieldsToUpdate.email; // Update email in Firebase Auth
+        payload.email = fieldsToUpdate.email;
+        firebaseUpdatePayload.email = fieldsToUpdate.email;
       }
 
-      // Handle password change
       if (newPassword) {
-        // Reauthentication is required for password change
          if (!currentPassword) {
             throw new AppError(400, 'Senha atual é necessária para alterar a senha.');
          }
-        // Verify current password against MongoDB hash (assuming email/password user)
          if (!userToUpdate.password || !(await bcrypt.compare(currentPassword, userToUpdate.password))) {
              throw new AppError(401, 'Senha atual incorreta.');
          }
-
-        const hashedNewPassword = await bcrypt.hash(newPassword, 10); // Hash the new password
-        payload.password = hashedNewPassword; // Update password in MongoDB
-        firebaseUpdatePayload.password = newPassword; // Update password in Firebase Auth
+        const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+        payload.password = hashedNewPassword;
+        firebaseUpdatePayload.password = newPassword;
       }
       
-      // Handle name change
       if (fieldsToUpdate.name !== undefined && fieldsToUpdate.name !== userToUpdate.name) {
          payload.name = fieldsToUpdate.name;
          firebaseUpdatePayload.displayName = fieldsToUpdate.name;
       }
 
-       // Handle photoUrl change
       if (fieldsToUpdate.photoUrl !== undefined && fieldsToUpdate.photoUrl !== userToUpdate.photoUrl) {
          payload.photoUrl = fieldsToUpdate.photoUrl;
          firebaseUpdatePayload.photoURL = fieldsToUpdate.photoUrl;
       }
 
-      // Perform updates if there are changes
       if (Object.keys(payload).length > 0) {
          const updatedUser = await this.userRepository.updateById(mongoUserId, payload);
          if (!updatedUser) throw new AppError(404, 'Falha ao atualizar o usuário no MongoDB.');
-
-         // Update Firebase Auth if there are relevant changes and firebaseUid exists
          if (updatedUser.firebaseUid && Object.keys(firebaseUpdatePayload).length > 0) {
              await this.auth.updateUser(updatedUser.firebaseUid, firebaseUpdatePayload);
          }
          return this.formatUserProfile(updatedUser);
       } else {
-         // No changes were submitted
-         return this.formatUserProfile(userToUpdate); // Return the original user profile
+         return this.formatUserProfile(userToUpdate);
       }
 
     } catch (error: any) {
-      // Catch specific Firebase Admin errors if necessary
        if (error.code && error.code.startsWith('auth/')) {
            throw new AppError(400, `Erro no Firebase Auth: ${error.message}`);
        }
@@ -296,9 +272,11 @@ export class UserService {
   }
 
   private async generateTokens(user: IUser): Promise<{ token: string; firebaseToken: string }> {
+    // Log adicionado para verificar o valor de APP_JWT_SECRET antes de usá-lo
+    console.log(`[UserService/generateTokens] Tentando ler process.env.APP_JWT_SECRET: "${process.env.APP_JWT_SECRET}"`);
     const jwtSecret = process.env.APP_JWT_SECRET;
     if (!jwtSecret) {
-        console.error('CRÍTICO: APP_JWT_SECRET não definido.');
+        console.error('CRÍTICO: APP_JWT_SECRET não definido (dentro do if).'); // Modificado para clareza
         throw new AppError(500, 'Configuração interna do servidor ausente (JWT Secret).');
     }
     const tokenPayload = { id: user.id, email: user.email, uid: user.firebaseUid };

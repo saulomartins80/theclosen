@@ -325,7 +325,7 @@ const MetasDashboard = () => {
             <select
               value={state.filters.status}
               onChange={(e) => setState(prev => ({ ...prev, filters: { ...prev.filters, status: e.target.value as any } }))}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+              className="w-full p-2 border rounded-lg bg-white text-gray-900 border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
               <option value="todas">Todas</option>
               <option value="concluidas">Concluídas</option>
