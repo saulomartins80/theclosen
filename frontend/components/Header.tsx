@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiX, FiSun, FiMoon, FiMonitor, FiMenu, FiSearch, FiBell, FiSettings, FiUser, FiLogOut, FiChevronRight } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext'; // Import useAuth
 import Link from 'next/link';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -12,7 +12,8 @@ interface HeaderProps {
 }
 
 export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
-  const { user } = useAuth();
+  // Destructure user AND the logout function from AuthContext
+  const { user, logout: authContextLogout } = useAuth(); 
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
@@ -46,7 +47,16 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
     { id: 2, text: 'Atualização do sistema disponível', read: true }
   ];
 
-  if (!user) return null;
+  // user object from useAuth() could be null initially or if not authenticated
+  // The main return of Header might need to handle user being null if it's possible
+  // However, many parts of the header rely on user being present.
+  // If user is null, perhaps a minimal header or nothing is rendered.
+  // For now, assuming user is populated if Header is rendered in a protected route context.
+  if (!user) {
+    // If no user, perhaps render a login button or a minimal header
+    // For now, returning null or a minimal placeholder to avoid errors
+    return null; 
+  }
 
   if (!mounted) {
     return (
@@ -72,7 +82,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
           : 'bg-white border-b border-gray-200'
         }
       `} 
-      ref={dropdownRef}
+      ref={dropdownRef} // This ref should probably be on the individual dropdowns, not the whole header
     >
       {/* Botão do menu mobile otimizado */}
       <button
@@ -94,6 +104,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
       <div className="flex items-center ml-2 md:ml-4">
         <Link href="/" passHref legacyBehavior>
           <a className="text-xl font-bold cursor-pointer">            
+            {/* Your Logo or App Name Here */}
           </a>
         </Link>
       </div>
@@ -124,9 +135,10 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
       </div>
 
       {/* Ícones de controle */}
-      <div className="flex items-center space-x-3" ref={dropdownRef}>
+      {/* The main dropdownRef was here, it's better to have separate refs for each dropdown if they are independent */}
+      <div className="flex items-center space-x-3">
         {/* Seletor de Tema */}
-        <div className="relative">
+        <div className="relative"> {/* Add ref here if needed for this specific dropdown */}
           <button
             onClick={() => {
               setShowThemeDropdown(!showThemeDropdown);
@@ -183,7 +195,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
         </div>
 
         {/* Notificações */}
-        <div className="relative">
+        <div className="relative"> {/* Add ref here if needed for this specific dropdown */}
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);
@@ -273,7 +285,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
         </div>
 
         {/* Perfil do usuário */}
-        <div className="relative">
+        <div className="relative"> {/* Add ref here if needed for this specific dropdown */}
           <button
             onClick={() => {
               setShowProfileDropdown(!showProfileDropdown);
@@ -289,16 +301,25 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
             `}
             aria-label="Menu do usuário"
           >
+             {/* Display user avatar or initials - consistent with ProfileMenu.tsx */}
             <div className={`
-              w-8 h-8 rounded-full flex items-center justify-center
+              w-8 h-8 rounded-full flex items-center justify-center overflow-hidden
               ${resolvedTheme === 'dark'
                 ? 'bg-gray-600 text-white'
                 : 'bg-gray-300 text-gray-700'
               }
             `}>
-              {user.email?.charAt(0).toUpperCase()}
+              {(user.photoUrl || user.photoURL) ? (
+                <img 
+                  src={user.photoUrl || user.photoURL || ''} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()
+              )}
             </div>
-            <span className="hidden md:inline">{user.email}</span>
+            <span className="hidden md:inline">{user.name || user.email}</span>
             <FiChevronRight className={`
               ${showProfileDropdown ? 'transform rotate-90' : ''}
               transition-transform
@@ -322,7 +343,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
                   : 'border-gray-200 text-gray-800'
                 }
               `}>
-                <p className="font-medium truncate">{user.email}</p>
+                <p className="font-medium truncate">{user.name || user.email}</p>
               </div>
               <Link
                 href="/perfil"
@@ -368,9 +389,8 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
                 }
               `}>
                 <button
-                  onClick={() => {
-                    // Add logout functionality here if needed
-                    console.log('Logout functionality not implemented.');
+                  onClick={async () => { // MODIFIED TO CALL AUTH CONTEXT LOGOUT
+                    await authContextLogout();
                     setShowProfileDropdown(false);
                   }}
                   className="w-full text-left flex items-center"

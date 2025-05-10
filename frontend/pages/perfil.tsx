@@ -1,5 +1,5 @@
 //pages/profile.tsx
-import { useAuth } from '../context/AuthContext';
+import { useAuth, SessionUser } from '../context/AuthContext'; // Import SessionUser
 import { useState, useEffect, useMemo } from 'react';
 import { FiUser, FiMail, FiLock, FiCreditCard, FiEdit, FiCamera, FiCheck, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -8,12 +8,12 @@ import Image from 'next/image';
 import DeepSeekChat from '../components/DeepSeekChat';
 import api from '../services/api'; // Import your API service
 
-// Extend the SessionUser type to include displayName
-declare module '../context/AuthContext' {
-  interface SessionUser {
-    displayName?: string;
-  }
-}
+// Extend the SessionUser type to include displayName - This might be redundant if SessionUser is imported and used correctly
+// declare module '../context/AuthContext' {
+//   interface SessionUser {
+//     displayName?: string;
+//   }
+// }
 
 // Define a type for the expected user structure from useAuth
 interface AuthUserData {
@@ -25,17 +25,24 @@ interface AuthUserData {
 }
 
 // Define a type for the AuthContext return value we expect
+// Make sure this matches the actual AuthContextType, especially the updateUserContextProfile
 interface ProfileAuthContextType {
   user: AuthUserData | null;
   subscription: { plan?: string; status?: string; expiresAt?: string } | null;
   loadingSubscription: boolean;
   refreshSubscription: () => Promise<void>;
-  // Add other necessary properties/methods from useAuth if used directly
+  updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void; // Ensure this is correct
 }
 
 export default function ProfilePage() {
   // Use the defined interface for better type safety
-  const { user, subscription, loadingSubscription, refreshSubscription } = useAuth() as ProfileAuthContextType;
+  const { 
+    user, 
+    subscription, 
+    loadingSubscription, 
+    refreshSubscription, 
+    updateUserContextProfile // Get the new function from useAuth
+  } = useAuth() as ProfileAuthContextType;
 
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,7 +67,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name || '', // Use user.name
+        name: user.name || '', 
         email: user.email || '',
         currentPassword: '',
         newPassword: '',
@@ -109,7 +116,8 @@ export default function ProfilePage() {
       }
 
       const updatePayload: any = {};
-      let photoUrl = user.photoUrl; // Start with current photoUrl
+      // Start with current photoUrl, will be overwritten if new avatar is uploaded
+      let finalPhotoUrl = user.photoUrl;
 
       // 1. Handle Photo Upload if a new file is selected
       if (avatarFile) {
@@ -118,8 +126,8 @@ export default function ProfilePage() {
           const timestamp = Date.now();
           const storageRef = ref(storage, `avatars/${user.uid}/avatar_${timestamp}`);
           await uploadBytes(storageRef, avatarFile);
-          photoUrl = await getDownloadURL(storageRef);
-          updatePayload.photoUrl = photoUrl; // Add new photoUrl to payload
+          finalPhotoUrl = await getDownloadURL(storageRef);
+          updatePayload.photoUrl = finalPhotoUrl; // Add new photoUrl to payload
         } catch (error) {
           console.error('Erro no upload da foto:', error);
           toast.error('Falha ao carregar a nova foto.');
@@ -158,20 +166,32 @@ export default function ProfilePage() {
       // 3. Send updatePayload to the backend API
       if (Object.keys(updatePayload).length > 0) {
          console.log('Sending update payload to backend:', updatePayload);
-         const response = await api.put('/api/profile', updatePayload);
+         const response = await api.put('/api/users/profile', updatePayload);
          
          if (!response.data.success) {
             throw new Error(response.data.message || 'Falha ao atualizar perfil no backend');
          }
 
-         // Optionally, refresh user data in context after successful backend update
-         // This depends on how your backend response is structured and if it returns the updated user
-         // If backend returns the updated user, you can update the context state directly.
-         // Otherwise, calling refreshSubscription or a general refreshUser function might be needed.
-         // For now, let's assume the backend update is sufficient.
-         // A full user refresh from backend might be better if backend is the source of truth.
-         // Assuming refreshSubscription might also refresh user details if backend /session provides it.
-         await refreshSubscription(); // Re-fetch user data including potential profile updates
+         // --- MODIFICATION: Update AuthContext with the returned profile data --- 
+         const updatedBackendProfile = response.data.data; // Assuming backend returns updated profile in data.data
+         
+         if (updatedBackendProfile) {
+           // Prepare data to match SessionUser structure for updateUserContextProfile
+           const profileForContext: Partial<SessionUser> = {
+             name: updatedBackendProfile.name,
+             email: updatedBackendProfile.email,
+             photoUrl: updatedBackendProfile.photoUrl, // Ensure this field name matches what backend returns
+             // Include subscription if it's part of the response and needs updating
+             // subscription: updatedBackendProfile.subscription 
+           };
+           updateUserContextProfile(profileForContext);
+         } else {
+           // If backend doesn't return updated profile, refresh from session or firebase
+           // This is a fallback, ideally backend returns the new data.
+           await refreshSubscription(); // This might not refresh name/email/photoUrl correctly
+           // Consider a more robust refresh mechanism if backend doesn't return updated profile data
+         }
+         // --- END MODIFICATION ---
 
       } else {
          toast.info('Nenhuma mudança para salvar.');
@@ -180,6 +200,7 @@ export default function ProfilePage() {
       toast.success('Perfil atualizado com sucesso!');
       setIsEditing(false);
       setAvatarFile(null); // Clear selected file after successful upload/update
+      // No need to manually setAvatarPreview here if AuthContext update re-renders with new user.photoUrl
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
       toast.error(error.message || 'Erro ao atualizar perfil');
@@ -193,10 +214,6 @@ export default function ProfilePage() {
     try {
       if (!user?.uid) throw new Error('Usuário não autenticado');
       
-      // Example: Redirect to backend route to manage subscription (e.g., Stripe portal)
-      // You would replace '/api/subscription/manage' with your actual backend endpoint
-      // This backend endpoint should handle creating a session with your payment provider
-      // and redirecting the user to their portal.
       const response = await api.post('/api/subscription/manage', { userId: user.uid });
 
       if (response.data && response.data.redirectUrl) {
@@ -205,10 +222,6 @@ export default function ProfilePage() {
          throw new Error(response.data.message || 'Não foi possível iniciar o gerenciamento da assinatura.');
       }
       
-      // You might not need refreshSubscription here if the user is redirected away.
-      // If managing is done via modal, you might need it after modal closes.
-      // await refreshSubscription();
-
     } catch (error: any) {
       console.error('Error managing subscription:', error);
       toast.error(error.message || 'Erro ao gerenciar assinatura');
@@ -219,16 +232,12 @@ export default function ProfilePage() {
     try {
       if (!user?.uid) throw new Error('Usuário não autenticado');
 
-      // Example: Call backend API to initiate upgrade process
-      // This backend endpoint should interact with your payment provider to upgrade the subscription
       const response = await api.post('/api/subscription/upgrade', { userId: user.uid, plan: 'premium' });
 
       if (!response.data.success) {
         throw new Error(response.data.message || 'Falha ao solicitar upgrade');
       }
 
-      // Assuming the backend handles the payment provider interaction and updates the DB.
-      // We should refresh the subscription status after the backend confirms the upgrade.
       await refreshSubscription(); 
       toast.success('Solicitação de upgrade enviada! Sua assinatura será atualizada em breve.');
 
@@ -260,15 +269,6 @@ export default function ProfilePage() {
       {/* Chatbot */}
       {/* <DeepSeekChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} /> */}
       
-      {/* <button 
-        onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all z-50"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        </svg>
-      </button> */}
-
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Cabeçalho */}
         <div className="flex justify-between items-center mb-8">

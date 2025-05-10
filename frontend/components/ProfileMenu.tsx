@@ -4,14 +4,16 @@ import { ChevronDown, LogOut, Settings, User, HelpCircle, Mail } from "lucide-re
 import type { LucideIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from 'next/image';
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 import { useRouter } from 'next/router';
-import { signOut } from 'firebase/auth';
-import { auth } from '../lib/firebase/client';
+// Firebase signOut and auth are no longer needed here directly for logout, as AuthContext handles it.
+// import { signOut } from 'firebase/auth'; 
+// import { auth } from '../lib/firebase/client';
 
-export const logout = async () => {
-  await signOut(auth);
-};
+// Remove local logout function, AuthContext will handle the full logout process
+// export const logout = async () => {
+//   await signOut(auth);
+// };
 
 type MenuItem = {
   icon: LucideIcon;
@@ -29,7 +31,8 @@ export default function ProfileMenu() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { user } = useAuth();
+  // Destructure user AND the logout function from AuthContext
+  const { user, logout: authContextLogout } = useAuth(); 
 
   const getInitials = (name?: string | null): string => {
     if (!name) return 'U';
@@ -42,16 +45,19 @@ export default function ProfileMenu() {
       .slice(0, 2);
   };
 
-  const handleLogout = async () => {
+  // Updated handleLogout to use the logout function from AuthContext
+  const handleLogoutClick = async () => {
     setIsLoggingOut(true);
     try {
-      await logout();
-      router.push('/auth/login');
+      await authContextLogout(); // Call the logout from AuthContext
+      // Navigation to /auth/login is now handled within AuthContext's logout function
+      // router.push('/auth/login'); // This line can be removed if AuthContext handles redirect
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
+      // Error state is likely handled by AuthContext, but you could add local feedback if needed
     } finally {
       setIsLoggingOut(false);
-      setIsOpen(false);
+      setIsOpen(false); // Close menu regardless of outcome, AuthContext might redirect anyway
     }
   };
 
@@ -102,6 +108,7 @@ export default function ProfileMenu() {
       external: true,
       action: () => { 
         window.open('mailto:suporte@seudominio.com', '_blank');
+        setIsOpen(false); // Close menu after action
         return;
       }
     },
@@ -111,19 +118,21 @@ export default function ProfileMenu() {
       external: true,
       action: () => { 
         window.open('https://docs.seudominio.com', '_blank');
+        setIsOpen(false); // Close menu after action
         return;
       }
     },
     {
       icon: LogOut,
       label: isLoggingOut ? 'Saindo...' : 'Sair',
-      action: handleLogout,
+      action: handleLogoutClick, // Use the updated handler that calls AuthContext logout
       color: 'text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300',
     },
   ];
 
-  // Obter o nome do usuário de forma segura
-  const userName = user?.displayName || user?.email?.split('@')[0] || 'Usuário';
+  // Use user.name (from MongoDB via AuthContext) if available, then try displayName, then email
+  const userName = user?.name || user?.displayName || user?.email?.split('@')[0] || 'Usuário';
+  const userPhoto = user?.photoUrl || user?.photoURL; // Prioritize photoUrl from MongoDB via AuthContext
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -139,14 +148,14 @@ export default function ProfileMenu() {
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-          {user?.photoUrl || user?.photoURL ? (
+          {userPhoto ? (
             <Image
-              src={user.photoUrl || user.photoURL || ''}
+              src={userPhoto}
               alt={`Avatar de ${userName}`}
               width={32}
               height={32}
               className="w-full h-full object-cover"
-              priority
+              priority // Consider if priority is always needed here
             />
           ) : (
             <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">

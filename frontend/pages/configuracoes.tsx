@@ -9,18 +9,20 @@ import {
   FiLock, 
   FiCreditCard,
   FiCheck,
-  FiMoon // Adicionando o ícone que estava faltando
+  FiMoon,
+  FiSun, // Icon for light theme
+  FiMonitor // Icon for system theme
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { doc, updateDoc, getFirestore } from 'firebase/firestore';
 import { toast } from 'react-toastify';
-import { useTheme } from 'next-themes';
+import { useTheme, Theme } from '../context/ThemeContext'; // Changed import
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme(); // Using your custom hook
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('account');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -56,6 +58,10 @@ export default function ConfiguracoesPage() {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+  };
+
   const saveSettings = async () => {
     setIsLoading(true);
     try {
@@ -68,7 +74,7 @@ export default function ConfiguracoesPage() {
       }
       const userRef = doc(db, 'users', user.uid);
       await updateDoc(userRef, {
-        settings
+        settings // Note: theme preference itself is usually stored in localStorage or similar by the ThemeProvider
       });
       toast.success('Configurações salvas com sucesso!');
     } catch (error) {
@@ -88,13 +94,18 @@ export default function ConfiguracoesPage() {
   // Seções de configurações
   const accountSettings = [
     {
-      name: "theme",
-      label: "Modo Escuro",
-      description: "Ative para uma experiência noturna mais confortável",
-      type: "toggle",
-      value: theme === 'dark',
-      onChange: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
-      icon: <FiMoon className="h-5 w-5" />
+      name: "themeSelector", // New name for the theme setting
+      label: "Tema",
+      description: "Escolha o tema da interface",
+      type: "radiogroup", // Changed type to handle multiple options
+      options: [
+        { value: "light", label: "Claro", icon: <FiSun className="h-5 w-5 mr-2" /> },
+        { value: "dark", label: "Escuro", icon: <FiMoon className="h-5 w-5 mr-2" /> },
+        { value: "system", label: "Sistema", icon: <FiMonitor className="h-5 w-5 mr-2" /> }
+      ],
+      currentValue: theme, // Current theme from context
+      onChange: handleThemeChange, // Use the new handler
+      icon: resolvedTheme === 'dark' ? <FiMoon className="h-5 w-5" /> : <FiSun className="h-5 w-5" /> // Display icon based on resolved theme
     },
     {
       name: "language",
@@ -149,7 +160,7 @@ export default function ConfiguracoesPage() {
     }
   ];
 
-  const plans = [
+    const plans = [
     {
       id: 'manual',
       name: 'Plano Manual',
@@ -271,8 +282,11 @@ export default function ConfiguracoesPage() {
                     {accountSettings.map((setting) => (
                       <div key={setting.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start sm:items-center">
-                          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-3">
-                            {setting.icon}
+                           <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-3">
+                            {/* Display specific icon for theme setting or the general one */}
+                            {setting.name === 'themeSelector' && typeof setting.icon === 'function' 
+                              ? setting.icon(resolvedTheme) // If icon is a function, call it with resolvedTheme
+                              : setting.icon}
                           </div>
                           <div>
                             <h3 className="text-sm font-medium text-gray-900 dark:text-white">
@@ -298,7 +312,7 @@ export default function ConfiguracoesPage() {
                               } inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
                             />
                           </button>
-                        ) : (
+                        ) : setting.type === "select" ? ( // Check for select type
                           <select
                             value={String(settings[setting.name as keyof typeof settings])}
                             onChange={(e) => handleSettingChange(setting.name as keyof typeof settings, e.target.value)}
@@ -310,7 +324,24 @@ export default function ConfiguracoesPage() {
                               </option>
                             ))}
                           </select>
-                        )}
+                        ) : setting.type === "radiogroup" ? ( // Handle radiogroup for themes
+                          <div className="flex items-center space-x-2">
+                            {setting.options?.map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => setting.onChange(option.value as Theme)}
+                                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
+                                  ${setting.currentValue === option.value 
+                                    ? 'bg-blue-600 text-white' 
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}
+                                `}
+                              >
+                                {option.icon}
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null }
                       </div>
                     ))}
                   </div>

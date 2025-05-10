@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { container } from '@core/container';
 import { TYPES } from '@core/types';
 import { UserController } from '@modules/users/controllers/UserController';
+import { UserService } from '@modules/users/services/UserService'; // Import UserService
 import { SubscriptionService } from '../services/subscriptionService'; // Caminho ajustado
 import { authenticate } from '@middlewares/authMiddleware';
 import admin from 'firebase-admin';
@@ -16,11 +17,12 @@ import { adminFirestore, adminAuth } from '@config/firebaseAdmin';
 import { Subscription } from '../types/Subscription'; 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'c601';
-const auth = getAuth(); // auth do firebase-admin/auth
+const firebaseAdminAuth = getAuth(); // auth do firebase-admin/auth // Renomeado para evitar conflito de nome
 
 const router = express.Router();
 const userController = container.get<UserController>(TYPES.UserController);
 const subscriptionService = container.get<SubscriptionService>(TYPES.SubscriptionService);
+const userService = container.get<UserService>(TYPES.UserService); // Get UserService instance
 
 // Handler assíncrono (verifique se este asyncHandler é necessário ou se você tem um global)
 const asyncHandler = <T = any>(
@@ -38,17 +40,21 @@ const asyncHandler = <T = any>(
 // Função para processar sessão (mantida, mas a lógica principal foi movida para a rota POST /session abaixo)
 const processSession = async (userId: string, res: express.Response) => {
   try {
-    const firebaseUser = await auth.getUser(userId);
-    const subscription = await subscriptionService.getSubscription(userId).catch(() => null);
+    // Esta função parece usar o firebaseAdminAuth.getUser e subscriptionService.
+    // Para consistência, deveria usar o userService para obter todos os dados do MongoDB.
+    const mongoUser = await userService.getUserByFirebaseUid(userId);
+    if (!mongoUser) {
+      throw new AppError(404, 'Usuário não encontrado no MongoDB para processar sessão.');
+    }
 
     res.status(200).json({
       status: 'success',
       data: {
-        uid: userId,
-        email: firebaseUser.email,
-        name: firebaseUser.displayName,
-        photoUrl: firebaseUser.photoURL || null,
-        subscription
+        uid: mongoUser.firebaseUid,
+        email: mongoUser.email,
+        name: mongoUser.name,
+        photoUrl: mongoUser.photoUrl || null,
+        subscription: mongoUser.subscription
       }
     });
   } catch (error) {
@@ -74,104 +80,110 @@ router.post('/verify-token',
   asyncHandler((req, res, next) => userController.verifyToken(req, res, next)) // verifyToken no controller agora espera req, res, next
 );
 
-// Adicionando a nova rota POST /session baseada na lógica do arquivo Next.js API route
-// Envolvido com asyncHandler para compatibilidade com o tratador de erros
-router.post('/session', asyncHandler(async (req: Request, res: Response) => {
-  console.log('--- DEBUG: Inside POST /api/auth/session handler ---'); // LOG PARA VERIFICAR SE ESTA VERSAO ESTA RODANDO
+router.post('/session', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  console.log('--- DEBUG: Inside POST /api/auth/session handler ---');
   console.log('POST /api/auth/session received.');
   console.log('Request Content-Type:', req.headers['content-type']);
-  console.log('Type of req.body:', typeof req.body); // Log adicionado para debug
-  console.log('Value of req.body:', req.body); // Log adicionado para debug
+  console.log('Type of req.body:', typeof req.body);
+  console.log('Value of req.body:', req.body);
 
   try {
-    // Verificação mais robusta para bodyToken
     const bodyToken = (typeof req.body === 'object' && req.body !== null && 'token' in req.body)
-      ? req.body.token as string // Acessa token se req.body for um objeto não nulo com a propriedade 'token', com type assertion
-      : undefined; // Caso contrário, bodyToken é undefined
+      ? req.body.token as string
+      : undefined;
 
     console.log('Token from body (explicit check):', bodyToken);
 
-    // Obter token de múltiplas fontes (adaptado para Express)
     const token = req.cookies.token || 
                  req.headers.authorization?.split(' ')[1] || 
-                 bodyToken; // Usa o bodyToken obtido de forma segura
+                 bodyToken;
 
     console.log('Final Extracted Token (before verifyIdToken):', token);
 
     if (!token) {
-      // Retorna 200 com user: null se não houver token, conforme a lógica original do Next.js API
       console.log('No token found. Returning user: null.');
       res.status(200).json({ user: null });
       return; 
     }
 
-    // Verificar token usando adminAuth
     console.log('Verifying token with Firebase Admin...');
     const decodedToken = await adminAuth.verifyIdToken(token);
-    console.log('Token verified. Getting user:', decodedToken.uid);
-    const firebaseUser = await adminAuth.getUser(decodedToken.uid);
-    console.log('Firebase user found:', firebaseUser.uid);
+    console.log('Token verified. Firebase UID:', decodedToken.uid);
+    
+    // --- MODIFICATION: Fetch user from MongoDB using UserService ---
+    const mongoUser = await userService.getUserByFirebaseUid(decodedToken.uid);
 
-    // Buscar assinatura usando subscriptionService (MongoDB)
-    console.log('Searching for subscription for user in MongoDB:', firebaseUser.uid);
-    const subscription = await subscriptionService.getSubscription(firebaseUser.uid).catch(() => null);
+    if (!mongoUser) {
+      // User exists in Firebase but not in MongoDB. This is an issue.
+      // Should this create a user in MongoDB? Or is it an error?
+      // For now, treating as an error to prevent partial sessions.
+      console.error(`User with Firebase UID ${decodedToken.uid} found in Firebase but not in MongoDB.`);
+      // Clear cookies and return error like in the main catch block
+      res.setHeader('Set-Cookie', [
+        'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
+        'user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      ]);
+      res.status(404).json({ 
+          user: null, 
+          error: 'Usuário autenticado via Firebase não encontrado em nossa base de dados.'
+      }); 
+      return;
+    }
+    console.log('MongoDB user found:', mongoUser.email, 'Name:', mongoUser.name);
+    // --- END MODIFICATION ---
 
+    // Subscription is now part of mongoUser, no need to call subscriptionService separately here.
+    const subscription = mongoUser.subscription;
     if (subscription) {
-      console.log('Subscription found in MongoDB.', subscription);
+      console.log('Subscription found on MongoDB user object.', subscription);
     } else {
-      console.log('No subscription found in MongoDB.');
+      console.log('No subscription found on MongoDB user object.');
     }
 
-    // Configurar cookies (adaptado para Express - usando setHeader)
     const cookieOptions = {
       httpOnly: true,
-      // Considere usar `process.env.NODE_ENV === 'production'`
       secure: process.env.NODE_ENV === 'production', 
-      sameSite: 'lax' as const, // 'lax' as const é para TypeScript
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: 60 * 60 * 24 * 5 // 5 dias
     };
 
     console.log('Setting cookies.');
+    // User cookie for frontend should contain data from MongoDB
+    const userCookiePayload = {
+        uid: mongoUser.firebaseUid, // Firebase UID
+        email: mongoUser.email,     // Email from MongoDB
+        name: mongoUser.name,       // Name from MongoDB
+        photoUrl: mongoUser.photoUrl // Photo URL from MongoDB
+    };
+
     res.setHeader('Set-Cookie', [
       `token=${token}; ${Object.entries(cookieOptions)
         .map(([k, v]) => `${k}=${v}`)
         .join('; ')}`,
-      `user=${encodeURIComponent(JSON.stringify({
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: firebaseUser.displayName,
-        photoUrl: firebaseUser.photoURL
-      }))}; ${Object.entries({
+      `user=${encodeURIComponent(JSON.stringify(userCookiePayload))}; ${Object.entries({
         ...cookieOptions,
-        httpOnly: false // User cookie pode ser acessado pelo cliente (frontend)
+        httpOnly: false
       }).map(([k, v]) => `${k}=${v}`).join('; ')}`
     ]);
 
-    // Retorna 200 com os dados do usuário e assinatura
-    console.log('Session sync successful. Returning user data.');
+    console.log('Session sync successful. Returning user data from MongoDB.');
     res.status(200).json({
-      user: {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: firebaseUser.displayName,
-        photoUrl: firebaseUser.photoURL,
-        // Inclui subscription apenas se existir
-        ...(subscription && { subscription })
+      user: { // Return user data from MongoDB
+        uid: mongoUser.firebaseUid,
+        email: mongoUser.email,
+        name: mongoUser.name,
+        photoUrl: mongoUser.photoUrl,
+        subscription: mongoUser.subscription // Subscription from MongoDB user
       }
     }); 
 
   } catch (error) {
     console.error('Session sync error caught in handler:', error);
-    
-    // Limpar cookies inválidos em caso de erro
     res.setHeader('Set-Cookie', [
       'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
       'user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
     ]);
-    
-    // Retorna 200 com user: null e mensagem de erro, conforme lógica original do Next.js API
-    // Isso evita que o frontend lance um erro de status HTTP não-2xx e permite que ele gerencie o estado de não autenticado.
     res.status(200).json({ 
       user: null,
       error: error instanceof Error ? error.message : 'Session sync error'
@@ -183,12 +195,14 @@ router.post('/session', asyncHandler(async (req: Request, res: Response) => {
 router.get('/session', 
   authenticate,
    asyncHandler(async (req, res, next) => {
-    if (!req.user) {
-      return next(new AppError(401, 'Usuário não autenticado'));
+    if (!req.user?.id) { // Check for MongoDB ID from authenticate middleware
+      return next(new AppError(401, 'Usuário não autenticado ou ID do MongoDB não encontrado na sessão.'));
     }
-    // Chama processSession com o UID do usuário autenticado
+    // req.user.uid here is Firebase UID, req.user.id is MongoDB ID
+    // processSession should ideally use the MongoDB ID if possible, or be refactored
+    // For now, assuming processSession is consistent with its current Firebase UID usage
     try {
-       await processSession(req.user.uid, res);
+       await processSession(req.user.uid, res); // req.user.uid is Firebase UID
     } catch (error) {
        next(error);
     }
@@ -197,13 +211,32 @@ router.get('/session',
 
 router.get('/profile',
   authenticate,
-  asyncHandler((req, res, next) => userController.getProfile(req, res, next)) // Passa next
+  asyncHandler((req, res, next) => userController.getProfile(req, res, next))
 );
 
 router.put('/profile',
   authenticate,
   validate(userValidators.updateProfile),
-  asyncHandler((req, res, next) => userController.updateProfile(req, res, next)) // Passa next
+  asyncHandler((req, res, next) => userController.updateProfile(req, res, next))
 );
+
+// New Logout Route
+router.post('/logout', (req, res) => {
+  res.cookie('token', '', { 
+    httpOnly: true, 
+    secure: process.env.NODE_ENV === 'production', 
+    sameSite: 'lax', 
+    expires: new Date(0),
+    path: '/'
+  });
+   res.cookie('user', '', {
+     httpOnly: false,
+     secure: process.env.NODE_ENV === 'production', 
+     sameSite: 'lax', 
+     expires: new Date(0),
+     path: '/'
+   });
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
+});
 
 export default router;
