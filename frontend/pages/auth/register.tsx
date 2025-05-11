@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import Link from 'next/link';
 import { FiArrowLeft, FiUser, FiMail, FiLock, FiCheck, FiAlertCircle, FiLoader } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import { useTheme } from '../../context/ThemeContext';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -21,7 +20,6 @@ export default function RegisterPage() {
 
   const router = useRouter();
   const { login } = useAuth();
-  const { resolvedTheme } = useTheme();
 
   // Validações em tempo real
   useEffect(() => {
@@ -146,7 +144,7 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -155,10 +153,10 @@ export default function RegisterPage() {
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
             <FiCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
-          <h2 className={`text-2xl font-bold mb-2 ${resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">
             Cadastro concluído!
           </h2>
-          <p className={`mb-6 ${resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+          <p className="mb-6 text-gray-600 dark:text-gray-300">
             Você será redirecionado automaticamente.
           </p>
           <div className="h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -175,20 +173,20 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className={`min-h-screen ${resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'} flex flex-col justify-center py-12 sm:px-6 lg:px-8`}>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="sm:mx-auto sm:w-full sm:max-w-md"
       >
-        <h2 className={`mt-6 text-center text-3xl font-extrabold ${resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
           Criar nova conta
         </h2>
-        <p className={`mt-2 text-center text-sm ${resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+        <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-300">
           Já tem uma conta?{' '}
           <Link
             href="/auth/login"
-            className="font-medium text-blue-600 hover:text-blue-500"
+            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Faça login
           </Link>
@@ -199,15 +197,15 @@ export default function RegisterPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className={`mt-8 sm:mx-auto sm:w-full sm:max-w-md ${resolvedTheme === 'dark' ? 'bg-gray-800' : 'bg-white'} py-8 px-4 shadow sm:rounded-lg sm:px-10`}
+        className="mt-8 sm:mx-auto sm:w-full sm:max-w-md bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10"
       >
         {error && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={`flex items-start p-4 mb-6 rounded-lg ${resolvedTheme === 'dark' ? 'bg-red-900/30 text-red-300' : 'bg-red-50 text-red-700'}`}
+            className="flex items-start p-4 mb-6 rounded-lg bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
           >
-            <FiAlertCircle className="flex-shrink-0 mt-0.5 mr-2" />
+            <FiAlertCircle className="flex-shrink-0 mt-0.5 mr-2 text-red-700 dark:text-red-300" />
             <span>{error}</span>
           </motion.div>
         )}
@@ -217,9 +215,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="name"
-              className={`block text-sm font-medium ${
-                resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Nome completo
             </label>
@@ -235,11 +231,7 @@ export default function RegisterPage() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className={`py-2 pl-10 block w-full ${
-                  resolvedTheme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'border-gray-300'
-                } rounded-md focus:ring-blue-500 focus:border-blue-500`}
+                className="py-2 pl-10 block w-full border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
           </div>
@@ -248,9 +240,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="email"
-              className={`block text-sm font-medium ${
-                resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Email
             </label>
@@ -266,16 +256,11 @@ export default function RegisterPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`py-2 pl-10 block w-full ${
-                  !emailValid && email ? 'border-red-500' : 
-                  resolvedTheme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'border-gray-300'
-                } rounded-md focus:ring-blue-500 focus:border-blue-500`}
+                className={`py-2 pl-10 block w-full ${!emailValid && email ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${!emailValid && email ? 'dark:border-red-500' : 'dark:border-gray-600'}`}
               />
             </div>
             {!emailValid && email && (
-              <p className="mt-1 text-xs text-red-500">Digite um e-mail válido</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">Digite um e-mail válido</p>
             )}
           </div>
 
@@ -283,9 +268,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="password"
-              className={`block text-sm font-medium ${
-                resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Senha
             </label>
@@ -302,11 +285,7 @@ export default function RegisterPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`py-2 pl-10 block w-full ${
-                  resolvedTheme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'border-gray-300'
-                } rounded-md focus:ring-blue-500 focus:border-blue-500`}
+                className="py-2 pl-10 block w-full border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
             </div>
             <PasswordStrength password={password} />
@@ -316,9 +295,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="confirm-password"
-              className={`block text-sm font-medium ${
-                resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-              }`}
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Confirmar senha
             </label>
@@ -335,16 +312,11 @@ export default function RegisterPage() {
                 minLength={6}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`py-2 pl-10 block w-full ${
-                  !passwordMatch && confirmPassword ? 'border-red-500' : 
-                  resolvedTheme === 'dark'
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'border-gray-300'
-                } rounded-md focus:ring-blue-500 focus:border-blue-500`}
+                className={`py-2 pl-10 block w-full ${!passwordMatch && confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${!passwordMatch && confirmPassword ? 'dark:border-red-500' : 'dark:border-gray-600'}`}
               />
             </div>
             {!passwordMatch && confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">As senhas não coincidem</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">As senhas não coincidem</p>
             )}
           </div>
 
@@ -354,9 +326,7 @@ export default function RegisterPage() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading || !emailValid || !passwordMatch}
-              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                loading || !emailValid || !passwordMatch ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${loading || !emailValid || !passwordMatch ? 'bg-blue-400 cursor-not-allowed dark:bg-blue-500' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
             >
               {loading ? (
                 <>
@@ -374,11 +344,7 @@ export default function RegisterPage() {
         <div className="mt-6">
           <Link
             href="/auth/login"
-            className={`w-full flex items-center justify-center px-4 py-2 border ${
-              resolvedTheme === 'dark'
-                ? 'border-gray-700 text-gray-300 hover:bg-gray-700'
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-            } rounded-md shadow-sm text-sm font-medium`}
+            className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 rounded-md shadow-sm text-sm font-medium"
           >
             <FiArrowLeft className="mr-2" />
             Voltar para login

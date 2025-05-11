@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/router';
-import { useTheme } from '../../context/ThemeContext';
 import { FiMail, FiLock, FiLoader, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { usePreloadCheck } from '../../src/hooks/usePreloadCheck';
@@ -14,7 +13,6 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { user, loading, login, loginWithGoogle } = useAuth();
-  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const { redirect } = router.query;
   const isPreloading = usePreloadCheck();
@@ -58,33 +56,27 @@ export default function LoginPage() {
   if (isPreloading) return null;
   if (loading || user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 ${
-      resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-    }`}>
-      <div className={`w-full max-w-md p-8 rounded-xl shadow-lg ${
-        resolvedTheme === 'dark' ? 'bg-gray-800' : 'bg-white'
-      }`}>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
+      <div className="w-full max-w-md p-8 rounded-xl shadow-lg bg-white dark:bg-gray-800">
         {/* Cabeçalho */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Bem-vindo de volta</h1>
-          <p className={resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+          <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Bem-vindo de volta</h1>
+          <p className="text-gray-600 dark:text-gray-400">
             Acesse sua conta para continuar
           </p>
         </div>
 
         {/* Mensagem de erro */}
         {error && (
-          <div className={`flex items-center gap-2 p-3 mb-6 rounded-lg ${
-            resolvedTheme === 'dark' ? 'bg-red-900/50' : 'bg-red-100'
-          }`}>
-            <FiAlertCircle />
+          <div className="flex items-center gap-2 p-3 mb-6 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
+            <FiAlertCircle className="text-red-700 dark:text-red-300" />
             <span>{error}</span>
           </div>
         )}
@@ -93,17 +85,11 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Campo de Email */}
           <div>
-            <label htmlFor="email" className={`block mb-2 text-sm font-medium ${
-              resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               Email
             </label>
-            <div className={`flex items-center border rounded-lg overflow-hidden ${
-              resolvedTheme === 'dark' 
-                ? 'bg-gray-700 border-gray-600 focus-within:border-blue-500' 
-                : 'bg-white border-gray-300 focus-within:border-blue-500'
-            }`}>
-              <span className="px-3 text-gray-500">
+            <div className="flex items-center border rounded-lg overflow-hidden bg-white border-gray-300 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus-within:border-blue-500">
+              <span className="px-3 text-gray-500 dark:text-gray-400">
                 <FiMail />
               </span>
               <input
@@ -111,9 +97,7 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`w-full py-3 px-2 outline-none ${
-                  resolvedTheme === 'dark' ? 'bg-gray-700' : 'bg-white'
-                }`}
+                className="w-full py-3 px-2 outline-none bg-transparent text-gray-900 dark:text-white"
                 placeholder="seu@email.com"
                 required
               />
@@ -122,17 +106,11 @@ export default function LoginPage() {
 
           {/* Campo de Senha */}
           <div>
-            <label htmlFor="password" className={`block mb-2 text-sm font-medium ${
-              resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
               Senha
             </label>
-            <div className={`flex items-center border rounded-lg overflow-hidden ${
-              resolvedTheme === 'dark' 
-                ? 'bg-gray-700 border-gray-600 focus-within:border-blue-500' 
-                : 'bg-white border-gray-300 focus-within:border-blue-500'
-            }`}>
-              <span className="px-3 text-gray-500">
+            <div className="flex items-center border rounded-lg overflow-hidden bg-white border-gray-300 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus-within:border-blue-500">
+              <span className="px-3 text-gray-500 dark:text-gray-400">
                 <FiLock />
               </span>
               <input
@@ -140,9 +118,7 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full py-3 px-2 outline-none ${
-                  resolvedTheme === 'dark' ? 'bg-gray-700' : 'bg-white'
-                }`}
+                className="w-full py-3 px-2 outline-none bg-transparent text-gray-900 dark:text-white"
                 placeholder="••••••••"
                 minLength={6}
                 required
@@ -154,11 +130,7 @@ export default function LoginPage() {
           <div className="flex justify-end">
             <Link 
               href="/auth/forgot-password" 
-              className={`text-sm ${
-                resolvedTheme === 'dark' 
-                  ? 'text-blue-400 hover:text-blue-300' 
-                  : 'text-blue-600 hover:text-blue-500'
-              }`}
+              className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
             >
               Esqueceu a senha?
             </Link>
@@ -168,9 +140,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 ${
-              resolvedTheme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}
+            className="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
           >
             {isLoading ? (
               <>
@@ -188,33 +158,27 @@ export default function LoginPage() {
 
         {/* Divisor */}
         <div className="flex items-center my-6">
-          <div className={`flex-1 h-px ${resolvedTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
-          <span className={`px-3 text-sm ${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ou</span>
-          <div className={`flex-1 h-px ${resolvedTheme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+          <div className="flex-1 h-px bg-gray-300 dark:bg-gray-700"></div>
+          <span className="px-3 text-sm text-gray-500 dark:text-gray-400">ou</span>
+          <div className="flex-1 h-px bg-gray-300 dark:bg-gray-700"></div>
         </div>
 
         {/* Botão do Google */}
         <button
           onClick={handleGoogleLogin}
           disabled={isLoading}
-          className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 border ${
-            resolvedTheme === 'dark' ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'
-          }`}
+          className="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
         >
           <FcGoogle size={20} />
           Continuar com Google
         </button>
 
         {/* Link para cadastro */}
-        <div className={`mt-6 text-center text-sm ${
-          resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-        }`}>
+        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
           Não tem uma conta?{' '}
           <Link 
             href="/auth/register" 
-            className={`font-medium ${
-              resolvedTheme === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-500'
-            }`}
+            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Cadastre-se
           </Link>
