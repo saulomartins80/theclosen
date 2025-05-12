@@ -24,7 +24,7 @@ import { subscriptionService, Subscription } from '../services/subscriptionServi
 
 export default function ConfiguracoesPage() {
   const { user, setUser } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme(); // resolvedTheme é 'light' ou 'dark'
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false); 
   const [isPlanLoading, setIsPlanLoading] = useState(false); 
   const [activeTab, setActiveTab] = useState('account');
@@ -49,8 +49,6 @@ export default function ConfiguracoesPage() {
           if (docSnap.exists() && docSnap.data().settings) {
             setSettings(docSnap.data().settings);
           }
-          // Usa a assinatura diretamente do user (AuthContext) se disponível
-          // Ou carrega se não estiver no contexto ainda
           if (user.subscription) {
             setCurrentUserSubscription(user.subscription);
           } else {
@@ -66,7 +64,7 @@ export default function ConfiguracoesPage() {
       };
       loadInitialData();
     }
-  }, [user]); // Dependência no user para recarregar se user (e user.subscription) mudar
+  }, [user]);
 
   const handleSettingChange = (key: keyof typeof settings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -104,8 +102,8 @@ export default function ConfiguracoesPage() {
     setIsPlanLoading(true);
     try {
       const newSubscription = await subscriptionService.activateTestPlan(user.uid, backendPlanId);
-      setCurrentUserSubscription(newSubscription); // Atualiza o estado local para UI imediata
-      if (setUser) { // Verifica se setUser existe antes de chamar
+      setCurrentUserSubscription(newSubscription);
+      if (setUser) {
         setUser(prevUser => prevUser ? { ...prevUser, subscription: newSubscription } : null);
       }
       toast.success(`Plano de teste (${backendPlanId}) ativado com sucesso! Aproveite por 7 dias.`);
@@ -128,9 +126,8 @@ export default function ConfiguracoesPage() {
         { value: "dark" as Theme, label: "Escuro", icon: <FiMoon className="h-5 w-5 mr-2" /> },
         { value: "system" as Theme, label: "Sistema", icon: <FiMonitor className="h-5 w-5 mr-2" /> }
       ],
-      currentValue: theme, // Usa 'theme' (preferência) para o valor do radiogroup
+      currentValue: theme,
       onChange: handleThemeChange,
-      // Ícone baseado no tema resolvido (o que está realmente aplicado)
       icon: resolvedTheme === 'dark' ? <FiMoon className="h-5 w-5" /> : <FiSun className="h-5 w-5" /> 
     },
     {
@@ -203,8 +200,8 @@ export default function ConfiguracoesPage() {
           disabled={currentUserSubscription?.plan === 'free' || isPlanLoading}
           className={`mt-8 w-full px-4 py-3 rounded-md font-medium 
             ${currentUserSubscription?.plan === 'free' 
-              ? 'bg-gray-400 text-gray-700 dark:text-gray-800 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 text-white'} 
+              ? 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 dark:text-white'} 
             transition-colors disabled:opacity-70 disabled:cursor-not-allowed`}
             onClick={() => toast.info('Lógica para mudar para o plano Free ainda não implementada.')}
         >
@@ -232,8 +229,8 @@ export default function ConfiguracoesPage() {
           disabled={currentUserSubscription?.plan === 'manual' || isPlanLoading}
           className={`mt-8 w-full px-4 py-3 rounded-md font-medium 
             ${currentUserSubscription?.plan === 'manual' 
-              ? 'bg-gray-400 text-gray-700 dark:text-gray-800 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 text-white'} 
+              ? 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 dark:text-white'} 
             transition-colors disabled:opacity-70 disabled:cursor-not-allowed`}
         >
           {currentUserSubscription?.plan === 'manual' ? 'Plano Atual' : 'Assinar Plano Manual'}
@@ -261,8 +258,8 @@ export default function ConfiguracoesPage() {
           disabled={isPlanLoading || currentUserSubscription?.plan === 'premium'}
           className={`mt-8 w-full px-4 py-3 rounded-md font-medium flex items-center justify-center 
             ${currentUserSubscription?.plan === 'premium' 
-              ? 'bg-green-600 text-white cursor-not-allowed' 
-              : 'bg-orange-500 hover:bg-orange-600 text-white'} 
+              ? 'bg-green-600 hover:bg-green-700 text-white dark:bg-green-500 dark:hover:bg-green-600 cursor-not-allowed' 
+              : 'bg-orange-500 hover:bg-orange-600 text-white dark:bg-orange-600 dark:hover:bg-orange-700'} 
             transition-colors disabled:opacity-70 disabled:cursor-not-allowed`}
         >
           {isPlanLoading && (
@@ -279,7 +276,6 @@ export default function ConfiguracoesPage() {
     }
   ];
 
-  // Classes base para elementos <select> e <option> para modo claro
   const selectBaseClasses = "bg-white text-gray-900 border-gray-300 focus:ring-blue-500 focus:border-blue-500";
   const selectDarkClasses = "dark:bg-gray-700 dark:border-gray-600 dark:text-white";
 
@@ -308,10 +304,10 @@ export default function ConfiguracoesPage() {
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`w-full text-left px-6 py-4 flex items-center capitalize ${
+                    className={`w-full text-left px-6 py-4 flex items-center capitalize transition-colors duration-150 ${
                       activeTab === tab 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300' 
+                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50'}`}
                   >
                     {tab === 'account' && <FiUser className="mr-3" />}
                     {tab === 'notifications' && <FiBell className="mr-3" />}
@@ -351,8 +347,17 @@ export default function ConfiguracoesPage() {
                            </div>
                          </div>
                          {setting.type === "toggle" ? (
-                           <button type="button" onClick={() => (setting.onChange ? setting.onChange(!settings[setting.name as keyof typeof settings]) : handleSettingChange(setting.name as keyof typeof settings, !settings[setting.name as keyof typeof settings]))} className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${(setting.name === 'themeSelector' ? (setting.currentValue !== 'system' && setting.currentValue === 'dark') : settings[setting.name as keyof typeof settings]) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700' }`}>
-                             <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${(setting.name === 'themeSelector' ? (setting.currentValue !== 'system' && setting.currentValue === 'dark') : settings[setting.name as keyof typeof settings]) ? 'translate-x-5' : 'translate-x-0'}`} />
+                           <button 
+                            type="button" 
+                            onClick={() => (setting.onChange ? setting.onChange(!settings[setting.name as keyof typeof settings]) : handleSettingChange(setting.name as keyof typeof settings, !settings[setting.name as keyof typeof settings]))} 
+                            className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 
+                                        ${(setting.name === 'themeSelector' ? (setting.currentValue !== 'system' && setting.currentValue === 'dark') : settings[setting.name as keyof typeof settings]) 
+                                          ? 'bg-blue-600 dark:bg-blue-500' 
+                                          : 'bg-gray-200 dark:bg-gray-600' }`}>
+                             <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out 
+                                             ${(setting.name === 'themeSelector' ? (setting.currentValue !== 'system' && setting.currentValue === 'dark') : settings[setting.name as keyof typeof settings]) 
+                                               ? 'translate-x-5' 
+                                               : 'translate-x-0'}`} />
                            </button>
                          ) : setting.type === "select" ? (
                            <select 
@@ -368,7 +373,13 @@ export default function ConfiguracoesPage() {
                          ) : setting.type === "radiogroup" ? (
                            <div className="flex items-center space-x-2">
                              {setting.options?.map((option) => (
-                               <button key={option.value} onClick={() => setting.onChange(option.value as Theme)} className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${setting.currentValue === option.value ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600' }`}>
+                               <button 
+                                key={option.value} 
+                                onClick={() => setting.onChange(option.value as Theme)} 
+                                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors 
+                                            ${setting.currentValue === option.value 
+                                              ? 'bg-blue-600 text-white dark:bg-blue-500 dark:text-gray-100' 
+                                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600' }`}>
                                  {option.icon} {option.label}
                                </button>
                              ))}
@@ -379,7 +390,7 @@ export default function ConfiguracoesPage() {
                    </div>
                  </div>
                  <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 text-right">
-                   <button onClick={saveSettings} disabled={isLoading || isPlanLoading} className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all">
+                   <button onClick={saveSettings} disabled={isLoading || isPlanLoading} className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all">
                      {isLoading ? (<><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Salvando...</>) : 'Salvar Alterações'}
                    </button>
                  </div>
@@ -388,7 +399,6 @@ export default function ConfiguracoesPage() {
 
             {activeTab === 'notifications' && (
               <motion.div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-                 {/* ... (Notification settings content - no changes needed here for now) ... */}
                  <div className="p-6">
                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Configurações de Notificação</h2>
                    <div className="space-y-6">
@@ -401,8 +411,11 @@ export default function ConfiguracoesPage() {
                              <p className="text-sm text-gray-500 dark:text-gray-400">{setting.description}</p>
                            </div>
                          </div>
-                         <button type="button" onClick={() => handleSettingChange(setting.name as keyof typeof settings, !settings[setting.name as keyof typeof settings])} className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${settings[setting.name as keyof typeof settings] ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                           <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings[setting.name as keyof typeof settings] ? 'translate-x-5' : 'translate-x-0'}`} />
+                         <button type="button" onClick={() => handleSettingChange(setting.name as keyof typeof settings, !settings[setting.name as keyof typeof settings])} 
+                                 className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 
+                                             ${settings[setting.name as keyof typeof settings] ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-600'}`}>
+                           <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out 
+                                           ${settings[setting.name as keyof typeof settings] ? 'translate-x-5' : 'translate-x-0'}`} />
                          </button>
                        </div>
                      ))}
@@ -413,7 +426,6 @@ export default function ConfiguracoesPage() {
 
             {activeTab === 'privacy' && (
               <motion.div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-                 {/* ... (Privacy settings content - no changes needed here for now) ... */}
                  <div className="p-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Configurações de Privacidade</h2>
                   <div className="space-y-6">
@@ -426,8 +438,11 @@ export default function ConfiguracoesPage() {
                             <p className="text-sm text-gray-500 dark:text-gray-400">{setting.description}</p>
                           </div>
                         </div>
-                        <button type="button" onClick={() => handleSettingChange(setting.name as keyof typeof settings, !settings[setting.name as keyof typeof settings])} className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${settings[setting.name as keyof typeof settings] ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${settings[setting.name as keyof typeof settings] ? 'translate-x-5' : 'translate-x-0'}`} />
+                        <button type="button" onClick={() => handleSettingChange(setting.name as keyof typeof settings, !settings[setting.name as keyof typeof settings])} 
+                                className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 
+                                            ${settings[setting.name as keyof typeof settings] ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-600'}`}>
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out 
+                                          ${settings[setting.name as keyof typeof settings] ? 'translate-x-5' : 'translate-x-0'}`} />
                         </button>
                       </div>
                     ))}
@@ -498,7 +513,7 @@ export default function ConfiguracoesPage() {
                         <ul className="mt-6 space-y-3 flex-grow">
                           {plan.features.map((feature) => (
                             <li key={feature} className="flex items-start">
-                              <FiCheck className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                              <FiCheck className="h-5 w-5 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
                               <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{feature}</span>
                             </li>
                           ))}
@@ -511,8 +526,8 @@ export default function ConfiguracoesPage() {
                             disabled={currentUserSubscription?.plan === plan.id || isPlanLoading}
                             className={`w-full px-4 py-3 rounded-md font-medium 
                               ${currentUserSubscription?.plan === plan.id 
-                                ? 'bg-gray-400 text-gray-700 dark:text-gray-800 cursor-not-allowed' 
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'} 
+                                ? 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400 cursor-not-allowed' 
+                                : 'bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 dark:text-white'} 
                               transition-colors disabled:opacity-70`}
                           >
                             {currentUserSubscription?.plan === plan.id ? 'Plano Atual' : `Assinar ${plan.name}`}

@@ -8,10 +8,10 @@ type Theme = 'light' | 'dark' | 'system';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
-  toggleSidebar: () => void;
+  toggleMobileSidebar: () => void; // Alterado aqui
 }
 
-export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
+export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderProps) { // Alterado aqui
   // Destructure user AND the logout function from AuthContext
   const { user, logout: authContextLogout } = useAuth(); 
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -47,14 +47,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
     { id: 2, text: 'Atualização do sistema disponível', read: true }
   ];
 
-  // user object from useAuth() could be null initially or if not authenticated
-  // The main return of Header might need to handle user being null if it's possible
-  // However, many parts of the header rely on user being present.
-  // If user is null, perhaps a minimal header or nothing is rendered.
-  // For now, assuming user is populated if Header is rendered in a protected route context.
   if (!user) {
-    // If no user, perhaps render a login button or a minimal header
-    // For now, returning null or a minimal placeholder to avoid errors
     return null; 
   }
 
@@ -82,11 +75,11 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
           : 'bg-white border-b border-gray-200'
         }
       `} 
-      ref={dropdownRef} // This ref should probably be on the individual dropdowns, not the whole header
+      ref={dropdownRef}
     >
       {/* Botão do menu mobile otimizado */}
       <button
-        onClick={toggleSidebar}
+        onClick={toggleMobileSidebar} // Alterado aqui
         className={`
           p-2 rounded-full md:hidden
           ${resolvedTheme === 'dark' 
@@ -135,10 +128,9 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
       </div>
 
       {/* Ícones de controle */}
-      {/* The main dropdownRef was here, it's better to have separate refs for each dropdown if they are independent */}
       <div className="flex items-center space-x-3">
         {/* Seletor de Tema */}
-        <div className="relative"> {/* Add ref here if needed for this specific dropdown */}
+        <div className="relative">
           <button
             onClick={() => {
               setShowThemeDropdown(!showThemeDropdown);
@@ -157,7 +149,6 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
             {resolvedTheme === 'dark' ? <FiMoon size={20} /> : <FiSun size={20} />}
           </button>
 
-          {/* Dropdown de temas */}
           {showThemeDropdown && (
             <div className={`
               absolute right-0 mt-2 w-48 z-40
@@ -195,7 +186,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
         </div>
 
         {/* Notificações */}
-        <div className="relative"> {/* Add ref here if needed for this specific dropdown */}
+        <div className="relative">
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);
@@ -220,7 +211,6 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
             )}
           </button>
 
-          {/* Dropdown de notificações */}
           {showNotifications && (
             <div className={`
               absolute right-0 mt-2 w-72 z-40
@@ -285,7 +275,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
         </div>
 
         {/* Perfil do usuário */}
-        <div className="relative"> {/* Add ref here if needed for this specific dropdown */}
+        <div className="relative">
           <button
             onClick={() => {
               setShowProfileDropdown(!showProfileDropdown);
@@ -301,7 +291,6 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
             `}
             aria-label="Menu do usuário"
           >
-             {/* Display user avatar or initials - consistent with ProfileMenu.tsx */}
             <div className={`
               w-8 h-8 rounded-full flex items-center justify-center overflow-hidden
               ${resolvedTheme === 'dark'
@@ -326,7 +315,6 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
             `} />
           </button>
 
-          {/* Dropdown do perfil */}
           {showProfileDropdown && (
             <div className={`
               absolute right-0 mt-2 w-56 z-40
@@ -389,7 +377,7 @@ export default function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
                 }
               `}>
                 <button
-                  onClick={async () => { // MODIFIED TO CALL AUTH CONTEXT LOGOUT
+                  onClick={async () => {
                     await authContextLogout();
                     setShowProfileDropdown(false);
                   }}

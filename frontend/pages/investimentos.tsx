@@ -9,7 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 type Investimento = {
   _id: string;
   nome: string;
-  tipo: 'Renda Fixa' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas';
+  tipo: 'Renda Fixa' | 'Tesouro Direto' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas' | 'Previdência Privada' | 'ETF' | 'Internacional' | 'Renda Variável'; // Adicionado 'Renda Variável'
   valor: number;
   data: string;
 };
@@ -21,7 +21,7 @@ interface ApiResponse<T> {
 }
 
 // Componente dinâmico para os gráficos
-const Chart = dynamic(() => import('react-apexcharts'), { 
+const Chart = dynamic(() => import('react-apexcharts'), {
   ssr: false,
   loading: () => (
     <div className="flex justify-center items-center h-64">
@@ -35,7 +35,7 @@ const InvestimentosDashboard = () => {
   const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [filters, setFilters] = useState({
     tipo: '',
     dataInicio: '',
@@ -50,39 +50,46 @@ const InvestimentosDashboard = () => {
     data: {} as Partial<Investimento>
   });
 
-  // Cores para tipos de investimento
+  // Cores para tipos de investimento - Adicionado 'Renda Variável'
   const tipoCores = {
     'Renda Fixa': { bg: 'bg-blue-100', text: 'text-blue-800', dark: { bg: 'dark:bg-blue-900', text: 'dark:text-blue-200' } },
+    'Tesouro Direto': { bg: 'bg-indigo-100', text: 'text-indigo-800', dark: { bg: 'dark:bg-indigo-900', text: 'dark:text-indigo-200' } },
     'Ações': { bg: 'bg-green-100', text: 'text-green-800', dark: { bg: 'dark:bg-green-900', text: 'dark:text-green-200' } },
     'Fundos Imobiliários': { bg: 'bg-purple-100', text: 'text-purple-800', dark: { bg: 'dark:bg-purple-900', text: 'dark:text-purple-200' } },
-    'Criptomoedas': { bg: 'bg-yellow-100', text: 'text-yellow-800', dark: { bg: 'dark:bg-yellow-900', text: 'dark:text-yellow-200' } }
+    'Criptomoedas': { bg: 'bg-yellow-100', text: 'text-yellow-800', dark: { bg: 'dark:bg-yellow-900', text: 'dark:text-yellow-200' } },
+    'Previdência Privada': { bg: 'bg-pink-100', text: 'text-pink-800', dark: { bg: 'dark:bg-pink-900', text: 'dark:text-pink-200' } },
+    'ETF': { bg: 'bg-teal-100', text: 'text-teal-800', dark: { bg: 'dark:bg-teal-900', text: 'dark:text-teal-200' } },
+    'Internacional': { bg: 'bg-rose-100', text: 'text-rose-800', dark: { bg: 'dark:bg-rose-900', text: 'dark:text-rose-200' } },
+    'Renda Variável': { bg: 'bg-orange-100', text: 'text-orange-800', dark: { bg: 'dark:bg-orange-900', text: 'dark:text-orange-200' } } // Nova cor
   };
+
 
   // Buscar investimentos com tratamento robusto
   const fetchInvestimentos = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await investimentoAPI.getAll();
-      
+
       // Verificação em múltiplos níveis
       const rawData = (response as any)?.data?.data || (response as any)?.data || response;
-      
+
       if (!Array.isArray(rawData)) {
         throw new Error('Formato de dados inválido recebido da API');
       }
 
-      // Formatação consistente dos dados
+      // Formatação consistente dos dados - Adicionado 'Renda Variável' aos tipos válidos
+      const tiposValidos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'];
+
       const formattedData = rawData.map((item: any) => ({
         _id: item._id?.$oid || item._id || Math.random().toString(36).substring(2, 9),
         nome: item.nome || 'Sem nome',
-        tipo: ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas'].includes(item.tipo) 
-          ? item.tipo 
-          : 'Renda Fixa',
+        tipo: tiposValidos.includes(item.tipo) ? item.tipo : 'Renda Fixa', // Default para 'Renda Fixa' se inválido
         valor: Number(item.valor) || 0,
         data: item.data ? new Date(item.data).toISOString() : new Date().toISOString()
       }));
+
 
       setInvestimentos(formattedData);
     } catch (err) {
@@ -105,12 +112,12 @@ const InvestimentosDashboard = () => {
     return investimentos
       .filter(inv => {
         if (!inv) return false;
-        
+
         try {
           const invDate = new Date(inv.data);
           const startDate = filters.dataInicio ? new Date(filters.dataInicio) : null;
           const endDate = filters.dataFim ? new Date(filters.dataFim) : null;
-          
+
           return (
             (!filters.tipo || inv.tipo === filters.tipo) &&
             (!startDate || invDate >= startDate) &&
@@ -122,8 +129,8 @@ const InvestimentosDashboard = () => {
       })
       .sort((a, b) => {
         try {
-          return filters.ordenacao === 'recentes' 
-            ? new Date(b.data).getTime() - new Date(a.data).getTime() 
+          return filters.ordenacao === 'recentes'
+            ? new Date(b.data).getTime() - new Date(a.data).getTime()
             : new Date(a.data).getTime() - new Date(b.data).getTime();
         } catch {
           return 0;
@@ -131,21 +138,21 @@ const InvestimentosDashboard = () => {
       });
   }, [investimentos, filters]);
 
-  // Dados para gráficos com validação
+  // Dados para gráficos com validação - Adicionado 'Renda Variável' às cores
   const chartData = useMemo(() => {
-    const tiposValidos = ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas'];
+    const tiposValidos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável']; // Incluir Renda Variável aqui também
     const tiposPresentes = Array.from(
   new Set<Investimento['tipo']>(
     investimentosFiltrados
       .map(inv => inv?.tipo)
-      .filter((tipo): tipo is Investimento['tipo'] => 
+      .filter((tipo): tipo is Investimento['tipo'] =>
         tiposValidos.includes(tipo as any)
       )
   )
 );
     return {
       pie: {
-        series: tiposPresentes.map(tipo => 
+        series: tiposPresentes.map(tipo =>
           investimentosFiltrados
             .filter(inv => inv?.tipo === tipo)
             .reduce((total, inv) => total + (inv?.valor || 0), 0)
@@ -154,15 +161,20 @@ const InvestimentosDashboard = () => {
         colors: tiposPresentes.map(tipo => {
           switch(tipo) {
             case 'Renda Fixa': return '#3B82F6';
+            case 'Tesouro Direto': return '#6366F1';
             case 'Ações': return '#10B981';
             case 'Fundos Imobiliários': return '#8B5CF6';
             case 'Criptomoedas': return '#F59E0B';
+            case 'Previdência Privada': return '#EC4899';
+            case 'ETF': return '#14B8A6';
+            case 'Internacional': return '#F43F5E';
+            case 'Renda Variável': return '#F97316'; // Cor para Renda Variável
             default: return '#6B7280';
           }
         })
       },
       donut: {
-        series: tiposPresentes.map(tipo => 
+        series: tiposPresentes.map(tipo =>
           investimentosFiltrados
             .filter(inv => inv?.tipo === tipo)
             .length
@@ -171,9 +183,14 @@ const InvestimentosDashboard = () => {
         colors: tiposPresentes.map(tipo => {
           switch(tipo) {
             case 'Renda Fixa': return '#60A5FA';
+            case 'Tesouro Direto': return '#818CF8';
             case 'Ações': return '#34D399';
-            case 'Fundos Imobiliários': return '#A78BFA';
-            case 'Criptomoedas': return '#FBBF24';
+            case 'Fundos Imobiliários': return '#C084FC';
+            case 'Criptomoedas': return '#FACC15';
+            case 'Previdência Privada': return '#F472B6';
+            case 'ETF': return '#2DD4BF';
+            case 'Internacional': return '#FB7185';
+             case 'Renda Variável': return '#FB923C'; // Cor para Renda Variável (opcional, pode ser diferente do pie)
             default: return '#9CA3AF';
           }
         })
@@ -182,77 +199,66 @@ const InvestimentosDashboard = () => {
   }, [investimentosFiltrados]);
 
   const handleFormSubmit = async () => {
-  try {
-    // Validação dos campos
-    if (!form.data.nome?.trim()) {
-      toast.error('Nome é obrigatório');
-      return;
-    }
-    if (!form.data.tipo) {
-      toast.error('Tipo é obrigatório');
-      return;
-    }
-    if (!form.data.valor || isNaN(Number(form.data.valor))) {
-      toast.error('Valor inválido');
-      return;
-    }
-    if (!form.data.data) {
-      toast.error('Data é obrigatória');
-      return;
-    }
+    try {
+      // Validação dos campos
+      const valorNumerico = Number(form.data.valor);
+      const dataSelecionada = new Date(form.data.data || ''); // Use empty string for Date constructor if data is undefined/null
 
-    // Restante da lógica de formatação e envio...
-    const dataSelecionada = new Date(form.data.data);
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+      if (!form.data.nome?.trim()) {
+        toast.error('Nome é obrigatório');
+        return;
+      }
+      if (!form.data.tipo) {
+        toast.error('Tipo é obrigatório');
+        return;
+      }
+      // Validar se o valor é um número válido e positivo
+      if (isNaN(valorNumerico) || valorNumerico <= 0) {
+         toast.error('Valor deve ser positivo e um número válido');
+         return;
+      }
+      if (!form.data.data) {
+        toast.error('Data é obrigatória');
+        return;
+      }
+      // Validar se a data é uma data válida
+      if (isNaN(dataSelecionada.getTime())) {
+         toast.error('Data inválida');
+         return;
+      }
 
-    if (dataSelecionada < hoje) {
-      toast.error('A data deve ser hoje ou futura');
-      return;
+      const payload = {
+        nome: form.data.nome.trim(),
+        tipo: form.data.tipo,
+        valor: valorNumerico, // Use o valor numérico validado
+        data: dataSelecionada.toISOString() // Envia a data selecionada em formato ISO
+      };
+
+      // Operação de criação/atualização
+      if (form.mode === 'edit' && form.data._id) {
+        await investimentoAPI.update(form.data._id, payload);
+        toast.success('Investimento atualizado com sucesso!');
+      } else {
+        await investimentoAPI.create(payload);
+        toast.success('Investimento criado com sucesso!');
+      }
+
+      await fetchInvestimentos();
+      setForm({ ...form, open: false });
+
+    } catch (err) {
+      console.error('Erro no formulário:', err);
+      // Mensagem genérica caso ocorra outro tipo de erro
+      toast.error('Ocorreu um erro ao processar a solicitação');
     }
-
-    const payload = {
-      nome: form.data.nome.trim(),
-      tipo: form.data.tipo,
-      valor: Number(form.data.valor),
-      data: dataSelecionada.toISOString()
-    };
-
-    if (payload.valor <= 0) {
-      toast.error('Valor deve ser positivo');
-      return;
-    }
-
-    if (isNaN(dataSelecionada.getTime())) {
-      toast.error('Data inválida');
-      return;
-    }
-
-    // Operação de criação/atualização
-    if (form.mode === 'edit' && form.data._id) {
-      await investimentoAPI.update(form.data._id, payload);
-      toast.success('Investimento atualizado com sucesso!');
-    } else {
-      await investimentoAPI.create(payload);
-      toast.success('Investimento criado com sucesso!');
-    }
-
-    await fetchInvestimentos();
-    setForm({ ...form, open: false });
-
-  } catch (err) {
-    console.error('Erro no formulário:', err);
-    // Mensagem genérica caso ocorra outro tipo de erro
-    toast.error('Ocorreu um erro ao processar a solicitação');
-  }
-};
+  };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este investimento?')) return;
 
     try {
       await investimentoAPI.delete(id);
-      toast.success('Investimento excluído com sucesso!');
+      toast.success('Investimento excluído com sucesso!'); // Esta mensagem já está aqui
       await fetchInvestimentos();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao excluir investimento';
@@ -262,11 +268,15 @@ const InvestimentosDashboard = () => {
   };
 
   // Componente de Badge
-  const Badge = ({ tipo }: { tipo: keyof typeof tipoCores }) => (
-    <span className={`px-2 py-1 text-xs font-medium rounded-full ${tipoCores[tipo].bg} ${tipoCores[tipo].text} ${tipoCores[tipo].dark.bg} ${tipoCores[tipo].dark.text}`}>
-      {tipo}
-    </span>
-  );
+  const Badge = ({ tipo }: { tipo: keyof typeof tipoCores }) => {
+     const color = tipoCores[tipo] || { bg: 'bg-gray-100', text: 'text-gray-800', dark: { bg: 'dark:bg-gray-700', text: 'dark:text-gray-300' } }; // Default grey for unknown types
+     return (
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${color.bg} ${color.text} ${color.dark.bg} ${color.dark.text}`}>
+           {tipo}
+        </span>
+     );
+  };
+
 
   // Renderização condicional
   if (loading) {
@@ -294,6 +304,9 @@ const InvestimentosDashboard = () => {
     );
   }
 
+  const todosTipos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável']; // Lista completa para selects
+
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
       {/* Cabeçalho */}
@@ -317,23 +330,23 @@ const InvestimentosDashboard = () => {
               </p>
             </div>
           </div>
-          
+
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={() => setFilters({ ...filters, open: !filters.open })}
               className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
-              {filters.open ? <X size={18} /> : <Filter size={18} />}
+              {filters.open ? <X size={18} /> : <Filter size={18} />}\
               <span className="hidden md:inline">Filtrar</span>
             </button>
             <button
-              onClick={() => setForm({ 
-                open: true, 
-                mode: 'add', 
-                data: { 
+              onClick={() => setForm({
+                open: true,
+                mode: 'add',
+                data: {
                   tipo: 'Renda Fixa',
                   data: new Date().toISOString().split('T')[0]
-                } 
+                }
               })}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors hidden md:flex items-center gap-2"
             >
@@ -356,12 +369,12 @@ const InvestimentosDashboard = () => {
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               >
                 <option value="">Todos</option>
-                {Object.keys(tipoCores).map(tipo => (
-                  <option key={tipo} value={tipo}>{tipo}</option>
-                ))}
+                 {todosTipos.map(tipo => ( // Usando a lista completa aqui
+                   <option key={tipo} value={tipo}>{tipo}</option>
+                 ))}
               </select>
             </div>
-            
+
             <div>
               <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">De</label>
               <input
@@ -371,7 +384,7 @@ const InvestimentosDashboard = () => {
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               />
             </div>
-            
+
             <div>
               <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Até</label>
               <input
@@ -381,7 +394,7 @@ const InvestimentosDashboard = () => {
                 className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
               />
             </div>
-            
+
             <div>
               <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Ordenar</label>
               <select
@@ -502,8 +515,8 @@ const InvestimentosDashboard = () => {
             <DollarSign className="mx-auto text-gray-400 mb-3" size={48} />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">Nenhum investimento encontrado</h3>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
-              {investimentos.length === 0 
-                ? 'Comece adicionando seu primeiro investimento' 
+              {investimentos.length === 0
+                ? 'Comece adicionando seu primeiro investimento'
                 : 'Tente ajustar os filtros'}
             </p>
             <button
@@ -588,7 +601,7 @@ const InvestimentosDashboard = () => {
                       }).format(investimento.valor)}
                     </span>
                   </div>
-                  
+
                   <div className="mt-3 flex justify-between items-center">
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {new Date(investimento.data).toLocaleDateString('pt-BR')}
@@ -633,7 +646,7 @@ const InvestimentosDashboard = () => {
               <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
                 {form.mode === 'add' ? 'Novo Investimento' : 'Editar Investimento'}
               </h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
@@ -663,11 +676,12 @@ const InvestimentosDashboard = () => {
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Valor (R$) *</label>
                   <input
                     type="number"
-                    value={form.data.valor || ''}
-                    onChange={(e) => setForm({ ...form, data: { ...form.data, valor: Number(e.target.value) } })}
+                    value={form.data.valor === undefined ? '' : form.data.valor} // Evitar "undefined" no campo
+                    onChange={(e) => setForm({ ...form, data: { ...form.data, valor: e.target.value === '' ? undefined : Number(e.target.value) } })}
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                     min="0.01"
                     step="0.01"
+                    placeholder="0,00"
                   />
                 </div>
                 
@@ -675,29 +689,19 @@ const InvestimentosDashboard = () => {
                   <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Data *</label>
                   <input
                     type="date"
-                    value={form.data.data ? new Date(form.data.data).toISOString().split('T')[0] : ''}
+                    value={form.data.data ? new Date(form.data.data).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => {
-                      const selectedDate = e.target.value;
-                      const today = new Date().toISOString().split('T')[0];
-                      const finalDate = selectedDate < today ? today : selectedDate;
-
                       setForm({
                         ...form,
                         data: {
                           ...form.data,
-                          data: new Date(finalDate).toISOString()
+                          data: new Date(e.target.value).toISOString()
                         } 
                       });
                     }}                        
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-wh
-      ite dark:bg-gray-700"
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                   />
-                  {form.data.data && new Date(form.data.data) < new Date() && (
-                    <p className="text-red-500 text-xs mt-1">
-                      A data será ajustada para hoje
-                    </p>
-                  )}
                 </div>
               </div>
               

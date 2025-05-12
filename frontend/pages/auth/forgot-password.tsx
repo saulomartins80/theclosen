@@ -114,18 +114,22 @@ export default function ForgotPasswordPage() {
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     E-mail
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FiMail className="text-gray-400" />
-                    </div>
+                  <div className={`flex items-center border rounded-lg overflow-hidden 
+                                  bg-white focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500
+                                  dark:bg-gray-700 dark:focus-within:border-indigo-500
+                                  ${isEmailValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500 dark:border-red-500'}`}>
+                    <span className="pl-3 pr-2 text-gray-400 dark:text-gray-400">
+                      <FiMail />
+                    </span>
                     <input
                       id="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className={`block w-full pl-10 pr-3 py-2 border ${isEmailValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500'} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white`}
+                      className="w-full py-2 px-1 outline-none bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                       placeholder="seu@email.com"
                       autoFocus
+                      required 
                     />
                   </div>
                 </div>

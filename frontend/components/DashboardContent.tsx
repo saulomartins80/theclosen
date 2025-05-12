@@ -48,7 +48,7 @@ const formatNumber = (value: number, decimals: number = 2): string => {
 };
 
 const DashboardContent: React.FC = () => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const { user } = useAuth();
   const { transactions, investimentos, loading, error, fetchData } = useFinance();
   const { 
@@ -89,7 +89,7 @@ const DashboardContent: React.FC = () => {
     .reduce((acc, t) => acc + t.valor, 0);
 
   const saldoAtual = totalReceitas - totalDespesas;
-  const saldoColor = saldoAtual >= 0 ? "text-green-500" : "text-red-500";
+  const saldoColor = saldoAtual >= 0 ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400";
   const totalInvestimentos = mappedInvestments.reduce((acc, inv) => acc + inv.valor, 0);
 
   const variacaoSaldo = saldoAtual / (totalReceitas + totalDespesas) * 100 || 0;
@@ -104,7 +104,7 @@ const DashboardContent: React.FC = () => {
 
   if (loading || loadingMarketData) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <LoadingSpinner />
       </div>
     );
@@ -112,8 +112,8 @@ const DashboardContent: React.FC = () => {
   
   if (error || marketError) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-800 dark:text-red-300">
           Erro: {(error as ApiError)?.message || marketError || "Erro desconhecido"}
         </div>
       </div>
@@ -122,7 +122,7 @@ const DashboardContent: React.FC = () => {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
-      theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+      resolvedTheme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
     }`}>
       <div className="container mx-auto px-0 sm:px-4 py-6">
         {/* Cabeçalho */}
@@ -132,9 +132,9 @@ const DashboardContent: React.FC = () => {
           transition={{ duration: 0.5 }}
           className="mb-8 px-4 sm:px-0"
         >
-          <h1 className="text-2xl md:text-3xl font-bold">
-            {getGreeting()}, <span className="text-blue-500">
-              {user?.email?.split("@")[0] || "Usuário"}
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+            {getGreeting()}, <span className="text-blue-500 dark:text-blue-400">
+              {user?.name || user?.email?.split("@")[0] || "Usuário"}
             </span>!
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
@@ -149,14 +149,14 @@ const DashboardContent: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
             className={`p-6 rounded-xl shadow ${
-              theme === "dark" ? "bg-gray-800" : "bg-white"
+              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
             }`}
           >
             <h2 className="text-lg font-semibold">Saldo Atual</h2>
             <p className={`text-2xl font-bold ${saldoColor} mt-2`}>
               {formatCurrency(saldoAtual)}
             </p>
-            <p className={`text-sm ${variacaoSaldo >= 0 ? 'text-green-500' : 'text-red-500'} mt-1`}>
+            <p className={`text-sm ${variacaoSaldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} mt-1`}>
               {variacaoSaldo >= 0 ? '+' : ''}{variacaoSaldo.toFixed(2)}% este mês
             </p>
           </motion.div>
@@ -166,14 +166,14 @@ const DashboardContent: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className={`p-6 rounded-xl shadow ${
-              theme === "dark" ? "bg-gray-800" : "bg-white"
+              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
             }`}
           >
             <h2 className="text-lg font-semibold">Receitas</h2>
-            <p className="text-2xl font-bold text-blue-500 mt-2">
+            <p className="text-2xl font-bold text-blue-500 dark:text-blue-400 mt-2">
               {formatCurrency(totalReceitas)}
             </p>
-            <p className="text-sm text-green-500 mt-1">
+            <p className="text-sm text-green-500 dark:text-green-400 mt-1">
               +{variacaoReceitas}% este mês
             </p>
           </motion.div>
@@ -183,14 +183,14 @@ const DashboardContent: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className={`p-6 rounded-xl shadow ${
-              theme === "dark" ? "bg-gray-800" : "bg-white"
+              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
             }`}
           >
             <h2 className="text-lg font-semibold">Despesas</h2>
-            <p className="text-2xl font-bold text-red-500 mt-2">
+            <p className="text-2xl font-bold text-red-500 dark:text-red-400 mt-2">
               {formatCurrency(totalDespesas)}
             </p>
-            <p className="text-sm text-red-500 mt-1">
+            <p className="text-sm text-red-500 dark:text-red-400 mt-1">
               {variacaoDespesas}% este mês
             </p>
           </motion.div>
@@ -200,14 +200,14 @@ const DashboardContent: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
             className={`p-6 rounded-xl shadow ${
-              theme === "dark" ? "bg-gray-800" : "bg-white"
+              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
             }`}
           >
             <h2 className="text-lg font-semibold">Investimentos</h2>
-            <p className="text-2xl font-bold text-purple-500 mt-2">
+            <p className="text-2xl font-bold text-purple-500 dark:text-purple-400 mt-2">
               {formatCurrency(totalInvestimentos)}
             </p>
-            <p className="text-sm text-green-500 mt-1">
+            <p className="text-sm text-green-500 dark:text-green-400 mt-1">
               +{variacaoInvestimentos}% este mês
             </p>
           </motion.div>
@@ -216,7 +216,7 @@ const DashboardContent: React.FC = () => {
         {/* Seção de Mercado Financeiro */}
         {marketData && (
           <div className={`rounded-xl shadow overflow-hidden mb-8 ${
-            theme === "dark" ? "bg-gray-800" : "bg-white"
+            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
           }`}>
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -228,9 +228,9 @@ const DashboardContent: React.FC = () => {
                   <button 
                     onClick={() => refreshMarketData()}
                     className={`text-sm px-4 py-2 rounded-lg ${
-                      theme === "dark" 
+                      resolvedTheme === "dark" 
                         ? "bg-blue-700 hover:bg-blue-600 text-white" 
-                        : "bg-blue-100 hover:bg-blue-200 text-blue-600"
+                        : "bg-blue-100 hover:bg-blue-200 text-blue-700"
                     } transition`}
                   >
                     Atualizar
@@ -242,45 +242,45 @@ const DashboardContent: React.FC = () => {
             <div className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className={`p-4 rounded-lg ${
-                  theme === "dark" ? "bg-gray-700" : "bg-gray-50"
+                  resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
                 }`}>
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">IBOVESPA</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">IBOVESPA</h3>
                     <span className={`text-xs px-2 py-1 rounded ${
                       marketData.indices.ibovespa >= 0 
-                        ? theme === "dark" 
-                          ? "bg-green-900/30 text-green-300" 
+                        ? resolvedTheme === "dark" 
+                          ? "bg-green-800 text-green-200" 
                           : "bg-green-100 text-green-800"
-                        : theme === "dark" 
-                          ? "bg-red-900/30 text-red-300" 
+                        : resolvedTheme === "dark" 
+                          ? "bg-red-800 text-red-200" 
                           : "bg-red-100 text-red-800"
                     }`}>
                       {marketData.indices.ibovespa >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices.ibovespa).toFixed(2)}%
                     </span>
                   </div>
-                  <p className="text-2xl mt-1">
+                  <p className="text-2xl mt-1 text-gray-900 dark:text-white">
                     {marketData.indices.ibovespa.toLocaleString('pt-BR')}
                   </p>
                 </div>
                 
                 <div className={`p-4 rounded-lg ${
-                  theme === "dark" ? "bg-gray-700" : "bg-gray-50"
+                  resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
                 }`}>
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">Dólar</h3>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Dólar</h3>
                     <span className={`text-xs px-2 py-1 rounded ${
                       marketData.indices.dollar >= 0 
-                        ? theme === "dark" 
-                          ? "bg-green-900/30 text-green-300" 
+                        ? resolvedTheme === "dark" 
+                          ? "bg-green-800 text-green-200" 
                           : "bg-green-100 text-green-800"
-                        : theme === "dark" 
-                          ? "bg-red-900/30 text-red-300" 
+                        : resolvedTheme === "dark" 
+                          ? "bg-red-800 text-red-200" 
                           : "bg-red-100 text-red-800"
                     }`}>
                       {marketData.indices.dollar >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices.dollar).toFixed(2)}%
                     </span>
                   </div>
-                  <p className="text-2xl mt-1">
+                  <p className="text-2xl mt-1 text-gray-900 dark:text-white">
                     {formatCurrency(marketData.indices.dollar)}
                   </p>
                 </div>
@@ -289,14 +289,14 @@ const DashboardContent: React.FC = () => {
               {marketData.cryptos && marketData.cryptos.length > 0 && (
                 <div className="mb-6">
                   <div className="mb-4">
-                    <h3 className="font-semibold mb-2">Criptomoedas</h3>
+                    <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Criptomoedas</h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedCryptos.map(crypto => (
                         <span 
                           key={crypto}
                           className={`px-3 py-1 rounded-full text-sm ${
-                            theme === "dark" 
-                              ? "bg-purple-900/30 text-purple-200" 
+                            resolvedTheme === "dark" 
+                              ? "bg-purple-800 text-purple-200" 
                               : "bg-purple-100 text-purple-800"
                           }`}
                         >
@@ -309,7 +309,7 @@ const DashboardContent: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
                       <thead className={`${
-                        theme === "dark" ? "bg-gray-700" : "bg-gray-100"
+                        resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
                       }`}>
                         <tr>
                           <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Criptomoeda</th>
@@ -324,12 +324,12 @@ const DashboardContent: React.FC = () => {
                               {crypto.symbol.replace('-USD', '')}
                             </td>
                             <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                              crypto.change >= 0 ? 'text-green-500' : 'text-red-500'
+                              crypto.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
                             }`}>
                               {formatCurrency(crypto.price, 'USD')}
                             </td>
                             <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                              crypto.changePercent >= 0 ? 'text-green-500' : 'text-red-500'
+                              crypto.changePercent >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
                             }`}>
                               {crypto.changePercent >= 0 ? '+' : ''}{crypto.changePercent.toFixed(2)}%
                             </td>
@@ -343,14 +343,14 @@ const DashboardContent: React.FC = () => {
 
               <div>
                 <div className="mb-4">
-                  <h3 className="font-semibold mb-2">Ações Selecionadas</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Ações Selecionadas</h3>
                   <div className="flex flex-wrap gap-2">
                     {selectedStocks.map(stock => (
                       <span 
                         key={stock}
                         className={`px-3 py-1 rounded-full text-sm ${
-                          theme === "dark" 
-                            ? "bg-blue-900/30 text-blue-200" 
+                          resolvedTheme === "dark" 
+                            ? "bg-blue-800 text-blue-200" 
                             : "bg-blue-100 text-blue-800"
                         }`}
                       >
@@ -363,7 +363,7 @@ const DashboardContent: React.FC = () => {
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
                     <thead className={`${
-                      theme === "dark" ? "bg-gray-700" : "bg-gray-100"
+                      resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
                     }`}>
                       <tr>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ação</th>
@@ -378,12 +378,12 @@ const DashboardContent: React.FC = () => {
                             {stock.symbol}
                           </td>
                           <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                            stock.change >= 0 ? 'text-green-500' : 'text-red-500'
+                            stock.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
                           }`}>
                             {formatCurrency(stock.price)}
                           </td>
                           <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                            stock.change >= 0 ? 'text-green-500' : 'text-red-500'
+                            stock.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
                           }`}>
                             {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}%
                           </td>
@@ -399,7 +399,7 @@ const DashboardContent: React.FC = () => {
 
         {/* Seção de Gráficos - Full Width */}
         <div className={`rounded-none sm:rounded-xl shadow mb-8 ${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
+          resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
         }`}>
           <div className="p-0 sm:p-2">
             <Graficos />

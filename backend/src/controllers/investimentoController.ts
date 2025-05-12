@@ -2,9 +2,37 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Investimento from '../models/Investimento';
 
+// Adicione no array de TIPOS_VALIDOS:
+const TIPOS_VALIDOS = [
+  'Renda Fixa',
+  'Tesouro Direto',
+  'Ações',
+  'Fundos Imobiliários',
+  'Criptomoedas',
+  'Previdência Privada',
+  'ETF',
+  'Internacional',
+  'Renda Variável' 
+] as const;
+
 export const getInvestimentos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const investimentos = await Investimento.find().sort({ data: -1 });
+    // Adicionando filtros opcionais via query params
+    const { tipo, dataInicio, dataFim } = req.query;
+    
+    const filter: any = {};
+    
+    if (tipo && TIPOS_VALIDOS.includes(tipo as any)) {
+      filter.tipo = tipo;
+    }
+    
+    if (dataInicio || dataFim) {
+      filter.data = {};
+      if (dataInicio) filter.data.$gte = new Date(dataInicio as string);
+      if (dataFim) filter.data.$lte = new Date(dataFim as string);
+    }
+
+    const investimentos = await Investimento.find(filter).sort({ data: -1 });
     res.json(investimentos);
   } catch (error: unknown) {
     res.status(500).json({ 
@@ -16,18 +44,17 @@ export const getInvestimentos = async (req: Request, res: Response): Promise<voi
 
 export const addInvestimento = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('Corpo recebido:', req.body); // Log para debug
+    console.log('Corpo recebido:', req.body);
 
     const { nome, valor, data, tipo } = req.body;
 
-    // Validação mais robusta com mensagens específicas
     if (!nome?.trim()) {
       res.status(400).json({ message: "Nome é obrigatório" });
       return;
     }
 
     const valorNumerico = Number(valor);
-    if (isNaN(valorNumerico)) { // CORREÇÃO: Parêntese fechado aqui
+    if (isNaN(valorNumerico)) {
       res.status(400).json({ message: "Valor deve ser um número válido" });
       return;
     }
@@ -37,17 +64,15 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Verifica se o tipo é válido
-    const tiposValidos = ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas'];
-    if (!tipo || !tiposValidos.includes(tipo)) {
+    // Atualizado para usar os novos tipos
+    if (!tipo || !TIPOS_VALIDOS.includes(tipo)) {
       res.status(400).json({ 
         message: "Tipo de investimento inválido",
-        tiposValidos // Envia a lista de tipos válidos para ajudar o frontend
+        tiposValidos: TIPOS_VALIDOS
       });
       return;
     }
 
-    // Converter e validar data
     const dataObj = data ? new Date(data) : new Date();
     if (isNaN(dataObj.getTime())) {
       res.status(400).json({ message: "Data inválida" });
@@ -66,7 +91,6 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
   } catch (error: unknown) {
     console.error('Erro no servidor:', error);
     
-    // Mensagem mais amigável para erros de validação do Mongoose
     if (error instanceof mongoose.Error.ValidationError) {
       const errors = Object.values(error.errors).map(err => err.message);
       res.status(400).json({ 
@@ -79,7 +103,6 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
     res.status(400).json({ 
       message: 'Erro ao criar investimento',
       error: error instanceof Error ? error.message : 'Erro desconhecido',
-      // Mostra stack apenas em desenvolvimento
       ...(process.env.NODE_ENV === 'development' && {
         stack: error instanceof Error ? error.stack : undefined
       })
@@ -98,7 +121,6 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
   try {
     const { nome, valor, data, tipo } = req.body;
 
-    // Validações consistentes com a criação
     if (nome && !nome.trim()) {
       res.status(400).json({ message: "Nome não pode ser vazio" });
       return;
@@ -106,6 +128,15 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
 
     if (valor && isNaN(Number(valor))) {
       res.status(400).json({ message: "Valor deve ser um número válido" });
+      return;
+    }
+
+    // Validação do tipo atualizada
+    if (tipo && !TIPOS_VALIDOS.includes(tipo)) {
+      res.status(400).json({ 
+        message: "Tipo de investimento inválido",
+        tiposValidos: TIPOS_VALIDOS
+      });
       return;
     }
 

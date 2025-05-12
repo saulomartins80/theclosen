@@ -1,53 +1,42 @@
 //pages/profile.tsx
-import { useAuth, SessionUser } from '../context/AuthContext'; // Import SessionUser
+import { useAuth, SessionUser } from '../context/AuthContext';
 import { useState, useEffect, useMemo } from 'react';
 import { FiUser, FiMail, FiLock, FiCreditCard, FiEdit, FiCamera, FiCheck, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
 import Image from 'next/image';
 import DeepSeekChat from '../components/DeepSeekChat';
-import api from '../services/api'; // Import your API service
+import api from '../services/api';
 
-// Extend the SessionUser type to include displayName - This might be redundant if SessionUser is imported and used correctly
-// declare module '../context/AuthContext' {
-//   interface SessionUser {
-//     displayName?: string;
-//   }
-// }
-
-// Define a type for the expected user structure from useAuth
 interface AuthUserData {
   uid: string;
   email: string | null;
-  name: string | null; // Use 'name' to match backend/MongoDB
+  name: string | null;
   photoUrl: string | null;
   subscription?: { plan?: string; status?: string; expiresAt?: string } | null;
 }
 
-// Define a type for the AuthContext return value we expect
-// Make sure this matches the actual AuthContextType, especially the updateUserContextProfile
 interface ProfileAuthContextType {
   user: AuthUserData | null;
   subscription: { plan?: string; status?: string; expiresAt?: string } | null;
   loadingSubscription: boolean;
   refreshSubscription: () => Promise<void>;
-  updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void; // Ensure this is correct
+  updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void;
 }
 
 export default function ProfilePage() {
-  // Use the defined interface for better type safety
   const { 
     user, 
     subscription, 
     loadingSubscription, 
     refreshSubscription, 
-    updateUserContextProfile // Get the new function from useAuth
+    updateUserContextProfile
   } = useAuth() as ProfileAuthContextType;
 
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', // Use 'name' to match backend/MongoDB
+    name: '',
     email: '',
     currentPassword: '',
     newPassword: '',
@@ -61,7 +50,6 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Initialize Firebase Storage (still needed for photo upload)
   const storage = getStorage();
 
   useEffect(() => {
@@ -85,7 +73,6 @@ export default function ProfilePage() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validações
       const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validTypes.includes(file.type)) {
         toast.error('Tipo de arquivo inválido. Use JPEG, PNG ou WEBP');
@@ -102,7 +89,7 @@ export default function ProfilePage() {
       }
 
       setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file)); // Create a preview URL
+      setAvatarPreview(URL.createObjectURL(file));
     }
   };
 
@@ -116,10 +103,8 @@ export default function ProfilePage() {
       }
 
       const updatePayload: any = {};
-      // Start with current photoUrl, will be overwritten if new avatar is uploaded
       let finalPhotoUrl = user.photoUrl;
 
-      // 1. Handle Photo Upload if a new file is selected
       if (avatarFile) {
         setIsUploading(true);
         try {
@@ -127,19 +112,18 @@ export default function ProfilePage() {
           const storageRef = ref(storage, `avatars/${user.uid}/avatar_${timestamp}`);
           await uploadBytes(storageRef, avatarFile);
           finalPhotoUrl = await getDownloadURL(storageRef);
-          updatePayload.photoUrl = finalPhotoUrl; // Add new photoUrl to payload
+          updatePayload.photoUrl = finalPhotoUrl;
         } catch (error) {
           console.error('Erro no upload da foto:', error);
           toast.error('Falha ao carregar a nova foto.');
           setIsUploading(false);
           setIsLoading(false);
-          return; // Stop submission if photo upload fails
+          return;
         } finally {
            setIsUploading(false);
         }
       }
 
-      // 2. Check for other profile updates
       if (formData.name !== user.name) {
         updatePayload.name = formData.name;
       }
@@ -149,7 +133,7 @@ export default function ProfilePage() {
             throw new Error('Forneça sua senha atual para alterar o email');
           }
          updatePayload.email = formData.email;
-         updatePayload.currentPassword = formData.currentPassword; // Send current password for reauth on backend
+         updatePayload.currentPassword = formData.currentPassword;
       }
 
       if (formData.newPassword) {
@@ -160,10 +144,8 @@ export default function ProfilePage() {
           throw new Error('Forneça sua senha atual para alterar a senha');
         }
         updatePayload.newPassword = formData.newPassword;
-        // Current password for password change will also be sent as currentPassword
       }
 
-      // 3. Send updatePayload to the backend API
       if (Object.keys(updatePayload).length > 0) {
          console.log('Sending update payload to backend:', updatePayload);
          const response = await api.put('/api/users/profile', updatePayload);
@@ -171,42 +153,32 @@ export default function ProfilePage() {
          if (!response.data.success) {
             throw new Error(response.data.message || 'Falha ao atualizar perfil no backend');
          }
-
-         // --- MODIFICATION: Update AuthContext with the returned profile data --- 
-         const updatedBackendProfile = response.data.data; // Assuming backend returns updated profile in data.data
+         
+         const updatedBackendProfile = response.data.data;
          
          if (updatedBackendProfile) {
-           // Prepare data to match SessionUser structure for updateUserContextProfile
            const profileForContext: Partial<SessionUser> = {
              name: updatedBackendProfile.name,
              email: updatedBackendProfile.email,
-             photoUrl: updatedBackendProfile.photoUrl, // Ensure this field name matches what backend returns
-             // Include subscription if it's part of the response and needs updating
-             // subscription: updatedBackendProfile.subscription 
+             photoUrl: updatedBackendProfile.photoUrl,
            };
            updateUserContextProfile(profileForContext);
          } else {
-           // If backend doesn't return updated profile, refresh from session or firebase
-           // This is a fallback, ideally backend returns the new data.
-           await refreshSubscription(); // This might not refresh name/email/photoUrl correctly
-           // Consider a more robust refresh mechanism if backend doesn't return updated profile data
+           await refreshSubscription(); 
          }
-         // --- END MODIFICATION ---
-
       } else {
          toast.info('Nenhuma mudança para salvar.');
       }
 
       toast.success('Perfil atualizado com sucesso!');
       setIsEditing(false);
-      setAvatarFile(null); // Clear selected file after successful upload/update
-      // No need to manually setAvatarPreview here if AuthContext update re-renders with new user.photoUrl
+      setAvatarFile(null);
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
       toast.error(error.message || 'Erro ao atualizar perfil');
     } finally {
       setIsLoading(false);
-      setIsUploading(false); // Ensure this is false even if photo upload failed earlier
+      setIsUploading(false);
     }
   };
 
@@ -214,10 +186,11 @@ export default function ProfilePage() {
     try {
       if (!user?.uid) throw new Error('Usuário não autenticado');
       
-      const response = await api.post('/api/subscription/manage', { userId: user.uid });
+      // Corrigindo a URL da chamada para a API Route do Next.js
+      const response = await api.post('/api/manage-subscription', { userId: user.uid });
 
       if (response.data && response.data.redirectUrl) {
-        window.location.href = response.data.redirectUrl; // Redirect user
+        window.location.href = response.data.redirectUrl;
       } else {
          throw new Error(response.data.message || 'Não foi possível iniciar o gerenciamento da assinatura.');
       }
@@ -247,7 +220,6 @@ export default function ProfilePage() {
     }
   };
 
-  // Mapeia o status da assinatura
   const subscriptionStatus = useMemo(() => {
     if (!subscription) return 'Nenhum plano ativo';
 
@@ -266,11 +238,8 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Chatbot */}
-      {/* <DeepSeekChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} /> */}
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Cabeçalho */}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Meu Perfil</h1>
@@ -281,12 +250,11 @@ export default function ProfilePage() {
           {isEditing ? (
             <div className="flex space-x-2">
               <button
-                type="button" // Specify type button to prevent form submission
+                type="button"
                 onClick={() => {
                    setIsEditing(false);
-                   setAvatarFile(null); // Clear selected file on cancel
-                   setAvatarPreview(user?.photoUrl || '/default-avatar.png'); // Reset preview
-                   // Reset form data to original user data
+                   setAvatarFile(null);
+                   setAvatarPreview(user?.photoUrl || '/default-avatar.png');
                    setFormData({
                       name: user?.name || '',
                       email: user?.email || '',
@@ -300,10 +268,10 @@ export default function ProfilePage() {
                 <FiX className="inline mr-2" /> Cancelar
               </button>
               <button
-                type="submit" // Specify type submit for form submission
+                type="submit"
                 onClick={handleSubmit}
                 disabled={isLoading || isUploading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors"
               >
                 {isLoading || isUploading ? 'Salvando...' : (
                   <>
@@ -314,18 +282,16 @@ export default function ProfilePage() {
             </div>
           ) : (
             <button
-              type="button" // Specify type button
+              type="button"
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
             >
               <FiEdit className="inline mr-2" /> Editar Perfil
             </button>
           )}
         </div>
 
-        {/* Conteúdo */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-          {/* Seção de Avatar */}
           <div className="relative bg-gradient-to-r from-blue-500 to-purple-600 p-6">
             <div className="flex flex-col items-center">
               <div className="relative group">
@@ -368,13 +334,13 @@ export default function ProfilePage() {
                 {isEditing ? (
                   <input
                     type="text"
-                    name="name" // Use name
+                    name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="bg-transparent border-b border-white text-center text-white focus:outline-none"
+                    className="bg-transparent border-b border-white text-center text-white focus:outline-none placeholder-white::placeholder"
                   />
                 ) : (
-                  user?.name || 'Usuário' // Use user.name
+                  user?.name || 'Usuário'
                 )}
               </h2>
               <p className="text-blue-100">
@@ -383,11 +349,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Formulário */}
           <div className="p-6">
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
-                {/* Seção de Informações Pessoais */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     Informações Pessoais
@@ -400,16 +364,16 @@ export default function ProfilePage() {
                       {isEditing ? (
                         <input
                           type="text"
-                          id="name" // Use name
-                          name="name" // Use name
+                          id="name"
+                          name="name"
                           value={formData.name}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                           required
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-md">
-                          {user?.name || 'Não informado'} // Use user.name
+                        <p className="px-4 py-2 bg-gray-100 dark:bg-gray-700/50 rounded-md text-gray-900 dark:text-gray-200">
+                          {user?.name || 'Não informado'}
                         </p>
                       )}
                     </div>
@@ -424,11 +388,11 @@ export default function ProfilePage() {
                           name="email"
                           value={formData.email}
                           onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                           required
                         />
                       ) : (
-                        <p className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-md">
+                        <p className="px-4 py-2 bg-gray-100 dark:bg-gray-700/50 rounded-md text-gray-900 dark:text-gray-200">
                           {user?.email}
                         </p>
                       )}
@@ -436,7 +400,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Seção de Segurança */}
                 {isEditing && (
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -454,13 +417,13 @@ export default function ProfilePage() {
                             name="currentPassword"
                             value={formData.currentPassword}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="••••••••"
                           />
                           <button
                             type="button"
                             onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                           >
                             {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
                           </button>
@@ -478,13 +441,13 @@ export default function ProfilePage() {
                               name="newPassword"
                               value={formData.newPassword}
                               onChange={handleInputChange}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="••••••••"
                             />
                             <button
                               type="button"
                               onClick={() => setShowNewPassword(!showNewPassword)}
-                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             >
                               {showNewPassword ? <FiEyeOff /> : <FiEye />}
                             </button>
@@ -501,13 +464,13 @@ export default function ProfilePage() {
                               name="confirmPassword"
                               value={formData.confirmPassword}
                               onChange={handleInputChange}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
                               placeholder="••••••••"
                             />
                             <button
                               type="button"
                               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             >
                               {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
                             </button>
@@ -518,38 +481,41 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Seção de Assinatura */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     Assinatura
                   </h3>
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-700 dark:to-gray-800 p-6 rounded-lg border border-blue-100 dark:border-gray-600">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-700/50 dark:to-gray-800/60 p-6 rounded-lg border border-blue-100 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                       <div>
                         <h4 className="font-bold text-lg text-gray-900 dark:text-white">
-                          {subscription?.plan ? `Plano ${subscription.plan}` : 'Nenhum plano ativo'}
+                          {subscription?.plan ? `Plano ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}` : 'Nenhum plano ativo'}
                         </h4>
                         <p className="text-gray-600 dark:text-gray-400">
                           {subscriptionStatus}
                           {subscription?.expiresAt && ` - Válido até ${new Date(subscription.expiresAt).toLocaleDateString()}`}
                         </p>
                       </div>
-                      {/* Consider conditional rendering for these buttons based on subscription status */}
-                      <button 
-                        type="button"
-                        onClick={handleManageSubscription}
-                        disabled={loadingSubscription}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        {loadingSubscription ? 'Carregando...' : 'Gerenciar Assinatura'}
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={handleUpgrade}
-                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                      >
-                        Upgrade para Premium
-                      </button>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button 
+                          type="button"
+                          onClick={handleManageSubscription}
+                          disabled={loadingSubscription}
+                          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors text-sm"
+                        >
+                          {loadingSubscription ? 'Carregando...' : 'Gerenciar Assinatura'}
+                        </button>
+                        {/* Mostrar botão de upgrade apenas se não for premium */}
+                        {subscription?.plan !== 'premium' && (
+                           <button 
+                           type="button"
+                           onClick={handleUpgrade}
+                           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm"
+                         >
+                           Upgrade para Premium
+                         </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

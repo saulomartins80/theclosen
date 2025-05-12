@@ -1,9 +1,9 @@
-// src/models/Investimento.ts
 import { Document, Schema, model } from 'mongoose';
 
 export interface IInvestimento extends Document {
   nome: string;
-  tipo: 'Renda Fixa' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas';
+  tipo: 'Renda Fixa' | 'Tesouro Direto' | 'Ações' | 'Fundos Imobiliários' | 
+        'Criptomoedas' | 'Previdência Privada' | 'ETF' | 'Internacional' | 'Renda Variável';
   valor: number;
   data: Date;
 }
@@ -12,32 +12,40 @@ const InvestimentoSchema = new Schema({
   nome: { 
     type: String, 
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 100
   },
   tipo: { 
     type: String, 
     required: true,
-    enum: ['Renda Fixa', 'Ações', 'Fundos Imobiliários', 'Criptomoedas']
+    enum: [
+      'Renda Fixa',
+      'Tesouro Direto',
+      'Ações',
+      'Fundos Imobiliários',
+      'Criptomoedas',
+      'Previdência Privada',
+      'ETF',
+      'Internacional',
+      'Renda Variável'
+    ],
+    index: true
   },
   valor: { 
     type: Number, 
     required: true,
-    min: 0.01
+    min: 0.01,
+    set: (v: number) => parseFloat(v.toFixed(2))
   },
   data: { 
     type: Date, 
-    required: true,
-    validate: {
-      validator: function(value: Date) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return value >= today;
-      },
-      message: 'Data deve ser hoje ou futura'
-    }
+    required: true // Removida a validação de data futura
   }
 }, { 
-  timestamps: true
+  timestamps: true,
+  versionKey: false
 });
+
+InvestimentoSchema.index({ tipo: 1, data: -1 });
 
 export default model<IInvestimento>('Investimento', InvestimentoSchema);

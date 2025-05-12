@@ -52,3 +52,34 @@ input[type="date"] {
 .dark {
   color-scheme: dark;
 }
+
+/* ESTILOS PARA CORREÇÃO DO AUTOFILL DO NAVEGADOR */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important; /* Fundo para modo claro */
+    -webkit-text-fill-color: #111827 !important; /* Texto (gray-900) para modo claro */
+}
+
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #374151 inset !important; /* Fundo (gray-700) para modo escuro */
+    -webkit-text-fill-color: #ffffff !important; /* Texto (white) para modo escuro */
+}
+
+input:-moz-autofill,
+input:-moz-autofill:hover,
+input:-moz-autofill:focus,
+input:-moz-autofill:active {
+  filter: none !important;
+}
+
+html.dark input:-moz-autofill,
+html.dark input:-moz-autofill:hover,
+html.dark input:-moz-autofill:focus,
+html.dark input:-moz-autofill:active {
+  filter: none !important; 
+}
