@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiX, FiSun, FiMoon, FiMonitor, FiMenu, FiSearch, FiBell, FiSettings, FiUser, FiLogOut, FiChevronRight } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
+import Image from 'next/image'; // Importe o componente Image do Next.js
 
 type Theme = 'light' | 'dark' | 'system';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
-  toggleMobileSidebar: () => void; // Alterado aqui
+  toggleMobileSidebar: () => void;
 }
 
-export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderProps) { // Alterado aqui
-  // Destructure user AND the logout function from AuthContext
-  const { user, logout: authContextLogout } = useAuth(); 
+export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderProps) {
+  const { user, logout: authContextLogout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
@@ -79,7 +79,7 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
     >
       {/* Botão do menu mobile otimizado */}
       <button
-        onClick={toggleMobileSidebar} // Alterado aqui
+        onClick={toggleMobileSidebar}
         className={`
           p-2 rounded-full md:hidden
           ${resolvedTheme === 'dark' 
@@ -95,10 +95,8 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
 
       {/* Logo/Título otimizado */}
       <div className="flex items-center ml-2 md:ml-4">
-        <Link href="/" passHref legacyBehavior>
-          <a className="text-xl font-bold cursor-pointer">            
-            {/* Your Logo or App Name Here */}
-          </a>
+        <Link href="/" className="text-xl font-bold cursor-pointer">
+          {/* Seu Logo ou Nome do App aqui */}
         </Link>
       </div>
 
@@ -266,8 +264,8 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
                   : 'text-blue-600 hover:text-blue-500'
                 }
               `}>
-                <Link href="/notificacoes" legacyBehavior>
-                  <a>Ver todas</a>
+                <Link href="/notificacoes" className="hover:underline">
+                  Ver todas
                 </Link>
               </div>
             </div>
@@ -299,10 +297,12 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
               }
             `}>
               {(user.photoUrl || user.photoURL) ? (
-                <img 
+                <Image 
                   src={user.photoUrl || user.photoURL || ''} 
-                  alt="Avatar" 
-                  className="w-full h-full object-cover" 
+                  alt="Avatar do usuário"
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()
@@ -332,42 +332,35 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
                 }
               `}>
                 <p className="font-medium truncate">{user.name || user.email}</p>
+                <p className="text-sm text-gray-400 truncate">{user.email}</p>
               </div>
               <Link
                 href="/perfil"
-                legacyBehavior
+                className={`
+                  w-full px-4 py-3 text-left flex items-center
+                  ${resolvedTheme === 'dark'
+                    ? 'hover:bg-gray-600 text-gray-200'
+                    : 'hover:bg-gray-100 text-gray-700'
+                  }
+                `}
+                onClick={() => setShowProfileDropdown(false)}
               >
-                <a
-                  className={`
-                    w-full px-4 py-3 text-left flex items-center
-                    ${resolvedTheme === 'dark'
-                      ? 'hover:bg-gray-600 text-gray-200'
-                      : 'hover:bg-gray-100 text-gray-700'
-                    }
-                  `}
-                  onClick={() => setShowProfileDropdown(false)}
-                >
-                  <FiUser className="mr-3" />
-                  Perfil
-                </a>
+                <FiUser className="mr-3" />
+                Perfil
               </Link>
               <Link
                 href="/configuracoes"
-                legacyBehavior
+                className={`
+                  w-full px-4 py-3 text-left flex items-center
+                  ${resolvedTheme === 'dark'
+                    ? 'hover:bg-gray-600 text-gray-200'
+                    : 'hover:bg-gray-100 text-gray-700'
+                  }
+                `}
+                onClick={() => setShowProfileDropdown(false)}
               >
-                <a
-                  className={`
-                    w-full px-4 py-3 text-left flex items-center
-                    ${resolvedTheme === 'dark'
-                      ? 'hover:bg-gray-600 text-gray-200'
-                      : 'hover:bg-gray-100 text-gray-700'
-                    }
-                  `}
-                  onClick={() => setShowProfileDropdown(false)}
-                >
-                  <FiSettings className="mr-3" />
-                  Configurações
-                </a>
+                <FiSettings className="mr-3" />
+                Configurações
               </Link>
               <div className={`
                 px-4 py-3 border-t

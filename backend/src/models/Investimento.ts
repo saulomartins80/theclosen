@@ -6,6 +6,7 @@ export interface IInvestimento extends Document {
         'Criptomoedas' | 'Previdência Privada' | 'ETF' | 'Internacional' | 'Renda Variável';
   valor: number;
   data: Date;
+  userId: Schema.Types.ObjectId; // NOVO CAMPO
 }
 
 const InvestimentoSchema = new Schema({
@@ -39,13 +40,16 @@ const InvestimentoSchema = new Schema({
   },
   data: { 
     type: Date, 
-    required: true // Removida a validação de data futura
-  }
+    required: true 
+  },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // NOVO CAMPO
 }, { 
   timestamps: true,
   versionKey: false
 });
 
 InvestimentoSchema.index({ tipo: 1, data: -1 });
+// Adicionar um índice composto se você frequentemente busca investimentos por usuário e outro critério
+// Exemplo: InvestimentoSchema.index({ userId: 1, tipo: 1 });
 
 export default model<IInvestimento>('Investimento', InvestimentoSchema);

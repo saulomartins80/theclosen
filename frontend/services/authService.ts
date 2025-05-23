@@ -1,11 +1,11 @@
-import { auth, googleProvider } from '../lib/firebase/client';
+import { auth, signInWithGoogle } from '../lib/firebase/client';
 import api from './api';
-import { getAuth, signInWithEmailAndPassword, signOut, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 export const authService = {
   async loginWithGoogle() {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await signInWithGoogle();
       const user = result.user;
       const token = await user.getIdToken();
 
@@ -27,7 +27,6 @@ export const authService = {
   },
 
   async login(email: string, password: string) {
-    const auth = getAuth();
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const token = await userCredential.user.getIdToken();
 
@@ -41,7 +40,6 @@ export const authService = {
   },
 
   async logout() {
-    const auth = getAuth();
     await signOut(auth);
     await api.post('/auth/logout');
   },

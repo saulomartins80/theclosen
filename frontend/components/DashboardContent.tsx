@@ -4,9 +4,10 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useFinance } from "../context/FinanceContext";
 import { useDashboard } from "../context/DashboardContext";
+import { useTheme } from "../context/ThemeContext";
 import Graficos from "../components/Graficos";
 import LoadingSpinner from "../components/LoadingSpinner";
-import { useTheme } from "../context/ThemeContext";
+import  FinanceMarket  from '../components/FinanceMarket';
 
 type TransacaoAdaptada = {
   _id: string | { $oid: string };
@@ -52,13 +53,21 @@ const DashboardContent: React.FC = () => {
   const { user } = useAuth();
   const { transactions, investimentos, loading, error, fetchData } = useFinance();
   const { 
-    marketData, 
-    loadingMarketData, 
-    marketError, 
-    selectedStocks,
-    selectedCryptos,
-    refreshMarketData 
-  } = useDashboard();
+  marketData, 
+  loadingMarketData, 
+  marketError, 
+  selectedStocks,
+  selectedCryptos,
+  selectedCommodities,
+  manualAssets,
+  customIndices, 
+  refreshMarketData,
+  setManualAssets,
+  setSelectedStocks,
+  setSelectedCryptos,
+  setSelectedCommodities,
+  setCustomIndices 
+} = useDashboard();
 
   const getSafeId = (idObj: string | { $oid: string }): string => {
     return typeof idObj === 'string' ? idObj : idObj.$oid;
@@ -114,7 +123,7 @@ const DashboardContent: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-800 dark:text-red-300">
-          Erro: {(error as ApiError)?.message || marketError || "Erro desconhecido"}
+          Erro: {(error as ApiError)?.message || (marketError as ApiError)?.message || "Erro desconhecido"}
         </div>
       </div>
     );
@@ -213,188 +222,31 @@ const DashboardContent: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Seção de Mercado Financeiro */}
+        {/* Componente de Mercado Financeiro */}
         {marketData && (
-          <div className={`rounded-xl shadow overflow-hidden mb-8 ${
-            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-          }`}>
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-xl font-bold">Mercado Financeiro</h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    Atualizado em: {new Date(marketData.lastUpdated).toLocaleTimeString()}
-                  </span>
-                  <button 
-                    onClick={() => refreshMarketData()}
-                    className={`text-sm px-4 py-2 rounded-lg ${
-                      resolvedTheme === "dark" 
-                        ? "bg-blue-700 hover:bg-blue-600 text-white" 
-                        : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                    } transition`}
-                  >
-                    Atualizar
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className={`p-4 rounded-lg ${
-                  resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">IBOVESPA</h3>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      marketData.indices.ibovespa >= 0 
-                        ? resolvedTheme === "dark" 
-                          ? "bg-green-800 text-green-200" 
-                          : "bg-green-100 text-green-800"
-                        : resolvedTheme === "dark" 
-                          ? "bg-red-800 text-red-200" 
-                          : "bg-red-100 text-red-800"
-                    }`}>
-                      {marketData.indices.ibovespa >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices.ibovespa).toFixed(2)}%
-                    </span>
-                  </div>
-                  <p className="text-2xl mt-1 text-gray-900 dark:text-white">
-                    {marketData.indices.ibovespa.toLocaleString('pt-BR')}
-                  </p>
-                </div>
-                
-                <div className={`p-4 rounded-lg ${
-                  resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-                }`}>
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">Dólar</h3>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      marketData.indices.dollar >= 0 
-                        ? resolvedTheme === "dark" 
-                          ? "bg-green-800 text-green-200" 
-                          : "bg-green-100 text-green-800"
-                        : resolvedTheme === "dark" 
-                          ? "bg-red-800 text-red-200" 
-                          : "bg-red-100 text-red-800"
-                    }`}>
-                      {marketData.indices.dollar >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices.dollar).toFixed(2)}%
-                    </span>
-                  </div>
-                  <p className="text-2xl mt-1 text-gray-900 dark:text-white">
-                    {formatCurrency(marketData.indices.dollar)}
-                  </p>
-                </div>
-              </div>
-
-              {marketData.cryptos && marketData.cryptos.length > 0 && (
-                <div className="mb-6">
-                  <div className="mb-4">
-                    <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Criptomoedas</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedCryptos.map(crypto => (
-                        <span 
-                          key={crypto}
-                          className={`px-3 py-1 rounded-full text-sm ${
-                            resolvedTheme === "dark" 
-                              ? "bg-purple-800 text-purple-200" 
-                              : "bg-purple-100 text-purple-800"
-                          }`}
-                        >
-                          {crypto.replace('-USD', '')}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className={`${
-                        resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-                      }`}>
-                        <tr>
-                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Criptomoeda</th>
-                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Preço (USD)</th>
-                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Variação (24h)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {marketData.cryptos.map((crypto) => (
-                          <tr key={crypto.symbol}>
-                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                              {crypto.symbol.replace('-USD', '')}
-                            </td>
-                            <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                              crypto.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                            }`}>
-                              {formatCurrency(crypto.price, 'USD')}
-                            </td>
-                            <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                              crypto.changePercent >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                            }`}>
-                              {crypto.changePercent >= 0 ? '+' : ''}{crypto.changePercent.toFixed(2)}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Ações Selecionadas</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedStocks.map(stock => (
-                      <span 
-                        key={stock}
-                        className={`px-3 py-1 rounded-full text-sm ${
-                          resolvedTheme === "dark" 
-                            ? "bg-blue-800 text-blue-200" 
-                            : "bg-blue-100 text-blue-800"
-                        }`}
-                      >
-                        {stock}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className={`${
-                      resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-                    }`}>
-                      <tr>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ação</th>
-                        <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Preço</th>
-                        <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Variação</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {marketData.stocks.map((stock) => (
-                        <tr key={stock.symbol}>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                            {stock.symbol}
-                          </td>
-                          <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                            stock.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                          }`}>
-                            {formatCurrency(stock.price)}
-                          </td>
-                          <td className={`px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-right ${
-                            stock.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                          }`}>
-                            {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8"
+          >
+            <FinanceMarket
+              marketData={marketData}
+              loadingMarketData={loadingMarketData}
+              marketError={marketError}
+              selectedStocks={selectedStocks}
+              selectedCryptos={selectedCryptos}
+              selectedCommodities={selectedCommodities}
+              manualAssets={manualAssets}
+              customIndices={customIndices}
+              refreshMarketData={refreshMarketData}
+              setManualAssets={setManualAssets}
+              setSelectedStocks={setSelectedStocks}
+              setSelectedCryptos={setSelectedCryptos}
+              setSelectedCommodities={setSelectedCommodities}
+              setCustomIndices={setCustomIndices}
+            />
+          </motion.div>
         )}
 
         {/* Seção de Gráficos - Full Width */}

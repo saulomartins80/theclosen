@@ -2,8 +2,27 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Interface para tipagem segura dos dados de sessão
+interface SessionData {
+  user?: {
+    id: string;
+    email: string;
+    // outros campos do usuário
+  };
+}
+
+// Cache local para tokens (opcional)
+const tokenCache = new Map<string, { valid: boolean; timestamp: number }>();
+
+// Tempo máximo de espera por uma resposta do backend (em ms)
+const BACKEND_TIMEOUT = 5000;
+// Tempo de vida do cache (1 minuto)
+const CACHE_TTL = 60000;
+
+// Rotas públicas (incluindo /demo)
 const publicPaths = [
   '/',
+  '/demo',
   '/auth/login', 
   '/auth/register',
   '/auth/forgot-password',
@@ -13,10 +32,13 @@ const publicPaths = [
   '/api/health'
 ];
 
-// Tempo máximo de espera por uma resposta do backend (em ms)
-const BACKEND_TIMEOUT = 5000;
-
 async function verifyToken(token: string, request: NextRequest): Promise<boolean> {
+  // Verifica no cache primeiro (se estiver dentro do TTL)
+  const cached = tokenCache.get(token);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.valid;
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), BACKEND_TIMEOUT);
 
@@ -36,15 +58,23 @@ async function verifyToken(token: string, request: NextRequest): Promise<boolean
 
     if (!response.ok) {
       console.error('Token verification failed with status:', response.status);
+      tokenCache.set(token, { valid: false, timestamp: Date.now() });
       return false;
     }
 
-    const data = await response.json();
-    return !!data.user;
+    const data: SessionData = await response.json();
+    const isValid = !!data?.user?.id;
+    
+    // Atualiza cache
+    tokenCache.set(token, {
+      valid: isValid,
+      timestamp: Date.now()
+    });
+
+    return isValid;
   } catch (error) {
     clearTimeout(timeoutId);
     
-    // Verificação de tipo segura para TypeScript
     if (error instanceof Error && error.name === 'AbortError') {
       console.error('Token verification timeout');
     } else if (error instanceof Error) {
@@ -53,6 +83,7 @@ async function verifyToken(token: string, request: NextRequest): Promise<boolean
       console.error('Unknown token verification error:', error);
     }
     
+    tokenCache.set(token, { valid: false, timestamp: Date.now() });
     return false;
   }
 }
@@ -73,13 +104,40 @@ function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Ignora rotas públicas, APIs e arquivos estáticos
+  // Ignora rotas públicas, APIs públicas e arquivos estáticos
   if (
     publicPaths.includes(pathname) ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') || 
+    pathname.startsWith('/_next') || 
     pathname.includes('.')
   ) {
+    return NextResponse.next();
+  }
+
+  // APIs privadas exigem autenticação diferente
+  if (pathname.startsWith('/api/private')) {
+    const token = request.headers.get('authorization')?.split(' ')[1];
+    
+    if (!token) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Unauthorized' }), 
+        {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const isValidToken = await verifyToken(token, request);
+    if (!isValidToken) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid token' }), 
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     return NextResponse.next();
   }
 
@@ -102,7 +160,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Verificação do token
+    // Verificação do token para rotas não-API
     const token = request.cookies.get('token')?.value || 
                  request.headers.get('authorization')?.split(' ')[1];
 

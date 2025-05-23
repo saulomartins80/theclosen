@@ -1,15 +1,11 @@
-// lib/firebase/services/auth.ts
 import { 
-  auth, 
-  googleProvider,
-  signInWithPopup,
-  signInWithEmailAndPassword,
+  auth,
+  loginWithEmailAndPassword,
+  loginWithGoogle as firebaseLoginWithGoogle,
   signOut,
-  onAuthStateChanged,
   getIdToken
 } from './client';
 
-// Utility function to handle authentication error messages
 const getAuthErrorMessage = (error: any): string => {
   switch (error.code) {
     case 'auth/user-not-found':
@@ -18,17 +14,28 @@ const getAuthErrorMessage = (error: any): string => {
       return 'Incorrect password.';
     case 'auth/invalid-email':
       return 'Invalid email address.';
+    case 'auth/popup-closed-by-user':
+      return 'Login canceled by user.';
+    case 'auth/account-exists-with-different-credential':
+      return 'Account exists with different credential.';
+    case 'auth/auth-domain-config-required':
+      return 'Auth domain configuration required.';
+    case 'auth/operation-not-allowed':
+      return 'Operation not allowed.';
+    case 'auth/operation-not-supported-in-this-environment':
+      return 'Operation not supported in this environment.';
+    case 'auth/timeout':
+      return 'Timeout occurred.';
     default:
-      return 'An unknown error occurred.';
+      return error.message || 'An unknown error occurred.';
   }
 };
 
 export const loginWithEmail = async (email: string, password: string) => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const token = await userCredential.user.getIdToken();
+    const userCredential = await loginWithEmailAndPassword(email, password); // Usando o nome correto
+    const token = await getIdToken(userCredential.user);
     
-    // Chama seu backend para criar sessão
     const response = await fetch('/api/auth/session', {
       method: 'POST',
       headers: {
@@ -37,6 +44,10 @@ export const loginWithEmail = async (email: string, password: string) => {
       },
       body: JSON.stringify({ token })
     });
+
+    if (!response.ok) {
+      throw new Error('Failed to create session');
+    }
 
     return await response.json();
   } catch (error) {
@@ -46,10 +57,9 @@ export const loginWithEmail = async (email: string, password: string) => {
 
 export const loginWithGoogle = async () => {
   try {
-    const userCredential = await signInWithPopup(auth, googleProvider);
-    const token = await userCredential.user.getIdToken();
+    const userCredential = await loginWithGoogle(); // Usando o nome correto
+    const token = await getIdToken(userCredential.user);
     
-    // Chama seu backend para criar sessão
     const response = await fetch('/api/auth/session', {
       method: 'POST',
       headers: {
@@ -59,7 +69,21 @@ export const loginWithGoogle = async () => {
       body: JSON.stringify({ token })
     });
 
+    if (!response.ok) {
+      throw new Error('Failed to create session');
+    }
+
     return await response.json();
+  } catch (error) {
+    throw new Error(getAuthErrorMessage(error));
+  }
+};
+
+export const logout = async () => {
+  try {
+    await signOut(auth);
+    // Clear session on backend if needed
+    await fetch('/api/auth/logout', { method: 'POST' });
   } catch (error) {
     throw new Error(getAuthErrorMessage(error));
   }

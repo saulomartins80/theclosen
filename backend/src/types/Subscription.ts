@@ -1,5 +1,4 @@
 // src/types/Subscription.ts
-// types/subscription.ts
 export type SubscriptionPlan = 'free' | 'premium' | 'enterprise';
 export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'expired' | 'pending';
 

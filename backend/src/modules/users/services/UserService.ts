@@ -41,6 +41,19 @@ export class UserService {
     };
   }
 
+  private createTrialSubscription(firebaseUid: string): ISubscription {
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 3); // 3 dias de trial
+
+    return {
+      plan: 'trial', // Novo plano para indicar o período de teste
+      status: 'trialing', // Novo status para indicar que está em teste
+      expiresAt: trialEndDate, // O trial expira e a "assinatura" expira neste ponto
+      trialEndsAt: trialEndDate, // Data explícita de término do trial
+      subscriptionId: `trial_${firebaseUid}_${Date.now()}`
+    };
+  }
+
   async register(userData: {
     name: string;
     email: string;
@@ -56,12 +69,7 @@ export class UserService {
         displayName: userData.name
       });
 
-      const initialMongoSubscription: ISubscription = {
-        plan: 'free',
-        status: 'active',
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        subscriptionId: `free_${firebaseUser.uid}_${Date.now()}`
-      };
+      const initialMongoSubscription = this.createTrialSubscription(firebaseUser.uid);
 
       const user = await this.userRepository.create({
         name: userData.name,
@@ -108,12 +116,7 @@ export class UserService {
       if (!email) throw new AppError(400, 'Email não disponível no token do Google');
       let user = await this.userRepository.findByFirebaseUid(uid);
       if (!user) {
-        const initialMongoSubscription: ISubscription = {
-          plan: 'free',
-          status: 'active',
-          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-          subscriptionId: `free_${uid}_${Date.now()}`
-        };
+        const initialMongoSubscription = this.createTrialSubscription(uid);
         user = await this.userRepository.create({
           firebaseUid: uid,
           email,
@@ -240,6 +243,7 @@ export class UserService {
 
   async updateSubscription(firebaseUid: string, subscriptionData: Partial<ISubscription>): Promise<IUserProfile> {
     const subDataToUpdate: Partial<ISubscription> = { ...subscriptionData };
+    // Adicionar validação para os novos campos de trial se necessário ao atualizar diretamente
     if (subscriptionData.status && !['active', 'canceled', 'expired', 'pending', 'trialing'].includes(subscriptionData.status)) {
         throw new AppError(400, `Status de assinatura inválido: ${subscriptionData.status}`);
     }
@@ -255,12 +259,13 @@ export class UserService {
       throw new AppError(400, 'Firebase UID e plano são obrigatórios.');
     }
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + 30); // Mantido como 30 dias para este método específico, pode ajustar se necessário
 
     const subscriptionDetails: ISubscription = {
-      plan: plan,
-      status: 'active',
+      plan: plan, // O plano que será testado
+      status: 'trialing', // Pode ser 'trialing' ou 'active' dependendo da lógica de negócio
       expiresAt: expiresAt,
+      trialEndsAt: expiresAt, // Se for um teste, trialEndsAt é crucial
       subscriptionId: `test_${plan}_${firebaseUid}_${Date.now()}`,
     };
 
@@ -272,11 +277,10 @@ export class UserService {
   }
 
   private async generateTokens(user: IUser): Promise<{ token: string; firebaseToken: string }> {
-    // Log adicionado para verificar o valor de APP_JWT_SECRET antes de usá-lo
     console.log(`[UserService/generateTokens] Tentando ler process.env.APP_JWT_SECRET: "${process.env.APP_JWT_SECRET}"`);
     const jwtSecret = process.env.APP_JWT_SECRET;
     if (!jwtSecret) {
-        console.error('CRÍTICO: APP_JWT_SECRET não definido (dentro do if).'); // Modificado para clareza
+        console.error('CRÍTICO: APP_JWT_SECRET não definido (dentro do if).');
         throw new AppError(500, 'Configuração interna do servidor ausente (JWT Secret).');
     }
     const tokenPayload = { id: user.id, email: user.email, uid: user.firebaseUid };

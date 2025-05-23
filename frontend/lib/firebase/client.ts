@@ -1,76 +1,86 @@
-// lib/firebase/client.ts
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { 
   getAuth,
+  initializeAuth,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithEmailAndPassword,
-  signOut,
+  type UserCredential,
+  type Auth,
+  signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword,
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   getIdToken,
-  type User as FirebaseUser,
-  type UserCredential,
-  type AuthError
+  browserPopupRedirectResolver,
+  browserLocalPersistence
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc,
-  type DocumentData,
-  type DocumentReference
-} from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 
-// Configuração do Firebase para o cliente (frontend)
-export const firebaseConfig = {
+
+const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID // Opcional
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Inicializa o app Firebase
-const app = initializeApp(firebaseConfig);
+let app: FirebaseApp;
+let auth: Auth;
+let db: ReturnType<typeof getFirestore>;
 
-// Exporta os serviços
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
+const initializeFirebase = () => {
+  if (typeof window !== 'undefined') {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+      auth = initializeAuth(app, {
+        persistence: browserLocalPersistence
+      });
+      db = getFirestore(app);
+    } else {
+      app = getApps()[0];
+      auth = getAuth(app);
+      db = getFirestore(app);
+    }
+  } else {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
+};
 
-// Configuração adicional para o GoogleAuthProvider
-googleProvider.setCustomParameters({
-  prompt: 'select_account', // Força a seleção de conta sempre
-});
+initializeFirebase();
 
-// Exporta funções úteis do Firestore
+export const loginWithGoogle = async (): Promise<UserCredential> => {
+  if (!auth) {
+    throw new Error('Firebase Auth not initialized');
+  }
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account'
+  });
+  
+  try {
+    const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
+    return result; // Garantindo que retornamos UserCredential
+  } catch (error) {
+    console.error('Google sign-in error:', error);
+    throw error;
+  }
+};
+
+export const loginWithEmailAndPassword = (email: string, password: string) => {
+  if (!auth) throw new Error('Firebase Auth not initialized');
+  return firebaseSignInWithEmailAndPassword(auth, email, password);
+};
+
 export { 
-  collection,
-  doc,
-  setDoc,
-  getDoc
+  app, 
+  auth, 
+  db, 
+  firebaseSignOut as signOut, 
+  onAuthStateChanged, 
+  getIdToken
 };
-
-// Exporta funções e tipos de autenticação
-export { 
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  getIdToken,
-  type FirebaseUser,
-  type UserCredential,
-  type AuthError
-};
-
-// Exporta tipos do Firestore
-export type { 
-  DocumentData, 
-  DocumentReference 
-};
-
-// Exporta a instância do app
-export default app;
