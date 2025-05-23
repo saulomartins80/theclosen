@@ -80,114 +80,101 @@ router.post('/verify-token',
   asyncHandler((req, res, next) => userController.verifyToken(req, res, next)) // verifyToken no controller agora espera req, res, next
 );
 
-router.post('/session', asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  console.log('--- DEBUG: Inside POST /api/auth/session handler ---');
-  console.log('POST /api/auth/session received.');
-  console.log('Request Content-Type:', req.headers['content-type']);
-  console.log('Type of req.body:', typeof req.body);
-  console.log('Value of req.body:', req.body);
-
+router.post('/session', asyncHandler(async (req: Request, res: Response) => {
   try {
-    const bodyToken = (typeof req.body === 'object' && req.body !== null && 'token' in req.body)
-      ? req.body.token as string
-      : undefined;
+    const token = req.body.token;
+    if (!token) throw new AppError(400, 'Token necessário');
 
-    console.log('Token from body (explicit check):', bodyToken);
-
-    const token = req.cookies.token || 
-                 req.headers.authorization?.split(' ')[1] || 
-                 bodyToken;
-
-    console.log('Final Extracted Token (before verifyIdToken):', token);
-
-    if (!token) {
-      console.log('No token found. Returning user: null.');
-      res.status(200).json({ user: null });
-      return; 
+    // Adiciona tolerância para expiração do token
+    let decodedToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token, true);
+    } catch (error: any) {
+      if (error.code === 'auth/id-token-expired') {
+        // Solicitar novo token ao frontend
+        res.status(401).json({
+          error: 'Token expirado',
+          code: 'TOKEN_EXPIRED'
+        });
+        return;
+      }
+      throw error;
     }
 
-    console.log('Verifying token with Firebase Admin...');
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    console.log('Token verified. Firebase UID:', decodedToken.uid);
-    
-    // --- MODIFICATION: Fetch user from MongoDB using UserService ---
+    // Busca usuário no MongoDB pelo Firebase UID
     const mongoUser = await userService.getUserByFirebaseUid(decodedToken.uid);
 
     if (!mongoUser) {
-      // User exists in Firebase but not in MongoDB. This is an issue.
-      // Should this create a user in MongoDB? Or is it an error?
-      // For now, treating as an error to prevent partial sessions.
-      console.error(`User with Firebase UID ${decodedToken.uid} found in Firebase but not in MongoDB.`);
-      // Clear cookies and return error like in the main catch block
       res.setHeader('Set-Cookie', [
         'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
         'user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
       ]);
-      res.status(404).json({ 
-          user: null, 
-          error: 'Usuário autenticado via Firebase não encontrado em nossa base de dados.'
-      }); 
+      res.status(404).json({
+        user: null,
+        error: 'Usuário autenticado via Firebase não encontrado em nossa base de dados.'
+      });
       return;
-    }
-    console.log('MongoDB user found:', mongoUser.email, 'Name:', mongoUser.name);
-    // --- END MODIFICATION ---
-
-    // Subscription is now part of mongoUser, no need to call subscriptionService separately here.
-    const subscription = mongoUser.subscription;
-    if (subscription) {
-      console.log('Subscription found on MongoDB user object.', subscription);
-    } else {
-      console.log('No subscription found on MongoDB user object.');
     }
 
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', 
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       path: '/',
       maxAge: 60 * 60 * 24 * 5 // 5 dias
     };
 
-    console.log('Setting cookies.');
-    // User cookie for frontend should contain data from MongoDB
     const userCookiePayload = {
-        uid: mongoUser.firebaseUid, // Firebase UID
-        email: mongoUser.email,     // Email from MongoDB
-        name: mongoUser.name,       // Name from MongoDB
-        photoUrl: mongoUser.photoUrl // Photo URL from MongoDB
+      uid: mongoUser.firebaseUid,
+      email: mongoUser.email,
+      name: mongoUser.name,
+      photoUrl: mongoUser.photoUrl
     };
 
     res.setHeader('Set-Cookie', [
-      `token=${token}; ${Object.entries(cookieOptions)
-        .map(([k, v]) => `${k}=${v}`)
-        .join('; ')}`,
+      `token=${token}; ${Object.entries(cookieOptions).map(([k, v]) => `${k}=${v}`).join('; ')}`,
       `user=${encodeURIComponent(JSON.stringify(userCookiePayload))}; ${Object.entries({
         ...cookieOptions,
         httpOnly: false
       }).map(([k, v]) => `${k}=${v}`).join('; ')}`
     ]);
 
-    console.log('Session sync successful. Returning user data from MongoDB.');
     res.status(200).json({
-      user: { // Return user data from MongoDB
+      user: {
         uid: mongoUser.firebaseUid,
         email: mongoUser.email,
         name: mongoUser.name,
         photoUrl: mongoUser.photoUrl,
-        subscription: mongoUser.subscription // Subscription from MongoDB user
+        subscription: mongoUser.subscription
       }
-    }); 
-
-  } catch (error) {
-    console.error('Session sync error caught in handler:', error);
+    });
+    return;
+  } catch (error: any) {
+    // Limpa cookies em caso de erro
     res.setHeader('Set-Cookie', [
       'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly',
       'user=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
     ]);
-    res.status(200).json({ 
+
+    let statusCode = 500;
+    let errorMessage = 'Erro interno ao sincronizar sessão.';
+
+    if (error instanceof AppError) {
+      statusCode = error.statusCode;
+      errorMessage = error.message;
+    } else if (error.code === 'auth/id-token-expired') {
+      statusCode = 401;
+      errorMessage = 'Token expirado';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    res.status(statusCode).json({
       user: null,
-      error: error instanceof Error ? error.message : 'Session sync error'
-    }); 
+      error: errorMessage,
+      code: error.code || undefined
+    });
+    return;
   }
 }));
 

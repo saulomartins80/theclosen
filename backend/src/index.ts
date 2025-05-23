@@ -21,6 +21,8 @@ import investimentoRouter from './routes/investimentoRoutes';
 import userRouter from './routes/userRoutes';
 import subscriptionRouter from './routes/subscriptionRoutes';
 import authRoutes from './routes/authRoutes'; 
+import marketDataRoutes from './routes/marketDataRoutes'; 
+//import weatherRoutes from './routes/weatherRoutes';
 
 interface HealthCheckResponse {
   status: 'OK' | 'PARTIAL' | 'FAIL';
@@ -236,6 +238,8 @@ app.use("/api/investimentos", investimentoRouter);
 app.use("/api/users", userRouter);
 app.use("/api/subscriptions", subscriptionRouter);
 app.use('/api/auth', authRoutes);
+app.use('/api/market-data', marketDataRoutes);
+//app.use('/api/weather', weatherRoutes);
 
 app.use(errorHandler as express.ErrorRequestHandler);
 

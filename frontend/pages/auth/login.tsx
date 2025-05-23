@@ -1,10 +1,10 @@
-// pages/auth/login.tsx
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/router';
-import { FiMail, FiLock, FiLoader, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
+import { FiMail, FiLock, FiLoader, FiAlertCircle, FiArrowRight, FiCheck } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
+import { motion } from 'framer-motion';
 import { usePreloadCheck } from '../../src/hooks/usePreloadCheck';
 
 export default function LoginPage() {
@@ -12,19 +12,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidEmail, setIsValidEmail] = useState(false);
   const { user, loading, login, loginWithGoogle } = useAuth();
   const router = useRouter();
   const { redirect } = router.query;
   const isPreloading = usePreloadCheck();
 
+  // Efeitos para validação em tempo real
+  useEffect(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    setIsValidEmail(emailRegex.test(email));
+  }, [email]);
+
+  // Redirecionamento se já estiver logado
   useEffect(() => {
     if (isPreloading) return;
     if (user && !loading) {
       router.push(typeof redirect === 'string' ? redirect : '/dashboard');
     }
   }, [user, loading, router, redirect, isPreloading]);
-
-  if (isPreloading || !router.isReady) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +41,7 @@ export default function LoginPage() {
       await login(email, password);
     } catch (err: unknown) {
       console.error('Login error:', err);
-      setError('Credenciais inválidas. Tente novamente.');
+      setError('Credenciais inválidas. Por favor, verifique seus dados.');
     } finally {
       setIsLoading(false);
     }
@@ -47,143 +53,187 @@ export default function LoginPage() {
       await loginWithGoogle();
     } catch (err: unknown) {
       console.error('Google login error:', err);
-      setError('Falha ao entrar com Google');
+      setError('Falha ao entrar com Google. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isPreloading) return null;
-  if (loading || user) {
+  if (isPreloading || loading || user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-12 w-12 rounded-full border-t-2 border-b-2 border-blue-500"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900">
-      <div className="w-full max-w-md p-8 rounded-xl shadow-lg bg-white dark:bg-gray-800">
-        {/* Cabeçalho */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Bem-vindo de volta</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Acesse sua conta para continuar
-          </p>
-        </div>
-
-        {/* Mensagem de erro */}
-        {error && (
-          <div className="flex items-center gap-2 p-3 mb-6 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
-            <FiAlertCircle className="text-red-700 dark:text-red-300" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Campo de Email */}
-          <div>
-            <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Email
-            </label>
-            <div className="flex items-center border rounded-lg overflow-hidden bg-white border-gray-300 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus-within:border-blue-500">
-              <span className="px-3 text-gray-500 dark:text-gray-400">
-                <FiMail />
-              </span>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full py-3 px-2 outline-none bg-transparent text-gray-900 dark:text-white"
-                placeholder="seu@email.com"
-                required
-              />
-            </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        {/* Card de Login */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          {/* Cabeçalho com gradiente */}
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-center">
+            <h1 className="text-3xl font-bold text-white">Acesse sua conta</h1>
+            <p className="text-blue-100 mt-2">
+              Gerencie seus investimentos e finanças pessoais
+            </p>
           </div>
 
-          {/* Campo de Senha */}
-          <div>
-            <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-              Senha
-            </label>
-            <div className="flex items-center border rounded-lg overflow-hidden bg-white border-gray-300 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus-within:border-blue-500">
-              <span className="px-3 text-gray-500 dark:text-gray-400">
-                <FiLock />
-              </span>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full py-3 px-2 outline-none bg-transparent text-gray-900 dark:text-white"
-                placeholder="••••••••"
-                minLength={6}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Link para esqueci a senha */}
-          <div className="flex justify-end">
-            <Link 
-              href="/auth/forgot-password" 
-              className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              Esqueceu a senha?
-            </Link>
-          </div>
-
-          {/* Botão de Login */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-700"
-          >
-            {isLoading ? (
-              <>
-                <FiLoader className="animate-spin" />
-                Carregando...
-              </>
-            ) : (
-              <>
-                Entrar
-                <FiArrowRight />
-              </>
+          {/* Conteúdo do formulário */}
+          <div className="p-8">
+            {/* Mensagem de erro */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+              >
+                <FiAlertCircle className="flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </motion.div>
             )}
-          </button>
-        </form>
 
-        {/* Divisor */}
-        <div className="flex items-center my-6">
-          <div className="flex-1 h-px bg-gray-300 dark:bg-gray-700"></div>
-          <span className="px-3 text-sm text-gray-500 dark:text-gray-400">ou</span>
-          <div className="flex-1 h-px bg-gray-300 dark:bg-gray-700"></div>
+            {/* Formulário */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Campo de Email */}
+              <div>
+                <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Endereço de Email
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiMail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`block w-full pl-10 pr-3 py-3 rounded-lg border ${isValidEmail && email ? 'border-green-500' : 'border-gray-300 dark:border-gray-600'} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white`}
+                    placeholder="seu@email.com"
+                    required
+                  />
+                  {isValidEmail && email && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                      <FiCheck className="h-5 w-5 text-green-500" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Campo de Senha */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Senha
+                  </label>
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Esqueceu a senha?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiLock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="••••••••"
+                    minLength={6}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Botão de Login */}
+              <motion.button
+                type="submit"
+                disabled={isLoading}
+                whileHover={!isLoading ? { scale: 1.02 } : {}}
+                whileTap={!isLoading ? { scale: 0.98 } : {}}
+                className="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium shadow-lg transition-all"
+              >
+                {isLoading ? (
+                  <>
+                    <FiLoader className="animate-spin" />
+                    Carregando...
+                  </>
+                ) : (
+                  <>
+                    Acessar minha conta
+                    <FiArrowRight />
+                  </>
+                )}
+              </motion.button>
+            </form>
+
+            {/* Divisor */}
+            <div className="my-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300 dark:border-gray-700" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                    Ou continue com
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botão do Google */}
+            <motion.button
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              whileHover={!isLoading ? { scale: 1.02 } : {}}
+              whileTap={!isLoading ? { scale: 0.98 } : {}}
+              className="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300 shadow-sm"
+            >
+              <FcGoogle size={20} />
+              Continuar com Google
+            </motion.button>
+          </div>
+
+          {/* Rodapé do card */}
+          <div className="px-8 py-4 bg-gray-50 dark:bg-gray-700/50 text-center border-t border-gray-200 dark:border-gray-700">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">
+              Não tem uma conta?{' '}
+              <Link 
+                href="/auth/register" 
+                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                Cadastre-se agora
+              </Link>
+            </p>
+          </div>
         </div>
 
-        {/* Botão do Google */}
-        <button
-          onClick={handleGoogleLogin}
-          disabled={isLoading}
-          className="w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300"
-        >
-          <FcGoogle size={20} />
-          Continuar com Google
-        </button>
-
-        {/* Link para cadastro */}
-        <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          Não tem uma conta?{' '}
+        {/* Links adicionais */}
+        <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
           <Link 
-            href="/auth/register" 
-            className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+            href="/" 
+            className="hover:text-gray-700 dark:hover:text-gray-300"
           >
-            Cadastre-se
+            ← Voltar para a página inicial
           </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

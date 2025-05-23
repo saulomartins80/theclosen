@@ -5,27 +5,27 @@ import {
   updateTransacao,
   deleteTransacao
 } from "../controllers/transacoesController";
+import { authenticate } from "../middlewares/authMiddleware"; // Importar o middleware
+import { asyncHandler } from "../utils/asyncHandler"; // Importar o asyncHandler
 
 const router = express.Router();
 
-// Rota para criar transação
-router.post("/", async (req, res) => {
-  await createTransacao(req, res);
-});
+// Aplicar authenticate a todas as rotas que precisam de usuário logado
+// Envolver cada controlador com asyncHandler
 
-// Rota para listar transações
-router.get("/", async (req, res) => {
-  await getTransacoes(req, res);
-});
+// Rota para criar transação (protegida)
+router.post("/", authenticate, asyncHandler(createTransacao));
 
-// Rota para atualizar transação
-router.put("/:id", async (req, res) => {
-  await updateTransacao(req, res);
-});
+// Rota para listar transações (protegida)
+router.get("/", authenticate, asyncHandler(getTransacoes));
 
-// Rota para deletar transação
-router.delete("/:id", async (req, res) => {
-  await deleteTransacao(req, res);
-});
+// Rota para buscar uma única transação por ID (se você tiver uma - esta rota não existia, mas é comum)
+// router.get("/:id", authenticate, asyncHandler(getTransacaoById)); // Exemplo
+
+// Rota para atualizar transação (protegida)
+router.put("/:id", authenticate, asyncHandler(updateTransacao));
+
+// Rota para deletar transação (protegida)
+router.delete("/:id", authenticate, asyncHandler(deleteTransacao));
 
 export default router;

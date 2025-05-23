@@ -1,3 +1,4 @@
+// context/DashboardContext.tsx
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 interface StockData {
@@ -18,16 +19,17 @@ interface CryptoData {
   currency: string;
 }
 
-interface MarketIndices {
-  ibovespa: number;
-  dollar: number;
-}
-
 interface MarketData {
-  indices: MarketIndices;
   stocks: StockData[];
   cryptos: CryptoData[];
+  indices: Record<string, number>;
+  commodities: StockData[];
   lastUpdated: string;
+}
+
+interface CustomIndex {
+  symbol: string;
+  name: string;
 }
 
 interface DashboardContextType {
@@ -36,46 +38,27 @@ interface DashboardContextType {
   marketError: string | null;
   selectedStocks: string[];
   selectedCryptos: string[];
+  selectedCommodities: string[];
+  manualAssets: string[];
+  customIndices: CustomIndex[];
+  refreshMarketData: (options?: { silent?: boolean }) => Promise<void>;
+  setManualAssets: (assets: string[]) => void;
   setSelectedStocks: (stocks: string[]) => void;
   setSelectedCryptos: (cryptos: string[]) => void;
-  refreshMarketData: (options?: { silent?: boolean }) => Promise<void>;
+  setSelectedCommodities: (commodities: string[]) => void;
+  setCustomIndices: (indices: CustomIndex[]) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
+// Valores padrão
 const DEFAULT_STOCKS = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'BBAS3.SA'];
 const DEFAULT_CRYPTOS = ['BTC-USD', 'ETH-USD', 'SOL-USD'];
-
-function isAbortError(error: unknown): error is DOMException {
-  return error instanceof DOMException && error.name === 'AbortError';
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  if (typeof error === 'object' && error !== null && 'message' in error) return String((error as { message: unknown }).message);
-  return 'Unknown market data error';
-}
-
-function getFallbackMarketData(): MarketData {
-  return {
-    stocks: [],
-    cryptos: [],
-    indices: { ibovespa: 0, dollar: 0 },
-    lastUpdated: new Date().toISOString()
-  };
-}
-
-function isValidMarketData(data: unknown): data is MarketData {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'stocks' in data &&
-    'cryptos' in data &&
-    'indices' in data &&
-    'lastUpdated' in data
-  );
-}
+const DEFAULT_COMMODITIES = ['GC=F']; // Ouro
+const DEFAULT_CUSTOM_INDICES = [
+  { symbol: '^BVSP', name: 'IBOVESPA' },
+  { symbol: 'BRL=X', name: 'Dólar Americano' }
+];
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
@@ -83,6 +66,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [marketError, setMarketError] = useState<string | null>(null);
   const [selectedStocks, setSelectedStocks] = useState<string[]>(DEFAULT_STOCKS);
   const [selectedCryptos, setSelectedCryptos] = useState<string[]>(DEFAULT_CRYPTOS);
+  const [selectedCommodities, setSelectedCommodities] = useState<string[]>(DEFAULT_COMMODITIES);
+  const [manualAssets, setManualAssets] = useState<string[]>([]);
+  const [customIndices, setCustomIndices] = useState<CustomIndex[]>(DEFAULT_CUSTOM_INDICES);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const refreshMarketData = useCallback(async ({ silent = false } = {}) => {
@@ -103,12 +89,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify({
           symbols: selectedStocks,
           cryptos: selectedCryptos,
-          indices: ['^BVSP', 'BRL=X']
+          commodities: selectedCommodities,
+          manualAssets,
+          customIndices: customIndices.map(index => index.symbol)
         }),
         signal: controller.signal
       });
@@ -121,25 +108,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       const data = await response.json();
-      
-      if (!isValidMarketData(data)) {
-        throw new Error('Invalid market data structure received from API');
-      }
-
       setMarketData(data);
     } catch (error: unknown) {
-      if (!isAbortError(error)) {
-        const errorMessage = getErrorMessage(error);
-        console.error('Fetch error:', errorMessage);
-        if (!silent) setMarketError(errorMessage);
-        setMarketData(prev => prev || getFallbackMarketData());
+      if (!silent) {
+        setMarketError(error instanceof Error ? error.message : 'Unknown error');
+        setMarketData(prev => prev || {
+          stocks: [],
+          cryptos: [],
+          indices: {},
+          commodities: [],
+          lastUpdated: new Date().toISOString()
+        });
       }
     } finally {
-      if (!controller.signal.aborted && !silent) {
+      if (!silent) {
         setLoadingMarketData(false);
       }
     }
-  }, [selectedStocks, selectedCryptos]);
+  }, [selectedStocks, selectedCryptos, selectedCommodities, manualAssets, customIndices]);
 
   useEffect(() => {
     refreshMarketData();
@@ -156,9 +142,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     marketError,
     selectedStocks,
     selectedCryptos,
+    selectedCommodities,
+    manualAssets,
+    customIndices,
+    refreshMarketData,
+    setManualAssets,
     setSelectedStocks,
     setSelectedCryptos,
-    refreshMarketData
+    setSelectedCommodities,
+    setCustomIndices
   };
 
   return (
@@ -170,6 +162,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
 export const useDashboard = (): DashboardContextType => {
   const context = useContext(DashboardContext);
-  if (context === undefined) throw new Error('useDashboard must be used within a DashboardProvider');
+  if (context === undefined) {
+    throw new Error('useDashboard must be used within a DashboardProvider');
+  }
   return context;
 };

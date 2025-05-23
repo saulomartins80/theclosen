@@ -8,31 +8,24 @@ import TransactionTable from "../components/TransactionTable";
 import TransactionForm from "../components/TransactionForm";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Transacao, NovaTransacaoPayload } from '../types/Transacao';
+import { Transacao, NovaTransacaoPayload, AtualizarTransacaoPayload } from '../types/Transacao';
 import { useTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext"; // Importar useAuth para pegar dados do usuário
+import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Transacoes = () => {
-  const { user } = useAuth(); // Pegar o usuário para o cabeçalho do PDF
+  const { user } = useAuth();
   const { resolvedTheme } = useTheme(); 
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<{
-    descricao: string;
-    valor: string;
-    data: string;
-    categoria: string;
-    tipo: "receita" | "despesa" | "transferencia";
-    conta: string;
-  }>({
+  const [formData, setFormData] = useState({
     descricao: "",
     valor: "",
     data: new Date().toISOString().split('T')[0],
     categoria: "",
-    tipo: "receita",
+    tipo: "receita" as "receita" | "despesa" | "transferencia",
     conta: "",
   });
 
@@ -120,22 +113,24 @@ const Transacoes = () => {
         return;
       }
   
-      const payload = {
+      const payload: NovaTransacaoPayload = {
         descricao: formData.descricao.trim(),
         valor: valorNumerico,
         categoria: formData.categoria.trim(),
         tipo: formData.tipo,
         conta: formData.conta.trim(),
-        data: { $date: dataObj.toISOString() } 
+        data: { $date: dataObj.toISOString() }
       };
-      
-      const { _id, ...payloadWithoutId } = payload as any;
-
+  
       if (editingId) {
-        await transacaoAPI.update(editingId, payloadWithoutId as NovaTransacaoPayload);
+        const updatePayload: AtualizarTransacaoPayload = {
+          ...payload,
+          data: payload.data
+        };
+        await transacaoAPI.update(editingId, updatePayload);
         toast.success("Transação atualizada!");
       } else {
-        await transacaoAPI.create(payload as NovaTransacaoPayload);
+        await transacaoAPI.create(payload);
         toast.success("Transação criada!");
       }
   
@@ -171,13 +166,14 @@ const Transacoes = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
 
-    const textColor = resolvedTheme === "dark" ? [229, 231, 235] : [17, 24, 39]; // Corrigido para gray-100 e gray-900
-    const mutedTextColor = resolvedTheme === "dark" ? [156, 163, 175] : [75, 85, 99]; // Corrigido para gray-400 e gray-600
-    const backgroundColor = resolvedTheme === "dark" ? [31, 41, 55] : [255, 255, 255]; // Corrigido para gray-800 e white
-    const tableHeaderColor = resolvedTheme === "dark" ? [55, 65, 81] : [243, 244, 246]; // Corrigido para gray-700 e gray-100
-    const tableRowLight = resolvedTheme === "dark" ? [31, 41, 55] : [255, 255, 255]; // gray-800 / white
-    const tableRowDark = resolvedTheme === "dark" ? [42, 52, 65] : [249, 250, 251]; // Um pouco mais escuro/claro para alternar (gray-700/gray-50)
-    const borderColor = resolvedTheme === "dark" ? [75, 85, 99] : [229, 231, 235]; // gray-600 / gray-200
+    // Definir cores como arrays RGB com exatamente 3 valores
+    const textColor: [number, number, number] = resolvedTheme === "dark" ? [229, 229, 229] : [17, 17, 17];
+    const mutedTextColor: [number, number, number] = resolvedTheme === "dark" ? [156, 156, 156] : [75, 75, 75];
+    const backgroundColor: [number, number, number] = resolvedTheme === "dark" ? [31, 41, 55] : [255, 255, 255];
+    const tableHeaderColor: [number, number, number] = resolvedTheme === "dark" ? [55, 65, 81] : [243, 244, 246];
+    const tableRowLight: [number, number, number] = resolvedTheme === "dark" ? [31, 41, 55] : [255, 255, 255];
+    const tableRowDark: [number, number, number] = resolvedTheme === "dark" ? [42, 52, 65] : [249, 249, 249];
+    const borderColor: [number, number, number] = resolvedTheme === "dark" ? [75, 85, 99] : [229, 229, 229];
 
     // Fundo da página
     doc.setFillColor(backgroundColor[0], backgroundColor[1], backgroundColor[2]);
@@ -212,9 +208,9 @@ const Transacoes = () => {
         t.categoria,
         t.tipo.charAt(0).toUpperCase() + t.tipo.slice(1)
       ]),
-      theme: 'grid', // Mantém a estrutura de grade
+      theme: 'grid',
       styles: {
-        fillColor: tableRowLight, // Fundo padrão das células
+        fillColor: tableRowLight,
         textColor: textColor,
         lineColor: borderColor,
         lineWidth: 0.1,
@@ -229,8 +225,8 @@ const Transacoes = () => {
         lineColor: borderColor,
       },
       alternateRowStyles: {
-        fillColor: tableRowDark, // Fundo das linhas alternadas
-        textColor: textColor, // Garante que o texto seja legível nas linhas alternadas
+        fillColor: tableRowDark,
+        textColor: textColor,
       },
       tableLineColor: borderColor, 
       tableLineWidth: 0.1,
@@ -310,6 +306,7 @@ const Transacoes = () => {
                   console.error(error);
                 }
               }}
+              theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
             />
           ) : (
             <div className={`p-6 text-center ${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>

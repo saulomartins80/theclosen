@@ -6,6 +6,7 @@ export interface ISubscription {
     plan: string;
     status: 'active' | 'canceled' | 'expired' | 'pending' | 'trialing';
     expiresAt?: Date; 
+    trialEndsAt?: Date; // Adicionado para data de término do trial
     subscriptionId?: string; 
     // Outros campos opcionais
     // currentPeriodStart?: Date;
@@ -25,6 +26,9 @@ export interface IUser extends Document {
         notifications?: boolean;
     };
     subscription?: ISubscription; 
+    transacoes?: any[]; // Adicionado para transações
+    metas?: any[];      // Adicionado para metas
+    investimentos?: any[];// Adicionado para investimentos
     createdAt?: Date; 
     updatedAt?: Date; 
 }
@@ -47,19 +51,20 @@ const userSchema = new Schema<IUser>(
             notifications: { type: Boolean, default: true },
         },
         subscription: {
-            plan: { type: String, required: false }, // Tornando opcional para cobrir casos onde pode não ser definido imediatamente
+            plan: { type: String, required: false },
             status: { 
                 type: String, 
                 enum: ['active', 'canceled', 'expired', 'pending', 'trialing'],
                 default: 'pending',
-                required: false // Tornando opcional
+                required: false
             },
             expiresAt: { type: Date, required: false },
+            trialEndsAt: { type: Date, required: false }, // Adicionado para data de término do trial
             subscriptionId: { type: String, required: false },
-            // currentPeriodStart: { type: Date, required: false },
-            // currentPeriodEnd: { type: Date, required: false },
-            // paymentGateway: { type: String, enum: ['stripe', 'paypal', 'internal_test'], required: false },
         },
+        transacoes: { type: Array, default: [] }, // Adicionado para transações
+        metas: { type: Array, default: [] },      // Adicionado para metas
+        investimentos: { type: Array, default: [] },// Adicionado para investimentos
     },
     { 
         timestamps: true,
@@ -68,8 +73,10 @@ const userSchema = new Schema<IUser>(
     }
 );
 
-userSchema.virtual('id').get(function(this: IUser) { 
-    return (this._id as mongoose.Types.ObjectId).toHexString(); 
+userSchema.virtual('id').get(function(this: IUser) {
+    return (this._id as mongoose.Types.ObjectId).toHexString();
 });
 
-export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
+const User = mongoose.model<IUser>('User', userSchema);
+
+export { User };

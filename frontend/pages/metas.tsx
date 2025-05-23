@@ -7,6 +7,8 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, LinearScale, BarElement,
 import { Pie, Bar } from 'react-chartjs-2';
 import CountUp from 'react-countup';
 import ProgressBar from "@ramonak/react-progress-bar";
+import api, { metaAPI } from '../services/api';
+import { getAuth } from 'firebase/auth';
 
 ChartJS.register(ArcElement, Tooltip, Legend, LinearScale, BarElement, CategoryScale);
 
@@ -17,10 +19,11 @@ interface Meta {
   valor_total: number;
   valor_atual: number;
   data_conclusao: string;
-  userId: string;
+  userId: string; // Mantido no tipo, mas o backend que gerencia ao salvar
   createdAt?: string;
   categoria?: string;
   prioridade?: 'baixa' | 'media' | 'alta';
+  concluida?: boolean;
 }
 
 interface DadosCategoria {
@@ -49,33 +52,37 @@ const MetasDashboard = () => {
     expandedMeta: null as string | null
   });
 
-  // Busca metas
+  // Busca metas (AGORA USANDO metaAPI)
   const fetchMetas = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:5000/api/goals");
-      const data = await response.json();
-      setMetas(data.metas || []);
+      const metasList = await metaAPI.getAll(); // Usa o método getAll do serviço
+      setMetas(metasList);
     } catch (error) {
-      toast.error("Erro ao buscar metas");
+      console.error("Erro ao buscar metas:", error);
+      // Tratamento de erro mais específico do Axios no serviço já ajuda,
+      // mas aqui ainda podemos mostrar um toast genérico se necessário.
+      const errorMessage = (error as any).response?.data?.message || (error as any).message || "Erro ao buscar metas";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Busca progresso por categoria
+  // Busca progresso por categoria (AGORA USANDO a instância 'api')
   const fetchProgressoPorCategoria = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/goals/progress-by-category");
-      const data = await response.json();
-      setDadosCategorias(data);
+      // Usa a instância 'api' diretamente, que já tem o interceptor de autenticação
+      const response = await api.get("/api/goals/progress-by-category");
+      setDadosCategorias(response.data);
     } catch (error) {
       console.error("Erro ao buscar progresso por categoria:", error);
-      toast.error("Erro ao carregar dados do gráfico");
+      const errorMessage = (error as any).response?.data?.message || (error as any).message || "Erro ao carregar dados do gráfico";
+      toast.error(errorMessage);
     }
   };
 
-  // Carrega todos os dados
+  // Carrega todos os dados na montagem
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -84,59 +91,97 @@ const MetasDashboard = () => {
       setLoading(false);
     };
     loadData();
-  }, []);
+  }, []); // Dependências vazias para rodar apenas na montagem
 
-  // Atualiza os dados quando metas são modificadas
-  useEffect(() => {
-    if (metas.length > 0) {
-      fetchProgressoPorCategoria();
-    }
-  }, [metas]);
+  // Atualiza os dados de progresso por categoria quando metas são modificadas (se necessário)
+  // Manter este useEffect pode ser útil se a listagem de metas for paginada/filtrada no futuro
+  // e o gráfico precisar refletir apenas as metas visíveis.
+  // No entanto, se o gráfico sempre usa TODAS as metas do usuário, o fetch inicial é suficiente.
+  // Vou manter por enquanto, mas pode ser removido se for redundante.
+   useEffect(() => {
+     if (!loading) { // Garante que o fetch inicial terminou
+       fetchProgressoPorCategoria();
+     }
+   }, [metas, loading]);
 
-  // Operações CRUD
+
+  // Operações CRUD (AGORA USANDO metaAPI)
   const handleSaveMeta = async () => {
-    try {
-      const url = state.form.mode === 'add' 
-        ? "http://localhost:5000/api/goals" 
-        : `http://localhost:5000/api/goals/${state.form.data._id}`;
-      
-      const method = state.form.mode === 'add' ? 'POST' : 'PUT';
-      
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state.form.data)
-      });
+  // Validação do formulário
+  if (!state.form.data.meta || !state.form.data.descricao ||
+      !state.form.data.valor_total || !state.form.data.data_conclusao) {
+    toast.error('Preencha todos os campos obrigatórios');
+    return;
+  }
 
-      if (!response.ok) throw new Error();
-      
-      toast.success(`Meta ${state.form.mode === 'add' ? 'adicionada' : 'atualizada'}!`);
-      fetchMetas();
-      closeForm();
-    } catch (error) {
-      toast.error(`Erro ao ${state.form.mode === 'add' ? 'adicionar' : 'atualizar'} meta`);
+  try {
+    // Obter userId do usuário autenticado
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+      toast.error('Usuário não autenticado');
+      return;
     }
-  };
 
+    // Prepara os dados com userId
+    const metaPayload = {
+      meta: state.form.data.meta,
+      descricao: state.form.data.descricao,
+      valor_total: state.form.data.valor_total,
+      valor_atual: state.form.data.valor_atual || 0,
+      data_conclusao: state.form.data.data_conclusao,
+      categoria: state.form.data.categoria,
+      prioridade: state.form.data.prioridade || 'media',
+      userId: user.uid // Adiciona o userId do usuário logado
+    };
+
+    if (state.form.mode === 'add') {
+      await metaAPI.create(metaPayload);
+      toast.success(`Meta adicionada com sucesso!`);
+    } else {
+      if (!state.form.data._id) {
+        toast.error('ID da meta não encontrado para atualização.');
+        return;
+      }
+      await metaAPI.update(state.form.data._id, metaPayload);
+      toast.success(`Meta atualizada com sucesso!`);
+    }
+
+    fetchMetas();
+    closeForm();
+  } catch (error: any) {
+    console.error("Erro ao salvar meta:", error);
+    const errorMessage = error.response?.data?.message || error.message || `Erro ao ${state.form.mode === 'add' ? 'adicionar' : 'atualizar'} meta`;
+    toast.error(errorMessage);
+  }
+};
+
+  // Operação de Delete (AGORA USANDO metaAPI)
   const handleDeleteMeta = async (id: string) => {
     if (!confirm("Tem certeza que deseja excluir esta meta?")) return;
-    
+
     try {
-      await fetch(`http://localhost:5000/api/goals/${id}`, { method: 'DELETE' });
-      toast.success("Meta excluída!");
-      fetchMetas();
-    } catch (error) {
-      toast.error("Erro ao excluir meta");
+      // Usando metaAPI.delete()
+      await metaAPI.delete(id);
+
+      toast.success("Meta excluída com sucesso!");
+      fetchMetas(); // Atualiza a lista após excluir
+    } catch (error: any) {
+      console.error("Erro ao excluir meta:", error);
+       // Tratamento de erro mais robusto com Axios
+      const errorMessage = error.response?.data?.message || error.message || "Erro ao excluir meta";
+      toast.error(errorMessage);
     }
   };
 
-  // Filtros e dados calculados
+  // Filtros e dados calculados (Sem mudanças, pois dependem do estado 'metas' local)
   const metasFiltradas = useMemo(() => {
     return metas.filter(meta => {
       return (
         (state.filters.status === 'todas' ||
-         (state.filters.status === 'concluidas' && meta.valor_atual >= meta.valor_total) ||
-         (state.filters.status === 'em-andamento' && meta.valor_atual < meta.valor_total)) &&
+         (state.filters.status === 'concluidas' && (meta.valor_atual >= meta.valor_total || meta.concluida)) ||
+         (state.filters.status === 'em-andamento' && meta.valor_atual < meta.valor_total && !meta.concluida)) &&
         (!state.filters.categoria || meta.categoria === state.filters.categoria) &&
         (!state.filters.prioridade || meta.prioridade === state.filters.prioridade)
       );
@@ -153,21 +198,26 @@ const MetasDashboard = () => {
     return Array.from(categoriasUnicas);
   }, [metas]);
 
-  const hoje = new Date();
-  
-  const metasProximas = metas.filter(meta => {
-    const diasRestantes = Math.ceil((new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-    return diasRestantes <= 7 && meta.valor_atual < meta.valor_total;
-  });
+  const hoje = useMemo(() => new Date(), []);
 
-  // Dados para gráficos
+  const metasProximas = useMemo(() => {
+    return metas.filter(meta => {
+      if (!meta.data_conclusao || isNaN(new Date(meta.data_conclusao).getTime())) {
+        return false;
+      }
+      const diasRestantes = Math.ceil((new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+      return diasRestantes >= 0 && diasRestantes <= 7 && meta.valor_atual < meta.valor_total && !meta.concluida; // Adicionado check >= 0
+    });
+  }, [metas, hoje]);
+
+  // Dados para gráficos (Sem mudanças, pois dependem do estado 'metas' local)
   const dadosGraficos = useMemo(() => ({
     pizza: {
       labels: ['Concluídas', 'Em andamento'],
       datasets: [{
         data: [
-          metas.filter(m => m.valor_atual >= m.valor_total).length,
-          metas.filter(m => m.valor_atual < m.valor_total).length
+          metas.filter(m => m.valor_atual >= m.valor_total || m.concluida).length,
+          metas.filter(m => m.valor_atual < m.valor_total && !m.concluida).length
         ],
         backgroundColor: ['#10B981', '#F59E0B']
       }]
@@ -176,21 +226,21 @@ const MetasDashboard = () => {
       labels: categorias,
       datasets: [{
         label: 'Valor Total',
-        data: categorias.map(cat => 
+        data: categorias.map(cat =>
           metas.filter(m => m.categoria === cat).reduce((sum, m) => sum + m.valor_total, 0)
         ),
         backgroundColor: '#3B82F6'
       }, {
         label: 'Valor Atual',
-        data: categorias.map(cat => 
+        data: categorias.map(cat =>
           metas.filter(m => m.categoria === cat).reduce((sum, m) => sum + m.valor_atual, 0)
         ),
         backgroundColor: '#10B981'
       }]
     }
-  }), [metas, categorias]); // Dependências ajustadas
+  }), [metas, categorias]);
 
-  // UI Helpers
+  // UI Helpers (Sem mudanças)
   const toggleExpandMeta = (id: string) => {
     setState(prev => ({
       ...prev,
@@ -204,16 +254,16 @@ const MetasDashboard = () => {
       form: {
         open: true,
         mode: meta ? 'edit' : 'add',
-        data: meta ? { 
+        data: meta ? {
           ...meta,
-          data_conclusao: meta.data_conclusao.split('T')[0]
+          data_conclusao: meta.data_conclusao ? meta.data_conclusao.split('T')[0] : ''
         } : {
           meta: '',
           descricao: '',
           valor_total: 0,
           valor_atual: 0,
           data_conclusao: new Date().toISOString().split('T')[0],
-          userId: '67c3958bcab45f406385e309',
+          // userId: '67c3958bcab45f406385e309', // Mantido comentado para lembrar de onde viria
           categoria: '',
           prioridade: 'media'
         }
@@ -233,10 +283,10 @@ const MetasDashboard = () => {
     }
   };
 
-  return (
+  return  (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
       <ToastContainer position="bottom-right" />
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
@@ -259,11 +309,10 @@ const MetasDashboard = () => {
             </div>
           </div>
         </div>
-        
+
         <button
           onClick={() => openForm()}
-          className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hove
-        r:bg-blue-700 transition-colors"
+          className="hidden md:flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus size={20} />
           Nova Meta
@@ -301,17 +350,17 @@ const MetasDashboard = () => {
             <Pie data={dadosGraficos.pizza} options={{ responsive: true, maintainAspectRatio: false }} />
           </div>
         </div>
-        
+
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm">
           <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Progresso por Categoria</h3>
           <div className="h-64">
-            <Bar 
-              data={dadosGraficos.barras} 
-              options={{ 
-                responsive: true, 
+            <Bar
+              data={dadosGraficos.barras}
+              options={{
+                responsive: true,
                 maintainAspectRatio: false,
                 scales: { y: { beginAtZero: true } }
-              }} 
+              }}
             />
           </div>
         </div>
@@ -332,7 +381,7 @@ const MetasDashboard = () => {
               <option value="em-andamento">Em andamento</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Categoria</label>
             <select
@@ -346,7 +395,7 @@ const MetasDashboard = () => {
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Prioridade</label>
             <select
@@ -373,8 +422,8 @@ const MetasDashboard = () => {
           <Trophy className="mx-auto text-gray-400 mb-4" size={48} />
           <h3 className="text-xl font-medium text-gray-900 dark:text-white">Nenhuma meta encontrada</h3>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {metas.length === 0 
-              ? 'Comece criando sua primeira meta financeira!' 
+            {metas.length === 0
+              ? 'Comece criando sua primeira meta financeira!'
               : 'Tente ajustar os filtros para encontrar suas metas'}
           </p>
           <button
@@ -387,17 +436,17 @@ const MetasDashboard = () => {
       ) : (
         <div className="space-y-4">
           {metasFiltradas.map(meta => (
-            <div 
-              key={meta._id} 
+            <div
+              key={meta._id}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden transition-all duration-200"
             >
-              <div 
+              <div
                 className="p-5 cursor-pointer flex justify-between items-center"
                 onClick={() => toggleExpandMeta(meta._id!)}
               >
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-lg ${meta.valor_atual >= meta.valor_total ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}`}>
-                    {meta.valor_atual >= meta.valor_total ? (
+                  <div className={`p-3 rounded-lg ${(meta.valor_atual >= meta.valor_total || meta.concluida) ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}`}>
+                    {(meta.valor_atual >= meta.valor_total || meta.concluida) ? (
                       <Trophy size={24} />
                     ) : (
                       <Flag size={24} />
@@ -415,7 +464,7 @@ const MetasDashboard = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="text-sm text-gray-600 dark:text-gray-400">Progresso</p>
@@ -430,7 +479,7 @@ const MetasDashboard = () => {
                   )}
                 </div>
               </div>
-              
+
               <AnimatePresence>
                 {state.expandedMeta === meta._id && (
                   <motion.div
@@ -444,7 +493,7 @@ const MetasDashboard = () => {
                       <div className="mb-4">
                         <ProgressBar
                           completed={((meta.valor_atual / meta.valor_total) * 100)}
-                          bgColor={meta.valor_atual >= meta.valor_total ? '#10B981' : '#3B82F6'}
+                          bgColor={(meta.valor_atual >= meta.valor_total || meta.concluida) ? '#10B981' : '#3B82F6'}
                           height="12px"
                           borderRadius="6px"
                           labelAlignment="center"
@@ -452,7 +501,7 @@ const MetasDashboard = () => {
                           animateOnRender
                         />
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Valor Atual</p>
@@ -470,22 +519,35 @@ const MetasDashboard = () => {
                           <p className="text-sm text-gray-600 dark:text-gray-400">Data Limite</p>
                           <p className="text-gray-900 dark:text-white flex items-center gap-1">
                             <Calendar size={16} />
-                            {new Date(meta.data_conclusao).toLocaleDateString()}
+                            {meta.data_conclusao && !isNaN(new Date(meta.data_conclusao).getTime())
+                              ? new Date(meta.data_conclusao).toLocaleDateString()
+                              : 'Data inválida'}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">Faltam</p>
                           <p className="text-gray-900 dark:text-white">
-                            {Math.ceil((new Date(meta.data_conclusao).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))} dias
+                            {(() => {
+                              if (!meta.data_conclusao || isNaN(new Date(meta.data_conclusao).getTime())) {
+                                return 'N/A';
+                              }
+
+                              const diffTime = new Date(meta.data_conclusao).getTime() - hoje.getTime();
+                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                              return diffDays >= 0
+                                ? `${diffDays} ${diffDays === 1 ? 'dia' : 'dias'}`
+                                : 'Prazo expirado';
+                            })()}
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="mb-4">
                         <p className="text-sm text-gray-600 dark:text-gray-400">Descrição</p>
                         <p className="text-gray-900 dark:text-white">{meta.descricao}</p>
                       </div>
-                      
+
                       <div className="flex justify-end gap-3">
                         <button
                           onClick={(e) => { e.stopPropagation(); openForm(meta); }}
@@ -511,7 +573,7 @@ const MetasDashboard = () => {
         </div>
       )}
 
-      {/* Modal do Formulário (Flutuante) */}
+      {/* Modal do Formulário */}
       <AnimatePresence>
         {state.form.open && (
           <motion.div
@@ -530,7 +592,7 @@ const MetasDashboard = () => {
                 <h2 className="text-xl font-bold mb-6 text-gray-900 dark:text-white">
                     {state.form.mode === 'add' ? 'Nova Meta' : 'Editar Meta'}
                 </h2>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -539,38 +601,38 @@ const MetasDashboard = () => {
                     <input
                       type="text"
                       value={state.form.data.meta || ''}
-                      onChange={(e) => setState(prev => ({ 
-                        ...prev, 
-                        form: { 
-                          ...prev.form, 
-                          data: { ...prev.form.data, meta: e.target.value } 
-                        } 
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        form: {
+                          ...prev.form,
+                          data: { ...prev.form.data, meta: e.target.value }
+                        }
                       }))}
                       className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       placeholder="Ex: Comprar um carro"
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       Descrição *
                     </label>
                     <textarea
                       value={state.form.data.descricao || ''}
-                      onChange={(e) => setState(prev => ({ 
-                        ...prev, 
-                        form: { 
-                          ...prev.form, 
-                          data: { ...prev.form.data, descricao: e.target.value } 
-                        } 
+                      onChange={(e) => setState(prev => ({
+                        ...prev,
+                        form: {
+                          ...prev.form,
+                          data: { ...prev.form.data, descricao: e.target.value }
+                        }
                       }))}
                       className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                       rows={3}
                       required
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -579,12 +641,12 @@ const MetasDashboard = () => {
                       <input
                         type="number"
                         value={state.form.data.valor_total || ''}
-                        onChange={(e) => setState(prev => ({ 
-                          ...prev, 
-                          form: { 
-                            ...prev.form, 
-                            data: { ...prev.form.data, valor_total: Number(e.target.value) } 
-                          } 
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          form: {
+                            ...prev.form,
+                            data: { ...prev.form.data, valor_total: Number(e.target.value) }
+                          }
                         }))}
                         className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         min="0.01"
@@ -592,7 +654,7 @@ const MetasDashboard = () => {
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                         Valor Atual (R$) *
@@ -600,12 +662,12 @@ const MetasDashboard = () => {
                       <input
                         type="number"
                         value={state.form.data.valor_atual || ''}
-                        onChange={(e) => setState(prev => ({ 
-                          ...prev, 
-                          form: { 
-                            ...prev.form, 
-                            data: { ...prev.form.data, valor_atual: Number(e.target.value) } 
-                          } 
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          form: {
+                            ...prev.form,
+                            data: { ...prev.form.data, valor_atual: Number(e.target.value) }
+                          }
                         }))}
                         className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         min="0"
@@ -614,7 +676,7 @@ const MetasDashboard = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -623,12 +685,12 @@ const MetasDashboard = () => {
                       <input
                         type="date"
                         value={state.form.data.data_conclusao || ''}
-                        onChange={(e) => setState(prev => ({ 
-                          ...prev, 
-                          form: { 
-                            ...prev.form, 
-                            data: { ...prev.form.data, data_conclusao: e.target.value } 
-                          } 
+                        onChange={(e) => setState(prev => ({
+                          ...prev,
+                          form: {
+                            ...prev.form,
+                            data: { ...prev.form.data, data_conclusao: e.target.value }
+                          }
                         }))}
                         className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white [color-scheme:light dark]"
                         required
@@ -698,7 +760,8 @@ const MetasDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Botão Flutuante para Mobile - Correto posicionamento */}
+      
+      {/* Botão Flutuante para Mobile */}
       <button
         onClick={() => openForm()}
         className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"

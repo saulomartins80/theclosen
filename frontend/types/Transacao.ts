@@ -1,8 +1,9 @@
+// types//Transacao.ts 
 export type Transacao = {
   _id: string;
   descricao: string;
   valor: number;
-  data: string;
+  data: string | { $date: string }; // Atualizado para corresponder ao payload
   categoria: string;
   tipo: 'receita' | 'despesa' | 'transferencia';
   conta: string;

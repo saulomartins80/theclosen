@@ -4,49 +4,47 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   User as FirebaseUser,
-  getAuth,
-  IdTokenResult,
   signOut as firebaseSignOut,
-  onAuthStateChanged
-} from 'firebase/auth';
+  onAuthStateChanged,
+  IdTokenResult,
+} from 'firebase/auth'; 
+import { loginWithGoogle as firebaseLoginWithGoogle } from '../lib/firebase/client';
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase/client';
 import { subscriptionAPI } from '../services/api/subscriptionAPI';
-import api from '../services/api';
 
 // Tipos
-export type SubscriptionPlan = 'free' | 'premium' | 'enterprise';
-export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'expired' | 'pending';
+export type SubscriptionPlan = 'free' | 'premium' | 'enterprise' | 'trial';
+export type SubscriptionStatus = 'active' | 'inactive' | 'canceled' | 'expired' | 'pending' | 'trialing';
 
 export interface Subscription {
   id: string;
   plan: SubscriptionPlan;
   status: SubscriptionStatus;
   expiresAt: string;
+  trialEndsAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-// Este tipo representa os dados do usuário como vêm do backend (MongoDB)
 export interface SessionUser {
-  uid: string; // Firebase UID
+  uid: string;
   email: string | null;
-  name: string | null; // Nome do MongoDB
-  photoUrl: string | null; // Photo URL do MongoDB
+  name: string | null;
+  photoUrl: string | null;
   subscription?: Subscription | null;
 }
 
-// Este tipo representa o usuário no AuthContext, estendendo FirebaseUser para compatibilidade
-// mas priorizando dados do MongoDB quando disponíveis.
 export interface AuthUser extends FirebaseUser {
-  name: string | null; // Adicionado para ter o nome do MongoDB diretamente
-  photoUrl: string | null; // photoUrl do MongoDB (pode sobrescrever photoURL do FirebaseUser)
+  name: string | null;
+  photoUrl: string | null;
   subscription: Subscription | null;
 }
 
 export interface AuthContextType {
   user: AuthUser | null;
+  setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
   subscription: Subscription | null;
   loading: boolean;
   authChecked: boolean;
@@ -62,69 +60,66 @@ export interface AuthContextType {
   clearErrors: () => void;
   verifyToken: (token: string) => Promise<boolean>;
   updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void;
+  isAuthReady: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const normalizeSubscription = (subscription: any): Subscription | null => {
   if (!subscription) return null;
+  
   return {
     id: subscription.id,
     plan: subscription.plan as SubscriptionPlan,
     status: subscription.status as SubscriptionStatus,
     expiresAt: subscription.expiresAt,
+    trialEndsAt: subscription.trialEndsAt,
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
   };
 };
 
-// Atualizado normalizeUser para priorizar dados da SessionUser (MongoDB)
-const normalizeUser = (userFromBackend: SessionUser, firebaseUserInstance?: FirebaseUser): AuthUser | null => {
+const normalizeUser = (userFromBackend: SessionUser | null, firebaseUserInstance?: FirebaseUser | null): AuthUser | null => {
   if (!userFromBackend && !firebaseUserInstance) return null;
 
-  // Se tivermos apenas o firebaseUserInstance (ex: logo após o onAuthStateChanged inicial)
+  // Caso apenas Firebase User exista
   if (!userFromBackend && firebaseUserInstance) {
     return {
       ...firebaseUserInstance,
-      name: firebaseUserInstance.displayName, // Usa displayName do Firebase como fallback inicial
-      photoUrl: firebaseUserInstance.photoURL, // Usa photoURL do Firebase como fallback inicial
-      subscription: null, // A assinatura será carregada pela syncSessionWithBackend
+      name: firebaseUserInstance.displayName,
+      photoUrl: firebaseUserInstance.photoURL,
+      subscription: null,
     } as AuthUser;
   }
 
-  // Se tivermos userFromBackend (dados da nossa API /session, que vêm do MongoDB)
-  // E opcionalmente firebaseUserInstance para preencher os métodos de FirebaseUser
-  if (userFromBackend) {
-    const baseFirebaseUserProps = firebaseUserInstance || {
-      uid: userFromBackend.uid,
-      email: userFromBackend.email,
-      displayName: userFromBackend.name, // Usar o nome do MongoDB para displayName do FirebaseUser base
-      photoURL: userFromBackend.photoUrl, // Usar photoUrl do MongoDB para photoURL do FirebaseUser base
-      emailVerified: false, // Default, Firebase pode ter outro valor
-      isAnonymous: false, // Default
-      metadata: {}, // Default
-      providerData: [], // Default
-      refreshToken: '', // Default
-      tenantId: null, // Default
-      delete: async () => {}, 
-      getIdToken: async () => '', 
-      getIdTokenResult: async () => ({} as IdTokenResult),
-      reload: async () => {},
-      toJSON: () => ({}),
-      providerId: 'firebase', // Default
-    } as unknown as FirebaseUser; // Cast para FirebaseUser
+  // Caso tenha userFromBackend
+  const baseFirebaseUserProps = firebaseUserInstance || {
+    uid: userFromBackend!.uid,
+    email: userFromBackend!.email,
+    displayName: userFromBackend!.name,
+    photoURL: userFromBackend!.photoUrl,
+    emailVerified: false,
+    isAnonymous: false,
+    metadata: {},
+    providerData: [],
+    refreshToken: '',
+    tenantId: null,
+    delete: async () => {},
+    getIdToken: async () => '',
+    getIdTokenResult: async () => ({} as IdTokenResult),
+    reload: async () => {},
+    toJSON: () => ({}),
+    providerId: 'firebase',
+  } as unknown as FirebaseUser;
 
-    return {
-      ...baseFirebaseUserProps, // Propriedades e métodos do FirebaseUser
-      uid: userFromBackend.uid, // Garantir UID do backend
-      email: userFromBackend.email, // Garantir email do backend
-      name: userFromBackend.name, // Nome do MongoDB
-      photoUrl: userFromBackend.photoUrl, // Photo URL do MongoDB (sobrescreve o photoURL de baseFirebaseUserProps se diferente)
-      // photoURL: userFromBackend.photoUrl, // Atualizar também photoURL para consistência se necessário para componentes que usam FirebaseUser diretamente
-      subscription: normalizeSubscription(userFromBackend.subscription), // Assinatura do MongoDB
-    } as AuthUser;
-  }
-  return null; // Caso nenhum usuário seja fornecido
+  return {
+    ...baseFirebaseUserProps,
+    uid: userFromBackend!.uid,
+    email: userFromBackend!.email,
+    name: userFromBackend!.name,
+    photoUrl: userFromBackend!.photoUrl,
+    subscription: normalizeSubscription(userFromBackend!.subscription),
+  } as AuthUser;
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -137,14 +132,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadingSubscription: boolean;
     error: string | null;
     subscriptionError: string | null;
+    isAuthReady: boolean;
   }>({
     user: null,
     subscription: null,
-    loading: true,
+    loading: false,
     authChecked: false,
     loadingSubscription: false,
     error: null,
     subscriptionError: null,
+    isAuthReady: false,
   });
 
   const clearErrors = useCallback(() => {
@@ -152,81 +149,119 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const verifyToken = useCallback(async (token: string): Promise<boolean> => {
-    // Implementação omitida por brevidade, assumindo que está correta
+    // Implementação vazia - pode ser preenchida conforme necessidade
     return false;
   }, []);
 
   const syncSessionWithBackend = useCallback(async (firebaseUser: FirebaseUser | null) => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
     if (!firebaseUser) {
-      setState(prev => ({ ...prev, user: null, subscription: null, authChecked: true, loading: false }));
-      return null;
-    }
-    try {
-      const idToken = await firebaseUser.getIdToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: idToken }),
-          credentials: 'include'
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || (response.status === 401 ? 'Não autorizado' : 'Falha ao sincronizar sessão'));
-      }
-      const sessionData = await response.json();
-      if (!sessionData.user) { // Backend pode retornar user: null em caso de erro de token, etc.
-        throw new Error('Sessão inválida ou usuário não encontrado no backend.');
-      }
-
-      // sessionData.user aqui é do tipo SessionUser (dados do MongoDB)
-      const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
-      
-      setState(prev => ({
-        ...prev,
-        user: authUser,
-        subscription: authUser?.subscription || null,
-        authChecked: true,
-        loading: false
-      }));
-      return authUser;
-    } catch (error) {
-      console.error('Erro na sincronização com backend:', error);
-      // Em caso de erro na sincronização, deslogar o usuário do Firebase para evitar loop
-      await firebaseSignOut(auth); 
       setState(prev => ({
         ...prev,
         user: null,
         subscription: null,
         authChecked: true,
         loading: false,
-        error: error instanceof Error ? error.message : 'Erro na sincronização'
+        isAuthReady: true,
       }));
       return null;
     }
-  }, []);
   
+    try {
+      let token = await firebaseUser.getIdToken(true); // Força token fresco
+      let response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+  
+      // Se o token estiver expirado, tenta novamente com um novo token
+      if (response.status === 401) {
+        const errorData = await response.json();
+        if (errorData.code === 'TOKEN_EXPIRED') {
+          token = await firebaseUser.getIdToken(true);
+          response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+        }
+      }
+  
+      const sessionData = await response.json().catch(() => ({}));
+  
+      if (!response.ok) {
+        let errorMessage = 'Erro ao sincronizar sessão';
+        if (response.status === 401) {
+          errorMessage = 'Sessão expirada ou inválida. Por favor, faça login novamente.';
+          await firebaseSignOut(auth);
+        } else if (response.status === 404) {
+          errorMessage = 'Usuário não encontrado no sistema';
+        } else if (response.status >= 500) {
+          errorMessage = 'Erro interno do servidor';
+        } else if (sessionData?.error) {
+          errorMessage = sessionData.error;
+        }
+        throw new Error(errorMessage);
+      }
+  
+      if (!sessionData.user) {
+        throw new Error('Dados do usuário não encontrados na resposta');
+      }
+  
+      const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
+  
+      setState(prev => ({
+        ...prev,
+        user: authUser,
+        subscription: authUser?.subscription || null,
+        authChecked: true,
+        loading: false,
+        isAuthReady: true,
+      }));
+  
+      return authUser;
+    } catch (error) {
+      const shouldSignOut =
+        error instanceof Error &&
+        (error.message.includes('Sessão expirada') ||
+          error.message.includes('inválida'));
+  
+      if (shouldSignOut) {
+        await firebaseSignOut(auth);
+      }
+  
+      setState(prev => ({
+        ...prev,
+        user: null,
+        subscription: null,
+        authChecked: true,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido na sincronização',
+        isAuthReady: true,
+      }));
+  
+      return null;
+    }
+  }, []);
+
   const updateUserContextProfile = useCallback((updatedProfileData: Partial<SessionUser>) => {
     setState(prev => {
       if (!prev.user) return prev;
-      // Cria um SessionUser parcial para passar para normalizeUser
-      const partialSessionUser: SessionUser = {
-        uid: prev.user.uid,
-        email: updatedProfileData.email !== undefined ? updatedProfileData.email : prev.user.email,
-        name: updatedProfileData.name !== undefined ? updatedProfileData.name : prev.user.name,
-        photoUrl: updatedProfileData.photoUrl !== undefined ? updatedProfileData.photoUrl : prev.user.photoUrl,
-        subscription: updatedProfileData.subscription !== undefined ? updatedProfileData.subscription : prev.user.subscription,
+      
+      const updatedUser = {
+        ...prev.user,
+        ...updatedProfileData,
+        subscription: updatedProfileData.subscription !== undefined 
+          ? normalizeSubscription(updatedProfileData.subscription) 
+          : prev.user.subscription
       };
-      // Reutiliza o firebaseUser original (que tem os métodos)
-      const updatedAuthUser = normalizeUser(partialSessionUser, prev.user as FirebaseUser);
-
+      
       return {
         ...prev,
-        user: updatedAuthUser,
-        subscription: updatedAuthUser?.subscription || null,
+        user: updatedUser,
+        subscription: updatedUser.subscription
       };
     });
   }, []);
@@ -234,13 +269,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      await firebaseSignOut(auth); // Primeiro desloga do Firebase
-      // Chamada para o endpoint de logout do backend para limpar cookies HTTP-only
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
-        method: 'POST',
-        credentials: 'include' // Envia cookies para o backend
-      }); 
-      // Limpa o estado local
+      await firebaseSignOut(auth);
+      
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
+          method: 'POST',
+          credentials: 'include' 
+        });
+      } catch (apiError) {
+        console.error('API logout error:', apiError);
+      }
+      
       setState({
         user: null,
         subscription: null,
@@ -249,7 +288,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loadingSubscription: false,
         error: null,
         subscriptionError: null,
+        isAuthReady: true,
       });
+      
       router.push('/auth/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -263,13 +304,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchSubscription = useCallback(async (userId: string) => {
     if (!userId) return;
+    
     setState(prev => ({ ...prev, loadingSubscription: true, subscriptionError: null }));
+    
     try {
       const subscriptionData = await subscriptionAPI.get(userId);
       const normalizedSubscription = normalizeSubscription(subscriptionData);
+      
       setState(prev => ({
         ...prev,
-        user: prev.user ? { ...prev.user, subscription: normalizedSubscription } : null,
+        user: prev.user ? { 
+          ...prev.user, 
+          subscription: normalizedSubscription 
+        } : null,
         subscription: normalizedSubscription,
         loadingSubscription: false,
       }));
@@ -293,25 +340,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const createTestSubscription = useCallback(async (plan: string): Promise<Subscription | void> => {
     if (!state.user?.uid) return;
+    
     setState(prev => ({ ...prev, loadingSubscription: true }));
+    
     try {
       const subscriptionData = await subscriptionAPI.createTest(state.user.uid, plan);    
       const normalizedSubscription = normalizeSubscription(subscriptionData);
+      
       setState(prev => ({ 
         ...prev, 
         subscription: normalizedSubscription,
-        user: prev.user ? { ...prev.user, subscription: normalizedSubscription } : null,
-        subscriptionError: null 
+        user: prev.user ? { 
+          ...prev.user, 
+          subscription: normalizedSubscription 
+        } : null,
+        subscriptionError: null,
+        loadingSubscription: false
       }));
+      
       return normalizedSubscription as Subscription;
     } catch (error) {
       setState(prev => ({ 
         ...prev, 
-        subscriptionError: error instanceof Error ? error.message : 'Failed to create subscription'
+        subscriptionError: error instanceof Error ? error.message : 'Failed to create subscription',
+        loadingSubscription: false
       }));
       throw error;
-    } finally {
-      setState(prev => ({ ...prev, loadingSubscription: false }));
     }
   }, [state.user?.uid]);
 
@@ -326,12 +380,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setState(prev => ({ ...prev, loading: true, error: null }));
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       await syncSessionWithBackend(userCredential.user);
+      
       const { redirect } = router.query;
       router.push(typeof redirect === 'string' ? redirect : '/dashboard');
     } catch (error) {
+      let errorMessage = 'Login failed';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('auth/invalid-email')) {
+          errorMessage = 'Email inválido';
+        } else if (error.message.includes('auth/user-not-found') || error.message.includes('auth/wrong-password')) {
+          errorMessage = 'Email ou senha incorretos';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       setState(prev => ({
         ...prev,
-        error: error instanceof Error ? error.message : 'Login failed',
+        error: errorMessage,
         loading: false,
       }));
       throw error;
@@ -339,49 +406,102 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [router, syncSessionWithBackend]);
 
   const loginWithGoogle = useCallback(async () => {
-    try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      await syncSessionWithBackend(result.user);
-      const { redirect } = router.query;
-      const redirectPath = typeof redirect === 'string' ? redirect : '/dashboard';
-      await new Promise(resolve => setTimeout(resolve, 100)); 
-      router.push(redirectPath);
-    } catch (error) {
-      console.error('Google login error:', error);
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? 
-          (error.message.includes('auth/popup-closed-by-user') ? 
-            'Login cancelado' : 
-            'Falha no login com Google') : 
-          'Erro desconhecido',
-        loading: false,
-      }));
+  try {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    
+    // Usando a função renomeada
+    const userCredential = await firebaseLoginWithGoogle();
+    
+    if (!userCredential?.user) {
+      throw new Error('No user returned from Google login');
     }
-  }, [router, syncSessionWithBackend]);
+    
+    await syncSessionWithBackend(userCredential.user);
+    
+    const { redirect } = router.query;
+    const redirectPath = typeof redirect === 'string' ? redirect : '/dashboard';
+    router.push(redirectPath);
+    
+  } catch (error) {
+    console.error('Google login error:', error);
+    
+    let errorMessage = 'Falha no login com Google';
+    if (error instanceof Error) {
+      if (error.message.includes('auth/popup-closed-by-user')) {
+        errorMessage = 'Login cancelado';
+      } else if (error.message.includes('auth/account-exists-with-different-credential')) {
+        errorMessage = 'Este email já está cadastrado com outro método de login';
+      } else if (error.message.includes('auth/argument-error')) {
+        errorMessage = 'Erro de configuração no login com Google';
+      }
+    }
+    
+    setState(prev => ({
+      ...prev,
+      error: errorMessage,
+      loading: false,
+    }));
+  }
+}, [router, syncSessionWithBackend]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("onAuthStateChanged triggered with:", firebaseUser);
+
       if (firebaseUser) {
-        await syncSessionWithBackend(firebaseUser);
+        console.log("User is logged in - UID:", firebaseUser.uid);
+        try {
+          // Forçar refresh do token
+          const freshToken = await firebaseUser.getIdToken(true);
+          console.log("Fresh token obtained");
+          await syncSessionWithBackend(firebaseUser);
+        } catch (error) {
+          console.error("Error in auth state change:", error);
+          setState(prev => ({
+            ...prev,
+            user: null,
+            subscription: null,
+            authChecked: true,
+            loading: false,
+            isAuthReady: true,
+            error: error instanceof Error ? error.message : 'Erro ao verificar autenticação'
+          }));
+        }
       } else {
-        // Usuário deslogado do Firebase
-        setState(prev => ({
-          ...prev,
-          user: null,
-          subscription: null,
-          authChecked: true,
-          loading: false,
-        }));
+        console.log("No user detected - checking auth state");
+        // Verifique se há um usuário ativo que pode não ter sido detectado
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          console.log("Found currentUser that wasn't detected:", currentUser.uid);
+          await syncSessionWithBackend(currentUser);
+        } else {
+          setState(prev => ({
+            ...prev,
+            user: null,
+            subscription: null,
+            authChecked: true,
+            loading: false,
+            isAuthReady: true,
+          }));
+        }
       }
     });
+
     return () => unsubscribe();
   }, [syncSessionWithBackend]);
 
   const value: AuthContextType = useMemo(() => ({
     ...state,
+    setUser: (updater) => {
+      setState(prev => {
+        const newUser = typeof updater === 'function' ? updater(prev.user) : updater;
+        return { 
+          ...prev, 
+          user: newUser,
+          subscription: newUser?.subscription || null 
+        };
+      });
+    },
     refreshSubscription,
     checkSubscriptionQuick,
     createTestSubscription,
