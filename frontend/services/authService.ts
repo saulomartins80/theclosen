@@ -1,11 +1,11 @@
-import { auth, signInWithGoogle } from '../lib/firebase/client';
+import { auth, loginWithGoogle } from '../lib/firebase/client';
 import api from './api';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 export const authService = {
   async loginWithGoogle() {
     try {
-      const result = await signInWithGoogle();
+      const result = await loginWithGoogle();
       const user = result.user;
       const token = await user.getIdToken();
 

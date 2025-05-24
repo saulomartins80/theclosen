@@ -74,7 +74,10 @@ export default function RegisterPage() {
 
         // 3. Forçar atualização do estado de autenticação
         if (syncSessionWithBackend) {
-          await syncSessionWithBackend(user);
+          await syncSessionWithBackend({
+            ...user,
+            photoURL: user.photoURL || ''
+          });
         }
 
         setSuccess(true);
