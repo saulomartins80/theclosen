@@ -1,6 +1,7 @@
 import './config/env'; 
 import 'reflect-metadata';
 import express from 'express';
+import 'module-alias/register';
 import cors from 'cors';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
@@ -8,6 +9,7 @@ import rateLimit from 'express-rate-limit';
 import { container } from '@core/container';
 import { errorHandler } from '@middlewares/errorHandler';
 import { AppError } from '@core/errors/AppError';
+
 import { adminAuth } from '@config/firebaseAdmin';
 import { Server } from 'http';
 import morgan from 'morgan';
