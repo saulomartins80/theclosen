@@ -1,13 +1,13 @@
 // backend/src/models/User.ts
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, models } from 'mongoose';
 
 // Defina um tipo/interface para o subdocumento subscription
 export interface ISubscription {
     plan: string;
     status: 'active' | 'canceled' | 'expired' | 'pending' | 'trialing';
-    expiresAt?: Date; 
+    expiresAt?: Date;
     trialEndsAt?: Date; // Adicionado para data de término do trial
-    subscriptionId?: string; 
+    subscriptionId?: string;
     // Outros campos opcionais
     // currentPeriodStart?: Date;
     // currentPeriodEnd?: Date;
@@ -18,29 +18,29 @@ export interface IUser extends Document {
     id?: string; // Adicionado pelo Mongoose como getter para _id
     name: string;
     email: string;
-    password?: string; 
+    password?: string;
     firebaseUid: string;
-    photoUrl?: string; 
-    settings?: { 
+    photoUrl?: string;
+    settings?: {
         theme?: string;
         notifications?: boolean;
     };
-    subscription?: ISubscription; 
+    subscription?: ISubscription;
     transacoes?: any[]; // Adicionado para transações
     metas?: any[];      // Adicionado para metas
     investimentos?: any[];// Adicionado para investimentos
-    createdAt?: Date; 
-    updatedAt?: Date; 
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 const userSchema = new Schema<IUser>(
     {
         name: { type: String, required: true },
-        email: { 
-            type: String, 
-            required: true, 
-            unique: true, 
-            lowercase: true, 
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            lowercase: true,
             trim: true,
         },
         password: { type: String, required: false },
@@ -52,8 +52,8 @@ const userSchema = new Schema<IUser>(
         },
         subscription: {
             plan: { type: String, required: false },
-            status: { 
-                type: String, 
+            status: {
+                type: String,
                 enum: ['active', 'canceled', 'expired', 'pending', 'trialing'],
                 default: 'pending',
                 required: false
@@ -66,7 +66,7 @@ const userSchema = new Schema<IUser>(
         metas: { type: Array, default: [] },      // Adicionado para metas
         investimentos: { type: Array, default: [] },// Adicionado para investimentos
     },
-    { 
+    {
         timestamps: true,
         toJSON: { getters: true, virtuals: true },
         toObject: { getters: true, virtuals: true }
@@ -77,6 +77,6 @@ userSchema.virtual('id').get(function(this: IUser) {
     return (this._id as mongoose.Types.ObjectId).toHexString();
 });
 
-const User = mongoose.model<IUser>('User', userSchema);
+const User = (mongoose.models.User || mongoose.model<IUser>('User', userSchema));
 
 export { User };
