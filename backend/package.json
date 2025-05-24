@@ -95,5 +95,18 @@
       "^@middlewares/(.*)$": "<rootDir>/src/middlewares/$1",
       "^@validations/(.*)$": "<rootDir>/src/validations/$1"
     }
+  },
+  "_moduleAliases": {
+    "@routes": "dist/routes",
+    "@controllers": "dist/controllers",
+    "@models": "dist/models",
+    "@config": "dist/config",
+    "@services": "dist/services",
+    "@interfaces": "dist/interfaces",
+    "@utils": "dist/utils",
+    "@middlewares": "dist/middlewares",
+    "@validations": "dist/validations",
+    "@core": "dist/core",
+    "@modules": "dist/modules"
   }
 }
