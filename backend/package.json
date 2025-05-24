@@ -7,9 +7,9 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "clean": "rimraf dist",
+    "clean": "rimraf dist build_log.txt",
     "prebuild": "node scripts/checkFirebaseConfig.js",
-    "build": "npm run clean && tsc && tsc-alias && echo 'Listando contents de dist/middlewares:' && ls -l dist/middlewares",
+    "build": "npm run clean && tsc && tsc-alias && ls -l dist/middlewares > build_log.txt",
     "start": "node -r module-alias/register -r tsconfig-paths/register dist/index.js",
     "dev": "cross-env NODE_ENV=development ts-node-dev -r tsconfig-paths/register --respawn --transpile-only --ignore-watch node_modules src/index.ts",
     "test": "jest"
@@ -57,7 +57,7 @@
     "@types/mongoose": "5.11.97",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.15.21",
-    "@types/node-cron": "^3.0.11",
+    "@types/node-cron": "^4.0.6",
     "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
