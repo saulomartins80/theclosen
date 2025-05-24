@@ -9,7 +9,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "node scripts/checkFirebaseConfig.js",
-    "build": "npm run clean && tsc && tsc-alias",
+    "build": "npm run clean && tsc && tsc-alias && echo 'Listando contents de dist/middlewares:' && ls -l dist/middlewares",
     "start": "node -r module-alias/register -r tsconfig-paths/register dist/index.js",
     "dev": "cross-env NODE_ENV=development ts-node-dev -r tsconfig-paths/register --respawn --transpile-only --ignore-watch node_modules src/index.ts",
     "test": "jest"
