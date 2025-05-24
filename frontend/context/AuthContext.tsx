@@ -42,11 +42,11 @@ export interface AuthUser extends FirebaseUser {
   subscription: Subscription | null;
 }
 
-export interface AuthContextType {
+export type AuthContextType = {
   user: AuthUser | null;
+  loading: boolean;
   setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
   subscription: Subscription | null;
-  loading: boolean;
   authChecked: boolean;
   loadingSubscription: boolean;
   error: string | null;
@@ -61,9 +61,30 @@ export interface AuthContextType {
   verifyToken: (token: string) => Promise<boolean>;
   updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void;
   isAuthReady: boolean;
-}
+  syncSessionWithBackend?: (firebaseUser: FirebaseUser | null) => Promise<AuthUser | null>;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  setUser: () => {},
+  subscription: null,
+  authChecked: false,
+  loadingSubscription: false,
+  error: null,
+  subscriptionError: null,
+  refreshSubscription: async () => {},
+  checkSubscriptionQuick: async () => false,
+  createTestSubscription: async () => {},
+  login: async () => {},
+  loginWithGoogle: async () => {},
+  logout: async () => {},
+  clearErrors: () => {},
+  verifyToken: async () => false,
+  updateUserContextProfile: () => {},
+  isAuthReady: false,
+  syncSessionWithBackend: async () => null,
+});
 
 const normalizeSubscription = (subscription: any): Subscription | null => {
   if (!subscription) return null;
@@ -511,6 +532,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     clearErrors,
     verifyToken,
     updateUserContextProfile,
+    syncSessionWithBackend,
   }), [
     state,
     refreshSubscription,
@@ -522,6 +544,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     clearErrors,
     verifyToken,
     updateUserContextProfile,
+    syncSessionWithBackend,
   ]);
 
   return (
