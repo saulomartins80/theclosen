@@ -230,7 +230,7 @@ const Graficos = () => {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Receitas vs Despesas por Mês
         </h2>
-        <div className="h-64">
+        <div className="h-64 w-full overflow-hidden">
           <Bar
             data={barChartData}
             options={{
@@ -257,7 +257,7 @@ const Graficos = () => {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Evolução do Saldo
         </h2>
-        <div className="h-64">
+        <div className="h-64 w-full overflow-hidden">
           <Line
             data={lineChartData}
             options={{

@@ -1,4 +1,3 @@
-// components/DashboardContent.tsx
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -7,7 +6,7 @@ import { useDashboard } from "../context/DashboardContext";
 import { useTheme } from "../context/ThemeContext";
 import Graficos from "../components/Graficos";
 import LoadingSpinner from "../components/LoadingSpinner";
-import  FinanceMarket  from '../components/FinanceMarket';
+import FinanceMarket from '../components/FinanceMarket';
 
 type TransacaoAdaptada = {
   _id: string | { $oid: string };
@@ -53,21 +52,21 @@ const DashboardContent: React.FC = () => {
   const { user } = useAuth();
   const { transactions, investimentos, loading, error, fetchData } = useFinance();
   const { 
-  marketData, 
-  loadingMarketData, 
-  marketError, 
-  selectedStocks,
-  selectedCryptos,
-  selectedCommodities,
-  manualAssets,
-  customIndices, 
-  refreshMarketData,
-  setManualAssets,
-  setSelectedStocks,
-  setSelectedCryptos,
-  setSelectedCommodities,
-  setCustomIndices 
-} = useDashboard();
+    marketData, 
+    loadingMarketData, 
+    marketError, 
+    selectedStocks,
+    selectedCryptos,
+    selectedCommodities,
+    manualAssets,
+    customIndices, 
+    refreshMarketData,
+    setManualAssets,
+    setSelectedStocks,
+    setSelectedCryptos,
+    setSelectedCommodities,
+    setCustomIndices 
+  } = useDashboard();
 
   const getSafeId = (idObj: string | { $oid: string }): string => {
     return typeof idObj === 'string' ? idObj : idObj.$oid;
@@ -130,132 +129,132 @@ const DashboardContent: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      resolvedTheme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
-    }`}>
-      <div className="container mx-auto px-0 sm:px-4 py-6">
-        {/* Cabeçalho */}
+    <div 
+      className={`transition-colors duration-300 overflow-x-hidden w-full ${
+        resolvedTheme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+      }`}
+    >
+      {/* Cabeçalho */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mb-8 px-4"
+      >
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+          {getGreeting()}, <span className="text-blue-500 dark:text-blue-400">
+            {user?.name || user?.email?.split("@")[0] || "Usuário"}
+          </span>!
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">
+          Aqui está o seu resumo financeiro.
+        </p>
+      </motion.div>
+
+      {/* Cards de Resumo */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 px-4 w-full">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8 px-4 sm:px-0"
+          className={`p-6 rounded-xl shadow w-full ${
+            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+          }`}
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-            {getGreeting()}, <span className="text-blue-500 dark:text-blue-400">
-              {user?.name || user?.email?.split("@")[0] || "Usuário"}
-            </span>!
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Aqui está o seu resumo financeiro.
+          <h2 className="text-lg font-semibold">Saldo Atual</h2>
+          <p className={`text-2xl font-bold ${saldoColor} mt-2`}>
+            {formatCurrency(saldoAtual)}
+          </p>
+          <p className={`text-sm ${variacaoSaldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} mt-1`}>
+            {variacaoSaldo >= 0 ? '+' : ''}{variacaoSaldo.toFixed(2)}% este mês
           </p>
         </motion.div>
 
-        {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 px-4 sm:px-0">
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className={`p-6 rounded-xl shadow ${
-              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-            }`}
-          >
-            <h2 className="text-lg font-semibold">Saldo Atual</h2>
-            <p className={`text-2xl font-bold ${saldoColor} mt-2`}>
-              {formatCurrency(saldoAtual)}
-            </p>
-            <p className={`text-sm ${variacaoSaldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} mt-1`}>
-              {variacaoSaldo >= 0 ? '+' : ''}{variacaoSaldo.toFixed(2)}% este mês
-            </p>
-          </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className={`p-6 rounded-xl shadow w-full ${
+            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+          }`}
+        >
+          <h2 className="text-lg font-semibold">Receitas</h2>
+          <p className="text-2xl font-bold text-blue-500 dark:text-blue-400 mt-2">
+            {formatCurrency(totalReceitas)}
+          </p>
+          <p className="text-sm text-green-500 dark:text-green-400 mt-1">
+            +{variacaoReceitas}% este mês
+          </p>
+        </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className={`p-6 rounded-xl shadow ${
-              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-            }`}
-          >
-            <h2 className="text-lg font-semibold">Receitas</h2>
-            <p className="text-2xl font-bold text-blue-500 dark:text-blue-400 mt-2">
-              {formatCurrency(totalReceitas)}
-            </p>
-            <p className="text-sm text-green-500 dark:text-green-400 mt-1">
-              +{variacaoReceitas}% este mês
-            </p>
-          </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className={`p-6 rounded-xl shadow w-full ${
+            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+          }`}
+        >
+          <h2 className="text-lg font-semibold">Despesas</h2>
+          <p className="text-2xl font-bold text-red-500 dark:text-red-400 mt-2">
+            {formatCurrency(totalDespesas)}
+          </p>
+          <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+            {variacaoDespesas}% este mês
+          </p>
+        </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className={`p-6 rounded-xl shadow ${
-              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-            }`}
-          >
-            <h2 className="text-lg font-semibold">Despesas</h2>
-            <p className="text-2xl font-bold text-red-500 dark:text-red-400 mt-2">
-              {formatCurrency(totalDespesas)}
-            </p>
-            <p className="text-sm text-red-500 dark:text-red-400 mt-1">
-              {variacaoDespesas}% este mês
-            </p>
-          </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className={`p-6 rounded-xl shadow w-full ${
+            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+          }`}
+        >
+          <h2 className="text-lg font-semibold">Investimentos</h2>
+          <p className="text-2xl font-bold text-purple-500 dark:text-purple-400 mt-2">
+            {formatCurrency(totalInvestimentos)}
+          </p>
+          <p className="text-sm text-green-500 dark:text-green-400 mt-1">
+            +{variacaoInvestimentos}% este mês
+          </p>
+        </motion.div>
+      </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-            className={`p-6 rounded-xl shadow ${
-              resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-            }`}
-          >
-            <h2 className="text-lg font-semibold">Investimentos</h2>
-            <p className="text-2xl font-bold text-purple-500 dark:text-purple-400 mt-2">
-              {formatCurrency(totalInvestimentos)}
-            </p>
-            <p className="text-sm text-green-500 dark:text-green-400 mt-1">
-              +{variacaoInvestimentos}% este mês
-            </p>
-          </motion.div>
-        </div>
+      {/* Componente de Mercado Financeiro */}
+      {marketData && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-8 px-4 w-full"
+        >
+          <FinanceMarket
+            marketData={marketData}
+            loadingMarketData={loadingMarketData}
+            marketError={marketError}
+            selectedStocks={selectedStocks}
+            selectedCryptos={selectedCryptos}
+            selectedCommodities={selectedCommodities}
+            manualAssets={manualAssets}
+            customIndices={customIndices}
+            refreshMarketData={refreshMarketData}
+            setManualAssets={setManualAssets}
+            setSelectedStocks={setSelectedStocks}
+            setSelectedCryptos={setSelectedCryptos}
+            setSelectedCommodities={setSelectedCommodities}
+            setCustomIndices={setCustomIndices}
+          />
+        </motion.div>
+      )}
 
-        {/* Componente de Mercado Financeiro */}
-        {marketData && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-8"
-          >
-            <FinanceMarket
-              marketData={marketData}
-              loadingMarketData={loadingMarketData}
-              marketError={marketError}
-              selectedStocks={selectedStocks}
-              selectedCryptos={selectedCryptos}
-              selectedCommodities={selectedCommodities}
-              manualAssets={manualAssets}
-              customIndices={customIndices}
-              refreshMarketData={refreshMarketData}
-              setManualAssets={setManualAssets}
-              setSelectedStocks={setSelectedStocks}
-              setSelectedCryptos={setSelectedCryptos}
-              setSelectedCommodities={setSelectedCommodities}
-              setCustomIndices={setCustomIndices}
-            />
-          </motion.div>
-        )}
-
-        {/* Seção de Gráficos - Full Width */}
-        <div className={`rounded-none sm:rounded-xl shadow mb-8 ${
-          resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
-        }`}>
-          <div className="p-0 sm:p-2">
-            <Graficos />
-          </div>
+      {/* Seção de Gráficos */}
+      <div className={`rounded-none sm:rounded-xl shadow mb-8 px-4 w-full overflow-hidden ${
+        resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
+      }`}>
+        <div className="p-0 sm:p-2 w-full">
+          <Graficos />
         </div>
       </div>
     </div>

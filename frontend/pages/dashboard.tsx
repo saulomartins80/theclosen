@@ -41,7 +41,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="overflow-x-hidden">
       {/* A seção de Gerenciamento de Assinatura (Teste) foi removida daqui */}
       <DashboardContent />
     </div>

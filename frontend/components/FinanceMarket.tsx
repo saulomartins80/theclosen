@@ -1,4 +1,3 @@
-// components/FinanceMarket.tsx
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
@@ -161,9 +160,10 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         </div>
       </div>
       
-      <div className="p-4 sm:p-6">
+      {/* Removido o padding redundante desta div principal */}
+      <div>
         {/* Índices Globais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 px-6">
           {/* Índice Brasileiro */}
           <div className={`p-4 rounded-lg ${
             resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
@@ -223,7 +223,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         </div>
 
         {/* Ações */}
-        <div className="mb-8">
+        <div className="mb-8 px-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-lg">Ações</h3>
             <div className="flex gap-2">
@@ -294,7 +294,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         </div>
 
         {/* Criptomoedas */}
-        <div className="mb-8">
+        <div className="mb-8 px-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-lg">Criptomoedas</h3>
             <div className="flex gap-2">
@@ -366,7 +366,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
         {/* Commodities */}
         {marketData.commodities && marketData.commodities.length > 0 && (
-          <div className="mb-8">
+          <div className="mb-8 px-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-lg">Commodities</h3>
               <div className="flex gap-2">
@@ -442,7 +442,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         )}
 
         {/* Ativos Manuais */}
-        <div className="mt-8">
+        <div className="mt-8 px-6 pb-6">
           <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Ativos Manuais</h3>
           <div className="flex flex-wrap gap-2 mb-4">
             {manualAssets.map(asset => (
