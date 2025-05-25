@@ -1,49 +1,67 @@
 // pages/dashboard.tsx
-import { useAuth } from '../context/AuthContext';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { useRouter } from 'next/router';
 import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useAuth } from '../context/AuthContext';
+// Update the import path below to the correct location of LoadingSpinner
+import LoadingSpinner from '../components/LoadingSpinner';
 import DashboardContent from '../components/DashboardContent';
+import styles from './Dashboard.module.css';
 
-export default function Dashboard() {
-  const { 
-    user, 
-    loading, 
-    authChecked, 
-    // createTestSubscription, // Removido - será tratado pela página de configurações
-    // subscription, 
-    // loadingSubscription, 
-    // subscriptionError 
-  } = useAuth();
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export default function DashboardPage() {
   const router = useRouter();
+  const { user, loading, authChecked } = useAuth();
 
+  // Efeito para redirecionamento seguro
   useEffect(() => {
-    if (authChecked && !loading) {
+    if (!authChecked || loading) return;
+    
+    const redirectTimer = setTimeout(() => {
       if (!user) {
-        const timer = setTimeout(() => {
-          router.push('/auth/login?redirect=/dashboard');
-        }, 100);
-        return () => clearTimeout(timer);
+        const currentPath = router.asPath;
+        router.replace({
+          pathname: '/auth/login',
+          query: { 
+            redirect: currentPath !== '/' ? currentPath : '/dashboard' 
+          }
+        });
       }
-    }
+    }, 150);
+
+    return () => clearTimeout(redirectTimer);
   }, [user, loading, authChecked, router]);
 
-  // A função handleCreateTestSub foi removida daqui.
-  // A lógica de ativação do plano de teste agora está na página de Configurações.
-
+  // Estados de carregamento
   if (loading || !authChecked) {
-    return <LoadingSpinner fullScreen />;
+    return (
+      <div className={styles.loadingContainer}>
+        <LoadingSpinner fullScreen />
+      </div>
+    );
   }
 
   if (!user) {
-    // Se ainda não foi redirecionado, não renderiza nada para evitar flash
-    return null;
+    return <div className={styles.hiddenContainer} aria-hidden="true" />;
   }
 
   return (
-    <div className="overflow-x-hidden">
-      {/* A seção de Gerenciamento de Assinatura (Teste) foi removida daqui */}
+    <DashboardLayout>
       <DashboardContent />
+    </DashboardLayout>
+  );
+}
+
+// Componente de Layout separado com props opcionais
+function DashboardLayout({ children, className = '' }: DashboardLayoutProps) {
+  return (
+    <div className={`${styles.container} ${className}`}>
+      <div className={styles.content}>
+        {children}
+      </div>
     </div>
   );
 }
