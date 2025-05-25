@@ -13,19 +13,9 @@ import {
   Filler,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
+import { useTheme } from "../context/ThemeContext";
 
-// Definindo o tipo Transacao localmente para evitar conflitos
-type Transacao = {
-  _id: string | { $oid: string };
-  descricao: string;
-  valor: number;
-  data: string | { $date: string };
-  categoria: string;
-  tipo: "receita" | "despesa" | "transferencia";
-  conta: string;
-};
-
-// Registra os componentes do ChartJS
+// Registro dos componentes (mantido igual)
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -37,6 +27,17 @@ ChartJS.register(
   Legend,
   Filler
 );
+
+// Definindo o tipo Transacao localmente para evitar conflitos
+type Transacao = {
+  _id: string | { $oid: string };
+  descricao: string;
+  valor: number;
+  data: string | { $date: string };
+  categoria: string;
+  tipo: "receita" | "despesa" | "transferencia";
+  conta: string;
+};
 
 // Tipos para os dados processados
 type DadosMes = {
@@ -129,21 +130,23 @@ const calcularSaldoAcumulado = (transacoes: Transacao[]): SaldoAcumulado[] => {
 };
 
 const Graficos = () => {
+  const { theme } = useTheme();
   const { transactions } = useFinance();
+
+  // Configurações de tema para os gráficos
+  const textColor = theme === 'dark' ? '#f3f4f6' : '#111827';
+  const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+  const tooltipBgColor = theme === 'dark' ? '#1f2937' : '#ffffff';
 
   // Normaliza os dados das transações de forma segura
   const normalizedTransactions = React.useMemo(() => {
     return (transactions || []).map(t => {
-      // Extração segura do ID
-      const id = typeof t._id === 'string' 
-        ? t._id 
+      const id = typeof t._id === 'string'
+        ? t._id
         : (t._id as { $oid: string })?.$oid || '';
-
-      // Extração segura da data
-      const dataValue = typeof t.data === 'string' 
-        ? t.data 
+      const dataValue = typeof t.data === 'string'
+        ? t.data
         : (t.data as { $date: string })?.$date || new Date().toISOString();
-
       return {
         ...t,
         _id: id,
@@ -156,7 +159,6 @@ const Graficos = () => {
   const dadosPorMes = agruparPorMes(normalizedTransactions);
   const saldoAcumulado = calcularSaldoAcumulado(normalizedTransactions);
 
-  // Configuração dos gráficos (mantido igual ao seu código original)
   const barChartData = {
     labels: dadosPorMes.map((d) => d.mes),
     datasets: [
@@ -180,13 +182,12 @@ const Graficos = () => {
   };
 
   const lineChartData = {
-    labels: saldoAcumulado.length > 0 
+    labels: saldoAcumulado.length > 0
       ? saldoAcumulado.map((s) => {
           try {
             const date = new Date(s.data);
             return `${date.getDate().toString().padStart(2, "0")}/${date.toLocaleString("pt-BR", { month: "short" })}`;
           } catch (error) {
-            console.error("Erro ao formatar data:", s.data, error);
             return "Data inválida";
           }
         })
@@ -194,8 +195,8 @@ const Graficos = () => {
     datasets: [
       {
         label: "Saldo",
-        data: saldoAcumulado.length > 0 
-          ? saldoAcumulado.map((s) => s.saldo) 
+        data: saldoAcumulado.length > 0
+          ? saldoAcumulado.map((s) => s.saldo)
           : [0],
         borderColor: "rgba(54, 162, 235, 1)",
         backgroundColor: "rgba(54, 162, 235, 0.2)",
@@ -205,47 +206,58 @@ const Graficos = () => {
     ],
   };
 
-  const commonChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      tooltip: {
-        mode: 'index' as const,
-        intersect: false,
-      },
-    },
-    interaction: {
-      mode: 'nearest' as const,
-      axis: 'x' as const,
-      intersect: false,
-    },
-  };
-
   return (
-    <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+    <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Gráfico de Barras - Receitas vs Despesas */}
+      <div className={`p-4 rounded-xl shadow-lg ${
+        theme === "dark" ? "bg-gray-800" : "bg-white"
+      }`}>
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
           Receitas vs Despesas por Mês
         </h2>
-        <div className="h-64 w-full overflow-hidden">
+        <div className="w-full h-[400px]">
           <Bar
             data={barChartData}
             options={{
-              ...commonChartOptions,
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    color: textColor,
+                    font: {
+                      weight: 'bold'
+                    }
+                  }
+                },
+                tooltip: {
+                  backgroundColor: tooltipBgColor,
+                  titleColor: textColor,
+                  bodyColor: textColor,
+                  borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                  borderWidth: 1,
+                  padding: 12,
+                  boxPadding: 8,
+                }
+              },
               scales: {
                 y: {
                   beginAtZero: true,
                   grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
+                    color: gridColor,
                   },
+                  ticks: {
+                    color: textColor,
+                  }
                 },
                 x: {
                   grid: {
                     display: false,
                   },
+                  ticks: {
+                    color: textColor,
+                  }
                 },
               },
             }}
@@ -253,27 +265,67 @@ const Graficos = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-lg">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      {/* Gráfico de Linha - Evolução do Saldo */}
+      <div className={`p-4 rounded-xl shadow-lg ${
+        theme === "dark" ? "bg-gray-800" : "bg-white"
+      }`}>
+        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
           Evolução do Saldo
         </h2>
-        <div className="h-64 w-full overflow-hidden">
+        <div className="w-full h-[400px]">
           <Line
             data={lineChartData}
             options={{
-              ...commonChartOptions,
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'top',
+                  labels: {
+                    color: textColor,
+                    font: {
+                      weight: 'bold'
+                    }
+                  }
+                },
+                tooltip: {
+                  backgroundColor: tooltipBgColor,
+                  titleColor: textColor,
+                  bodyColor: textColor,
+                  borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                  borderWidth: 1,
+                  padding: 12,
+                  boxPadding: 8,
+                }
+              },
               scales: {
                 y: {
                   grid: {
-                    color: 'rgba(0, 0, 0, 0.05)',
+                    color: gridColor,
                   },
+                  ticks: {
+                    color: textColor,
+                  }
                 },
                 x: {
                   grid: {
                     display: false,
                   },
+                  ticks: {
+                    color: textColor,
+                  }
                 },
               },
+              elements: {
+                point: {
+                  radius: 4,
+                  hoverRadius: 6,
+                  backgroundColor: theme === 'dark' ? '#3b82f6' : '#2563eb',
+                },
+                line: {
+                  borderWidth: 3,
+                }
+              }
             }}
           />
         </div>

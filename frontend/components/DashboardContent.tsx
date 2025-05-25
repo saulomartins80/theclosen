@@ -1,3 +1,4 @@
+// components/DashboardContent.tsx
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
@@ -31,7 +32,8 @@ const getGreeting = (): string => {
   return "Boa noite";
 };
 
-const formatCurrency = (value: number, currency: string = 'BRL'): string => {
+const formatCurrency = (value: number | undefined, currency: string = 'BRL'): string => {
+  if (typeof value !== 'number' || isNaN(value)) return '--';
   return value.toLocaleString(currency === 'BRL' ? 'pt-BR' : 'en-US', { 
     style: 'currency', 
     currency: currency,
@@ -40,15 +42,8 @@ const formatCurrency = (value: number, currency: string = 'BRL'): string => {
   });
 };
 
-const formatNumber = (value: number, decimals: number = 2): string => {
-  return value.toLocaleString('pt-BR', { 
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals 
-  });
-};
-
 const DashboardContent: React.FC = () => {
-  const { resolvedTheme } = useTheme();
+  const { theme } = useTheme();
   const { user } = useAuth();
   const { transactions, investimentos, loading, error, fetchData } = useFinance();
   const { 
@@ -57,15 +52,15 @@ const DashboardContent: React.FC = () => {
     marketError, 
     selectedStocks,
     selectedCryptos,
-    selectedCommodities,
-    manualAssets,
-    customIndices, 
+    selectedCommodities = [],
+    manualAssets = [],
+    customIndices = [],
     refreshMarketData,
-    setManualAssets,
+    setManualAssets = () => {},
     setSelectedStocks,
     setSelectedCryptos,
-    setSelectedCommodities,
-    setCustomIndices 
+    setSelectedCommodities = () => {},
+    setCustomIndices = () => {}
   } = useDashboard();
 
   const getSafeId = (idObj: string | { $oid: string }): string => {
@@ -73,7 +68,7 @@ const DashboardContent: React.FC = () => {
   };
 
   const mappedTransactions = Array.isArray(transactions)
-    ? transactions.map((t: TransacaoAdaptada) => ({
+    ? transactions.map((t) => ({
         id: getSafeId(t._id),
         tipo: t.tipo,
         valor: t.valor,
@@ -81,7 +76,7 @@ const DashboardContent: React.FC = () => {
     : [];
 
   const mappedInvestments = Array.isArray(investimentos)
-    ? investimentos.map((inv: InvestimentoAdaptado) => ({
+    ? investimentos.map((inv) => ({
         id: getSafeId(inv._id),
         valor: inv.valor,
         tipo: inv.tipo as 'Renda Fixa' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas'
@@ -97,7 +92,7 @@ const DashboardContent: React.FC = () => {
     .reduce((acc, t) => acc + t.valor, 0);
 
   const saldoAtual = totalReceitas - totalDespesas;
-  const saldoColor = saldoAtual >= 0 ? "text-green-500 dark:text-green-400" : "text-red-500 dark:text-red-400";
+  const saldoColor = saldoAtual >= 0 ? "text-green-500" : "text-red-500";
   const totalInvestimentos = mappedInvestments.reduce((acc, inv) => acc + inv.valor, 0);
 
   const variacaoSaldo = saldoAtual / (totalReceitas + totalDespesas) * 100 || 0;
@@ -112,7 +107,7 @@ const DashboardContent: React.FC = () => {
 
   if (loading || loadingMarketData) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex items-center justify-center h-screen">
         <LoadingSpinner />
       </div>
     );
@@ -120,141 +115,113 @@ const DashboardContent: React.FC = () => {
   
   if (error || marketError) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-800 dark:text-red-300">
-          Erro: {(error as ApiError)?.message || (marketError as ApiError)?.message || "Erro desconhecido"}
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
+          Erro: {(error as any)?.message || marketError || "Erro desconhecido"}
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      className={`transition-colors duration-300 overflow-x-hidden w-full ${
-        resolvedTheme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
-      }`}
-    >
-      {/* Cabeçalho */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8 px-4"
-      >
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-          {getGreeting()}, <span className="text-blue-500 dark:text-blue-400">
-            {user?.name || user?.email?.split("@")[0] || "Usuário"}
-          </span>!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Aqui está o seu resumo financeiro.
-        </p>
-      </motion.div>
-
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 px-4 w-full">
+    <div className={`min-h-screen w-full transition-colors duration-300 ${
+      theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+    } px-4 sm:px-6 py-6`}>
+      {/* Container principal com largura controlada */}
+      <div className="mx-auto w-full max-w-[1800px]">
+        {/* Cabeçalho ajustado */}
         <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-          className={`p-6 rounded-xl shadow w-full ${
-            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-          }`}
-        >
-          <h2 className="text-lg font-semibold">Saldo Atual</h2>
-          <p className={`text-2xl font-bold ${saldoColor} mt-2`}>
-            {formatCurrency(saldoAtual)}
-          </p>
-          <p className={`text-sm ${variacaoSaldo >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'} mt-1`}>
-            {variacaoSaldo >= 0 ? '+' : ''}{variacaoSaldo.toFixed(2)}% este mês
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className={`p-6 rounded-xl shadow w-full ${
-            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-          }`}
-        >
-          <h2 className="text-lg font-semibold">Receitas</h2>
-          <p className="text-2xl font-bold text-blue-500 dark:text-blue-400 mt-2">
-            {formatCurrency(totalReceitas)}
-          </p>
-          <p className="text-sm text-green-500 dark:text-green-400 mt-1">
-            +{variacaoReceitas}% este mês
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className={`p-6 rounded-xl shadow w-full ${
-            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-          }`}
-        >
-          <h2 className="text-lg font-semibold">Despesas</h2>
-          <p className="text-2xl font-bold text-red-500 dark:text-red-400 mt-2">
-            {formatCurrency(totalDespesas)}
-          </p>
-          <p className="text-sm text-red-500 dark:text-red-400 mt-1">
-            {variacaoDespesas}% este mês
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className={`p-6 rounded-xl shadow w-full ${
-            resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-          }`}
-        >
-          <h2 className="text-lg font-semibold">Investimentos</h2>
-          <p className="text-2xl font-bold text-purple-500 dark:text-purple-400 mt-2">
-            {formatCurrency(totalInvestimentos)}
-          </p>
-          <p className="text-sm text-green-500 dark:text-green-400 mt-1">
-            +{variacaoInvestimentos}% este mês
-          </p>
-        </motion.div>
-      </div>
-
-      {/* Componente de Mercado Financeiro */}
-      {marketData && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8 px-4 w-full"
+          className="mb-8"
         >
-          <FinanceMarket
-            marketData={marketData}
-            loadingMarketData={loadingMarketData}
-            marketError={marketError}
-            selectedStocks={selectedStocks}
-            selectedCryptos={selectedCryptos}
-            selectedCommodities={selectedCommodities}
-            manualAssets={manualAssets}
-            customIndices={customIndices}
-            refreshMarketData={refreshMarketData}
-            setManualAssets={setManualAssets}
-            setSelectedStocks={setSelectedStocks}
-            setSelectedCryptos={setSelectedCryptos}
-            setSelectedCommodities={setSelectedCommodities}
-            setCustomIndices={setCustomIndices}
-          />
+          <div className="flex items-center gap-3">
+            <span className={`p-2 rounded-lg ${
+              theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+            }`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9 9 9 0 0 1 9-9 9 9 0 0 1 9 9z"></path>
+                <path d="M9 10a3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3z"></path>
+                <path d="M8 21v-1a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </span>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                {getGreeting()}, <span className="text-blue-500">
+                  {user?.name || user?.email?.split("@")[0] || "Usuário"}
+                </span>!
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Aqui está o seu resumo financeiro.
+              </p>
+            </div>
+          </div>
         </motion.div>
-      )}
 
-      {/* Seção de Gráficos */}
-      <div className={`rounded-none sm:rounded-xl shadow mb-8 px-4 w-full overflow-hidden ${
-        resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
-      }`}>
-        <div className="p-0 sm:p-2 w-full">
-          <Graficos />
+        {/* Cards de Resumo - Ajuste para mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[
+            { title: "Saldo Atual", value: saldoAtual, color: saldoColor, variation: variacaoSaldo },
+            { title: "Receitas", value: totalReceitas, color: "text-blue-500", variation: variacaoReceitas },
+            { title: "Despesas", value: totalDespesas, color: "text-red-500", variation: variacaoDespesas },
+            { title: "Investimentos", value: totalInvestimentos, color: "text-purple-500", variation: variacaoInvestimentos }
+          ].map((card, index) => (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className={`p-4 rounded-xl shadow ${
+                theme === "dark" ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <h2 className="text-base font-semibold">{card.title}</h2>
+              <p className={`text-xl font-bold ${card.color} mt-1`}>
+                {formatCurrency(card.value)}
+              </p>
+              <p className={`text-xs ${card.variation >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                {card.variation >= 0 ? '+' : ''}{card.variation.toFixed(2)}% este mês
+              </p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Seção de Mercado Financeiro */}
+        <div className="mb-8">
+          {marketData && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <FinanceMarket
+                marketData={marketData}
+                loadingMarketData={loadingMarketData}
+                marketError={marketError}
+                selectedStocks={selectedStocks}
+                selectedCryptos={selectedCryptos}
+                selectedCommodities={selectedCommodities}
+                manualAssets={manualAssets}
+                customIndices={customIndices}
+                refreshMarketData={refreshMarketData}
+                setManualAssets={setManualAssets}
+                setSelectedStocks={setSelectedStocks}
+                setSelectedCryptos={setSelectedCryptos}
+                setSelectedCommodities={setSelectedCommodities}
+                setCustomIndices={setCustomIndices}
+              />
+            </motion.div>
+          )}
+        </div>
+
+        {/* Seção de Gráficos */}
+        <div className={`rounded-xl shadow mb-8 ${
+          theme === "dark" ? "bg-gray-800" : "bg-white"
+        }`}>
+          <div className="p-6">
+            <Graficos />
+          </div>
         </div>
       </div>
     </div>

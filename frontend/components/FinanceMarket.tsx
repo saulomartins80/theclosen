@@ -1,3 +1,4 @@
+//components/financeMarket.tsx
 import React, { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
@@ -58,7 +59,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
   const [showStockModal, setShowStockModal] = useState(false);
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [showCommodityModal, setShowCommodityModal] = useState(false);
-  
+
   // Exemplos de ativos disponíveis
   const [availableStocks] = useState<string[]>([
     'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'BBAS3.SA', // Ações BR
@@ -135,20 +136,20 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
   if (!marketData) return null;
 
   return (
-    <div className={`rounded-xl shadow overflow-hidden mb-8 ${
-      resolvedTheme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+    <div className={`rounded-xl shadow overflow-hidden ${
+      resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
     }`}>
-      {/* Header */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-bold">Mercado Financeiro</h2>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+      {/* Header ajustado */}
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+          <h2 className="text-lg sm:text-xl font-bold">Mercado Financeiro</h2>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               Atualizado em: {new Date(marketData.lastUpdated).toLocaleTimeString()}
             </span>
             <button 
               onClick={refreshMarketData}
-              className={`text-sm px-3 py-1 rounded-lg ${
+              className={`text-xs sm:text-sm px-2 sm:px-3 py-1 rounded-lg ${
                 resolvedTheme === "dark" 
                   ? "bg-blue-600 hover:bg-blue-500 text-white" 
                   : "bg-blue-100 hover:bg-blue-200 text-blue-700"
@@ -160,20 +161,20 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         </div>
       </div>
       
-      {/* Removido o padding redundante desta div principal */}
-      <div>
-        {/* Índices Globais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 px-6">
+      {/* Conteúdo com padding ajustado */}
+      <div className="p-3 sm:p-6">
+        {/* Índices com grid ajustado */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
           {/* Índice Brasileiro */}
-          <div className={`p-4 rounded-lg ${
+          <div className={`p-3 sm:p-4 rounded-lg ${
             resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
           }`}>
-            <h3 className="font-semibold">IBOVESPA</h3>
+            <h3 className="font-semibold text-sm sm:text-base">IBOVESPA</h3>
             <div className="flex justify-between items-end mt-2">
-              <span className="text-2xl font-bold">
+              <span className="text-lg sm:text-2xl font-bold">
                 {marketData.indices['^BVSP']?.toLocaleString('pt-BR') || 'N/A'}
               </span>
-              <span className={`text-sm px-2 py-1 rounded ${
+              <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
                 marketData.indices['^BVSP'] >= 0
                   ? resolvedTheme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
                   : resolvedTheme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800"
@@ -184,15 +185,15 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
           </div>
 
           {/* Dólar */}
-          <div className={`p-4 rounded-lg ${
+          <div className={`p-3 sm:p-4 rounded-lg ${
             resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
           }`}>
-            <h3 className="font-semibold">Dólar (USD/BRL)</h3>
+            <h3 className="font-semibold text-sm sm:text-base">Dólar (USD/BRL)</h3>
             <div className="flex justify-between items-end mt-2">
-              <span className="text-2xl font-bold">
+              <span className="text-lg sm:text-2xl font-bold">
                 {formatValue(marketData.indices['BRL=X'] || 0, true)}
               </span>
-              <span className={`text-sm px-2 py-1 rounded ${
+              <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
                 marketData.indices['BRL=X'] >= 0
                   ? resolvedTheme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
                   : resolvedTheme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800"
@@ -203,15 +204,15 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
           </div>
 
           {/* S&P 500 */}
-          <div className={`p-4 rounded-lg ${
+          <div className={`p-3 sm:p-4 rounded-lg ${
             resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
           }`}>
-            <h3 className="font-semibold">S&P 500</h3>
+            <h3 className="font-semibold text-sm sm:text-base">S&P 500</h3>
             <div className="flex justify-between items-end mt-2">
-              <span className="text-2xl font-bold">
+              <span className="text-lg sm:text-2xl font-bold">
                 {marketData.indices['^GSPC']?.toLocaleString('en-US') || 'N/A'}
               </span>
-              <span className={`text-sm px-2 py-1 rounded ${
+              <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
                 marketData.indices['^GSPC'] >= 0
                   ? resolvedTheme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
                   : resolvedTheme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800"
@@ -221,42 +222,28 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Ações */}
-        <div className="mb-8 px-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-lg">Ações</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowStockModal(true)}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  resolvedTheme === "dark" 
-                    ? "bg-blue-600 hover:bg-blue-500 text-white" 
-                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                } transition`}
-              >
-                Editar Ações
-              </button>
+        
+        {/* Seções de tabela com overflow controlado */}
+        <div className="mb-6">
+          <div className="mb-3 sm:mb-4">
+            <h3 className="font-semibold text-base sm:text-lg">Ações</h3>
+            <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
+              {selectedStocks.map(stock => (
+                <span 
+                  key={stock}
+                  className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
+                    resolvedTheme === "dark" 
+                      ? "bg-blue-800 text-blue-200" 
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {stock.replace('.SA', '')}
+                </span>
+              ))}
             </div>
           </div>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {selectedStocks.map(stock => (
-              <span 
-                key={stock}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  resolvedTheme === "dark" 
-                    ? "bg-blue-800 text-blue-200" 
-                    : "bg-blue-100 text-blue-800"
-                }`}
-              >
-                {stock.replace('.SA', '')}
-              </span>
-            ))}
-          </div>
-
           <div className="overflow-x-auto">
-            <table className="min-w-full">
+            <table className="min-w-full text-xs sm:text-sm">
               <thead className={`${
                 resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
               }`}>
@@ -294,40 +281,26 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         </div>
 
         {/* Criptomoedas */}
-        <div className="mb-8 px-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold text-lg">Criptomoedas</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowCryptoModal(true)}
-                className={`px-3 py-1 rounded-md text-sm ${
-                  resolvedTheme === "dark" 
-                    ? "bg-purple-600 hover:bg-purple-500 text-white" 
-                    : "bg-purple-100 hover:bg-purple-200 text-purple-700"
-                } transition`}
-              >
-                Editar Criptos
-              </button>
+        <div className="mb-6">
+          <div className="mb-3 sm:mb-4">
+            <h3 className="font-semibold text-base sm:text-lg">Criptomoedas</h3>
+            <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
+              {selectedCryptos.map(crypto => (
+                <span 
+                  key={crypto}
+                  className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
+                    resolvedTheme === "dark" 
+                      ? "bg-purple-800 text-purple-200" 
+                      : "bg-purple-100 text-purple-800"
+                  }`}
+                >
+                  {crypto.replace('-USD', '')}
+                </span>
+              ))}
             </div>
           </div>
-
-          <div className="flex flex-wrap gap-2 mb-4">
-            {selectedCryptos.map(crypto => (
-              <span 
-                key={crypto}
-                className={`px-3 py-1 rounded-full text-sm ${
-                  resolvedTheme === "dark" 
-                    ? "bg-purple-800 text-purple-200" 
-                    : "bg-purple-100 text-purple-800"
-                }`}
-              >
-                {crypto.replace('-USD', '')}
-              </span>
-            ))}
-          </div>
-
           <div className="overflow-x-auto">
-            <table className="min-w-full">
+            <table className="min-w-full text-xs sm:text-sm">
               <thead className={`${
                 resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
               }`}>
@@ -366,40 +339,26 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
         {/* Commodities */}
         {marketData.commodities && marketData.commodities.length > 0 && (
-          <div className="mb-8 px-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-lg">Commodities</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowCommodityModal(true)}
-                  className={`px-3 py-1 rounded-md text-sm ${
-                    resolvedTheme === "dark" 
-                      ? "bg-yellow-600 hover:bg-yellow-500 text-white" 
-                      : "bg-yellow-100 hover:bg-yellow-200 text-yellow-800"
-                  } transition`}
-                >
-                  Editar Commodities
-                </button>
+          <div className="mb-6">
+            <div className="mb-3 sm:mb-4">
+              <h3 className="font-semibold text-base sm:text-lg">Commodities</h3>
+              <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
+                {selectedCommodities.map(commodity => (
+                  <span 
+                    key={commodity}
+                    className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
+                      resolvedTheme === "dark" 
+                        ? "bg-yellow-800 text-yellow-200" 
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {commodity.replace('=F', '')}
+                  </span>
+                ))}
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedCommodities.map(commodity => (
-                <span 
-                  key={commodity}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    resolvedTheme === "dark" 
-                      ? "bg-yellow-800 text-yellow-200" 
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {commodity.replace('=F', '')}
-                </span>
-              ))}
-            </div>
-
             <div className="overflow-x-auto">
-              <table className="min-w-full">
+              <table className="min-w-full text-xs sm:text-sm">
                 <thead className={`${
                   resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
                 }`}>
