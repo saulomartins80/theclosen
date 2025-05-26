@@ -5,17 +5,59 @@ import { useTheme } from "../context/ThemeContext";
 
 type AssetType = 'stocks' | 'cryptos' | 'commodities';
 
+// Adicione suporte para opções com { symbol, name }
+interface AssetOption {
+  symbol: string;
+  name: string;
+}
+type AssetOptionOrString = string | AssetOption;
+
 interface AssetSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (selected: string[]) => void;
   currentSelected: string[];
   type: AssetType;
-  allOptions: string[];
+  allOptions: AssetOptionOrString[];
   title?: string;
+  defaultOptions?: string[];
 }
 
+// Função para exibir nome amigável de cripto
+const getCryptoDisplayName = (symbol: string): string => {
+  const cryptoNames: Record<string, string> = {
+    'BTC-USD': 'Bitcoin',
+    'ETH-USD': 'Ethereum',
+    'USDT-USD': 'Tether',
+    'BNB-USD': 'Binance Coin',
+    'XRP-USD': 'Ripple',
+    'SOL-USD': 'Solana',
+    'ADA-USD': 'Cardano',
+    'DOGE-USD': 'Dogecoin'
+  };
+  return cryptoNames[symbol] || symbol.replace('-USD', '');
+};
+
+// Função para exibir nome amigável de ação
+const getStockDisplayName = (symbol: string): string => {
+  const stockNames: Record<string, string> = {
+    'AAPL': 'Apple',
+    'MSFT': 'Microsoft',
+    'GOOGL': 'Alphabet',
+    'AMZN': 'Amazon',
+    'META': 'Meta',
+    'TSLA': 'Tesla',
+    'PETR4.SA': 'Petrobras',
+    'VALE3.SA': 'Vale',
+    'ITUB4.SA': 'Itaú'
+  };
+  return stockNames[symbol] || symbol.replace('.SA', '');
+};
+
+// Atualize getAssetDisplayName para usar as funções acima
 const getAssetDisplayName = (symbol: string, type: AssetType): string => {
+  if (type === 'cryptos') return getCryptoDisplayName(symbol);
+  if (type === 'stocks') return getStockDisplayName(symbol);
   if (type === 'commodities') {
     switch (symbol) {
       case 'GC=F': return 'Ouro';
@@ -26,7 +68,7 @@ const getAssetDisplayName = (symbol: string, type: AssetType): string => {
       default: return symbol.replace('=F', '');
     }
   }
-  return symbol.replace('.SA', '').replace('-USD', '');
+  return symbol;
 };
 
 const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
@@ -36,7 +78,8 @@ const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
   currentSelected,
   type,
   allOptions,
-  title = `Selecionar ${type === 'stocks' ? 'Ações' : type === 'cryptos' ? 'Criptomoedas' : 'Commodities'}`
+  title = `Selecionar ${type === 'stocks' ? 'Ações' : type === 'cryptos' ? 'Criptomoedas' : 'Commodities'}`,
+  defaultOptions = []
 }) => {
   const { resolvedTheme } = useTheme();
   const [selected, setSelected] = useState<string[]>(currentSelected);
@@ -44,17 +87,31 @@ const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
 
   useEffect(() => {
     setSelected(currentSelected);
-  }, [currentSelected, isOpen]); // Reset quando o modal abre ou currentSelected muda
+  }, [currentSelected, isOpen]);
 
-  const filteredOptions = allOptions
-    .filter(option => option.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Suporte para opções como string ou objeto {symbol, name}
+  const normalizedOptions: { symbol: string; name: string }[] = allOptions.map(opt =>
+    typeof opt === 'string'
+      ? { symbol: opt, name: getAssetDisplayName(opt, type) }
+      : { symbol: opt.symbol, name: opt.name }
+  );
+
+  const filteredOptions = normalizedOptions
+    .filter(option =>
+      option.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      option.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     .sort((a, b) => {
-      // Ordena com os selecionados primeiro
-      const aSelected = selected.includes(a);
-      const bSelected = selected.includes(b);
+      // Ordena com os selecionados primeiro, depois os defaultOptions
+      const aSelected = selected.includes(a.symbol);
+      const bSelected = selected.includes(b.symbol);
       if (aSelected && !bSelected) return -1;
       if (!aSelected && bSelected) return 1;
-      return a.localeCompare(b);
+      const aDefault = defaultOptions.includes(a.symbol);
+      const bDefault = defaultOptions.includes(b.symbol);
+      if (aDefault && !bDefault) return -1;
+      if (!aDefault && bDefault) return 1;
+      return a.name.localeCompare(b.name);
     });
 
   const toggleAsset = (asset: string) => {
@@ -100,9 +157,10 @@ const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
             {filteredOptions.length > 0 ? (
               <ul className="space-y-2">
                 {filteredOptions.map(option => {
-                  const isSelected = selected.includes(option);
+                  const isSelected = selected.includes(option.symbol);
+                  const isDefault = defaultOptions.includes(option.symbol);
                   return (
-                    <li key={option}>
+                    <li key={option.symbol}>
                       <label className={`flex items-center p-2 rounded cursor-pointer ${
                         isSelected 
                           ? resolvedTheme === 'dark' 
@@ -115,18 +173,23 @@ const AssetSelectionModal: React.FC<AssetSelectionModalProps> = ({
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleAsset(option)}
+                          onChange={() => toggleAsset(option.symbol)}
                           className={`rounded ${
                             resolvedTheme === 'dark' 
                               ? 'text-blue-400 bg-gray-600 border-gray-500' 
                               : 'text-blue-600 bg-white border-gray-300'
                           } focus:ring-blue-500`}
                         />
-                        <span className="ml-2">
-                          {getAssetDisplayName(option, type)}
+                        <span className="ml-2 flex items-center">
+                          {option.name}
                           <span className="ml-2 text-xs opacity-70">
-                            ({option})
+                            ({option.symbol})
                           </span>
+                          {isDefault && (
+                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                              Popular
+                            </span>
+                          )}
                         </span>
                       </label>
                     </li>

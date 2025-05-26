@@ -41,22 +41,26 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(''); // Limpar erros anteriores
     try {
       const currentEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       if (!currentEmailValid) {
         setError('Digite um e-mail válido');
         setEmailValid(false);
+        setLoading(false);
         return;
       }
 
       if (password !== confirmPassword) {
         setError('As senhas não coincidem');
         setPasswordMatch(false);
+        setLoading(false);
         return;
       }
 
-      if (password.length < 6) {
-        setError('A senha deve ter no mínimo 6 caracteres');
+      if (password.length < 8) { // Ajustado para 8 conforme PasswordCriteria
+        setError('A senha deve ter no mínimo 8 caracteres');
+        setLoading(false);
         return;
       }
 
@@ -81,17 +85,19 @@ export default function RegisterPage() {
         }
 
         setSuccess(true);
-        router.push('/dashboard');
+        // O redirecionamento pode ser tratado pelo useEffect abaixo ou aqui diretamente
+        // router.push('/dashboard'); 
         return;
       } else {
-        // Tenta extrair mensagem de erro do backend
         let errorMessage = 'Erro ao cadastrar. Tente novamente.';
         try {
           const data = await registerResponse.json();
           if (data && data.message) {
             errorMessage = data.message;
           }
-        } catch {}
+        } catch (parseError) {
+            console.error("Failed to parse error response from register API:", parseError);
+        }
         setError(errorMessage);
       }
     } catch (err) {
@@ -101,7 +107,7 @@ export default function RegisterPage() {
         if (err.message.includes('Email já está em uso') || err.message.includes('auth/email-already-in-use')) {
           errorMessage = 'Este e-mail já está cadastrado';
         } else if (err.message.includes('auth/weak-password')) {
-          errorMessage = 'A senha é muito fraca. Use pelo menos 6 caracteres.';
+          errorMessage = 'A senha é muito fraca. Use pelo menos 8 caracteres e os critérios abaixo.';
         } else {
           errorMessage = err.message;
         }
@@ -111,6 +117,15 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        router.push('/dashboard');
+      }, 3000); // Redireciona após 3 segundos
+      return () => clearTimeout(timer);
+    }
+  }, [success, router]);
 
   const PasswordStrength = ({ password }: { password: string }) => {
     const strength = { 
@@ -155,7 +170,7 @@ export default function RegisterPage() {
             style={{ width }} 
           />
         </div>
-        {passwordFocus && (
+        {passwordFocus && password.length > 0 && (
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Força da senha: <span className="font-medium">{text}</span>
           </p>
@@ -173,15 +188,15 @@ export default function RegisterPage() {
     ];
     
     return (
-      <div className={`mt-2 space-y-1 transition-all duration-300 ${passwordFocus ? 'opacity-100' : 'opacity-0 h-0'}`}>
+      <div className={`mt-2 space-y-1 transition-all duration-300 ${passwordFocus && password.length > 0 ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         {criteria.map((item, index) => (
           <div key={index} className="flex items-center">
             {item.regex.test(password) ? (
-              <FiCheck className="text-green-500 mr-2" />
+              <FiCheck className="text-green-500 mr-2 flex-shrink-0" />
             ) : (
-              <div className="w-4 h-4 rounded-full border border-gray-400 mr-2" />
+              <div className="w-3 h-3 rounded-full border border-gray-400 dark:border-gray-500 mr-2 flex-shrink-0" />
             )}
-            <span className={`text-xs ${item.regex.test(password) ? 'text-green-500' : 'text-gray-500 dark:text-gray-400'}`}>
+            <span className={`text-xs ${item.regex.test(password) ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
               {item.text}
             </span>
           </div>
@@ -192,11 +207,11 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full mx-4 text-center border border-gray-200 dark:border-gray-700"
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 max-w-md w-full mx-auto text-center border border-gray-200 dark:border-gray-700"
         >
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-6">
             <FiCheck className="h-8 w-8 text-green-600 dark:text-green-400" />
@@ -206,9 +221,9 @@ export default function RegisterPage() {
           
           <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <motion.div 
-              initial={{ width: 0 }}
+              initial={{ width: '0%' }}
               animate={{ width: '100%' }}
-              transition={{ duration: 2.5 }} // Ajustado para um pouco mais de tempo se o timeout for usado
+              transition={{ duration: 3 }} 
               className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
             />
           </div>
@@ -250,8 +265,8 @@ export default function RegisterPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-start gap-3 p-4 mb-6 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
               >
-                <FiAlertCircle className="flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
+                <FiAlertCircle className="flex-shrink-0 mt-0.5 h-5 w-5" />
+                <span className="text-sm">{error}</span>
               </motion.div>
             )}
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -265,12 +280,13 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="name"
+                    name="name" // Adicionado
                     type="text"
                     autoComplete="name"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    className="block w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm"
                     placeholder="Seu nome completo"
                   />
                 </div>
@@ -285,22 +301,23 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="email"
+                    name="email" // Adicionado
                     type="email"
                     autoComplete="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`block w-full pl-10 pr-3 py-3 rounded-lg border ${!emailValid && email ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400`}
+                    className={`block w-full pl-10 pr-10 py-3 rounded-lg border ${!emailValid && email.length > 0 ? 'border-red-500 dark:border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'} dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm`}
                     placeholder="seu@email.com"
                   />
-                  {emailValid && email && (
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  {emailValid && email.length > 0 && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <FiCheck className="h-5 w-5 text-green-500" />
                     </div>
                   )}
                 </div>
-                {!emailValid && email && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">Digite um e-mail válido</p>
+                {!emailValid && email.length > 0 && (
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">Digite um e-mail válido.</p>
                 )}
               </div>
               <div>
@@ -313,15 +330,16 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="password"
+                    name="password" // Adicionado
                     type="password"
                     autoComplete="new-password"
                     required
-                    minLength={6}
+                    // minLength={8} // PasswordCriteria já lida com isso visualmente
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setPasswordFocus(true)}
                     onBlur={() => setPasswordFocus(false)}
-                    className="block w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    className="block w-full pl-10 pr-3 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm"
                     placeholder="••••••••"
                   />
                 </div>
@@ -338,45 +356,46 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="confirm-password"
+                    name="confirmPassword" // Adicionado (nome diferente do campo de senha é comum)
                     type="password"
                     autoComplete="new-password"
                     required
-                    minLength={6}
+                    // minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`block w-full pl-10 pr-3 py-3 rounded-lg border ${!passwordMatch && confirmPassword ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400`}
+                    className={`block w-full pl-10 pr-10 py-3 rounded-lg border ${!passwordMatch && confirmPassword.length > 0 ? 'border-red-500 dark:border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'} dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm`}
                     placeholder="••••••••"
                   />
-                  {passwordMatch && confirmPassword && (
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  {passwordMatch && confirmPassword.length > 0 && password.length > 0 && (
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                       <FiCheck className="h-5 w-5 text-green-500" />
                     </div>
                   )}
                 </div>
-                {!passwordMatch && confirmPassword && (
-                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">As senhas não coincidem</p>
+                {!passwordMatch && confirmPassword.length > 0 && (
+                  <p className="mt-1 text-xs text-red-500 dark:text-red-400">As senhas não coincidem.</p>
                 )}
               </div>
               <motion.button
                 type="submit"
-                disabled={loading || !emailValid || !passwordMatch || !name}
-                whileHover={!(loading || !emailValid || !passwordMatch || !name) ? { scale: 1.02 } : {}}
-                whileTap={!(loading || !emailValid || !passwordMatch || !name) ? { scale: 0.98 } : {}}
-                className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium shadow-lg transition-all ${
-                  loading || !emailValid || !passwordMatch || !name
+                disabled={loading || !emailValid || !passwordMatch || !name || password.length < 8}
+                whileHover={!(loading || !emailValid || !passwordMatch || !name || password.length < 8) ? { scale: 1.02 } : {}}
+                whileTap={!(loading || !emailValid || !passwordMatch || !name || password.length < 8) ? { scale: 0.98 } : {}}
+                className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium shadow-lg transition-all duration-150 ease-in-out ${
+                  loading || !emailValid || !passwordMatch || !name || password.length < 8
                     ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400'
                     : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
                 }`}
               >
                 {loading ? (
                   <>
-                    <FiLoader className="animate-spin" />
+                    <FiLoader className="animate-spin h-5 w-5" />
                     Criando conta...
                   </>
                 ) : (
                   <>
                     Criar minha conta
-                    <FiArrowRight />
+                    <FiArrowRight className="h-5 w-5" />
                   </>
                 )}
               </motion.button>
@@ -395,9 +414,9 @@ export default function RegisterPage() {
             </div>
             <Link
               href="/auth/login"
-              className="w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300 shadow-sm"
+              className="w-full py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 dark:border-gray-600 dark:hover:bg-gray-700 dark:text-gray-300 shadow-sm transition-colors duration-150 ease-in-out"
             >
-              <FiArrowLeft />
+              <FiArrowLeft className="h-5 w-5" />
               Voltar para login
             </Link>
           </div>

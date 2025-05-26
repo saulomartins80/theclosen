@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
 interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-  onToggle?: () => void;
-  isMobile?: boolean;
+  isMobile: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  onToggle?: () => void; // Opcional para desktop
   initialCollapsed?: boolean;
 }
 

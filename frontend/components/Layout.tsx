@@ -84,6 +84,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           isMobile={false}
           initialCollapsed={isDesktopSidebarCollapsed}
           onToggle={toggleDesktopSidebarCollapse}
+          isOpen={true}
+          onClose={() => {}}
         />
       )}
 

@@ -173,6 +173,8 @@ export default function ProfilePage() {
       toast.success('Perfil atualizado com sucesso!');
       setIsEditing(false);
       setAvatarFile(null);
+      setFormData(prev => ({...prev, currentPassword: '', newPassword: '', confirmPassword: '' })); // Limpa campos de senha no frontend
+
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
       toast.error(error.message || 'Erro ao atualizar perfil');
@@ -334,7 +336,9 @@ export default function ProfilePage() {
                 {isEditing ? (
                   <input
                     type="text"
+                    id="header-name" // Adicionado ID
                     name="name"
+                    autoComplete="name" // Adicionado autocomplete
                     value={formData.name}
                     onChange={handleInputChange}
                     className="bg-transparent border-b border-white text-center text-white focus:outline-none placeholder-white::placeholder"
@@ -366,6 +370,7 @@ export default function ProfilePage() {
                           type="text"
                           id="name"
                           name="name"
+                          autoComplete="name" // Adicionado
                           value={formData.name}
                           onChange={handleInputChange}
                           className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -386,6 +391,7 @@ export default function ProfilePage() {
                           type="email"
                           id="email"
                           name="email"
+                          autoComplete="email" // Adicionado
                           value={formData.email}
                           onChange={handleInputChange}
                           className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -415,6 +421,7 @@ export default function ProfilePage() {
                             type={showCurrentPassword ? "text" : "password"}
                             id="currentPassword"
                             name="currentPassword"
+                            autoComplete="current-password" // Adicionado
                             value={formData.currentPassword}
                             onChange={handleInputChange}
                             className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
@@ -439,6 +446,7 @@ export default function ProfilePage() {
                               type={showNewPassword ? "text" : "password"}
                               id="newPassword"
                               name="newPassword"
+                              autoComplete="new-password" // Adicionado
                               value={formData.newPassword}
                               onChange={handleInputChange}
                               className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
@@ -462,6 +470,7 @@ export default function ProfilePage() {
                               type={showConfirmPassword ? "text" : "password"}
                               id="confirmPassword"
                               name="confirmPassword"
+                              autoComplete="new-password" // Adicionado
                               value={formData.confirmPassword}
                               onChange={handleInputChange}
                               className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"

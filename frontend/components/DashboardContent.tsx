@@ -8,6 +8,7 @@ import { useTheme } from "../context/ThemeContext";
 import Graficos from "../components/Graficos";
 import LoadingSpinner from "../components/LoadingSpinner";
 import FinanceMarket from '../components/FinanceMarket';
+import { ArrowUp, ArrowDown, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 type TransacaoAdaptada = {
   _id: string | { $oid: string };
@@ -92,9 +93,9 @@ const DashboardContent: React.FC = () => {
     .reduce((acc, t) => acc + t.valor, 0);
 
   const saldoAtual = totalReceitas - totalDespesas;
-  const saldoColor = saldoAtual >= 0 ? "text-green-500" : "text-red-500";
   const totalInvestimentos = mappedInvestments.reduce((acc, inv) => acc + inv.valor, 0);
 
+  // Cálculo de variação (simulado para exemplo)
   const variacaoSaldo = saldoAtual / (totalReceitas + totalDespesas) * 100 || 0;
   const variacaoReceitas = 15;
   const variacaoDespesas = -10;
@@ -122,6 +123,61 @@ const DashboardContent: React.FC = () => {
       </div>
     );
   }
+
+  // Componente de Card reutilizável
+  const SummaryCard = ({
+    title,
+    value,
+    variation,
+    icon,
+    color
+  }: {
+    title: string;
+    value: number;
+    variation: number;
+    icon: React.ReactNode;
+    color: string;
+  }) => {
+    const isPositive = variation >= 0;
+    const variationColor = isPositive ? 'text-green-500' : 'text-red-500';
+    const bgColor = theme === 'dark' ? 'bg-gray-800' : 'bg-white';
+    const iconBgColor = theme === 'dark' ? `bg-${color}-900/30` : `bg-${color}-100`;
+    
+    return (
+      <motion.div
+        whileHover={{ y: -2, boxShadow: theme === 'dark' ? '0 10px 25px -5px rgba(0, 0, 0, 0.3)' : '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
+        className={`p-5 rounded-xl shadow-sm border ${bgColor} ${
+          theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+        } transition-all duration-200`}
+      >
+        <div className="flex justify-between items-start">
+          <div>
+            <p className={`text-sm font-medium ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              {title}
+            </p>
+            <p className={`text-2xl font-bold mt-1 ${color}`}>
+              {formatCurrency(value)}
+            </p>
+          </div>
+          <div className={`p-3 rounded-lg ${iconBgColor} ${color}`}>
+            {icon}
+          </div>
+        </div>
+        <div className={`flex items-center mt-4 text-sm ${variationColor}`}>
+          {isPositive ? (
+            <ArrowUp className="w-4 h-4 mr-1" />
+          ) : (
+            <ArrowDown className="w-4 h-4 mr-1" />
+          )}
+          <span>
+            {isPositive ? '+' : ''}{Math.abs(variation).toFixed(2)}% em relação ao mês anterior
+          </span>
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
     <div className={`min-h-screen w-full transition-colors duration-300 ${
@@ -159,32 +215,39 @@ const DashboardContent: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Cards de Resumo - Ajuste para mobile */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {[
-            { title: "Saldo Atual", value: saldoAtual, color: saldoColor, variation: variacaoSaldo },
-            { title: "Receitas", value: totalReceitas, color: "text-blue-500", variation: variacaoReceitas },
-            { title: "Despesas", value: totalDespesas, color: "text-red-500", variation: variacaoDespesas },
-            { title: "Investimentos", value: totalInvestimentos, color: "text-purple-500", variation: variacaoInvestimentos }
-          ].map((card, index) => (
-            <motion.div
-              key={card.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`p-4 rounded-xl shadow ${
-                theme === "dark" ? "bg-gray-800" : "bg-white"
-              }`}
-            >
-              <h2 className="text-base font-semibold">{card.title}</h2>
-              <p className={`text-xl font-bold ${card.color} mt-1`}>
-                {formatCurrency(card.value)}
-              </p>
-              <p className={`text-xs ${card.variation >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {card.variation >= 0 ? '+' : ''}{card.variation.toFixed(2)}% este mês
-              </p>
-            </motion.div>
-          ))}
+        {/* Cards de Resumo Aprimorados */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <SummaryCard
+            title="Saldo Atual"
+            value={saldoAtual}
+            variation={variacaoSaldo}
+            icon={<Wallet className="w-5 h-5" />}
+            color={saldoAtual >= 0 ? "text-green-500" : "text-red-500"}
+          />
+          
+          <SummaryCard
+            title="Receitas"
+            value={totalReceitas}
+            variation={variacaoReceitas}
+            icon={<TrendingUp className="w-5 h-5" />}
+            color="text-blue-500"
+          />
+          
+          <SummaryCard
+            title="Despesas"
+            value={totalDespesas}
+            variation={variacaoDespesas}
+            icon={<TrendingDown className="w-5 h-5" />}
+            color="text-red-500"
+          />
+          
+          <SummaryCard
+            title="Investimentos"
+            value={totalInvestimentos}
+            variation={variacaoInvestimentos}
+            icon={<DollarSign className="w-5 h-5" />}
+            color="text-purple-500"
+          />
         </div>
 
         {/* Seção de Mercado Financeiro */}
