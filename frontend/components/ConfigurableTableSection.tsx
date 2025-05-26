@@ -1,5 +1,7 @@
 // components/ConfigurableTableSection.tsx
 import React, { useState } from "react";
+import { XMarkIcon } from '@heroicons/react/24/outline';
+import { useDashboard } from '../context/DashboardContext';
 
 interface ConfigurableTableSectionProps {
   title: string;
@@ -28,7 +30,10 @@ const ConfigurableTableSection: React.FC<ConfigurableTableSectionProps> = ({
   resolvedTheme
 }) => {
   const [showTable, setShowTable] = useState(true);
-  
+
+  // Importa as funções de remoção do contexto
+  const { removeStock, removeCrypto } = useDashboard();
+
   if (selectedItems.length === 0 && !showTable) return null;
 
   return (
@@ -98,6 +103,7 @@ const ConfigurableTableSection: React.FC<ConfigurableTableSectionProps> = ({
                 <th className="px-4 py-2 text-right text-xs font-medium uppercase">Preço</th>
                 <th className="px-4 py-2 text-right text-xs font-medium uppercase">Variação</th>
                 <th className="px-4 py-2 text-right text-xs font-medium uppercase">Volume</th>
+                <th className="px-4 py-2 text-right text-xs font-medium uppercase"></th> {/* Coluna para o botão de remover */}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -118,6 +124,26 @@ const ConfigurableTableSection: React.FC<ConfigurableTableSectionProps> = ({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">
                     {item.volume?.toLocaleString() || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    {type === 'stocks' && (
+                      <button
+                        onClick={() => removeStock(item.symbol)}
+                        className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                        title="Remover"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                    {type === 'cryptos' && (
+                      <button
+                        onClick={() => removeCrypto(item.symbol)}
+                        className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                        title="Remover"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -12,6 +12,7 @@ import { loginWithGoogle as firebaseLoginWithGoogle } from '../lib/firebase/clie
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase/client';
+// Ensure that 'auth' is exported as a properly initialized Firebase Auth instance from your firebase/client file.
 import { subscriptionAPI } from '../services/api/subscriptionAPI';
 
 // Tipos
@@ -398,11 +399,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = useCallback(async (email: string, password: string) => {
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Ensure 'auth' is a valid Firebase Auth instance and email/password are strings
+      const userCredential = await signInWithEmailAndPassword(auth, String(email), String(password));
       await syncSessionWithBackend(userCredential.user);
       
       const { redirect } = router.query;
+      router.push(typeof redirect === 'string' ? redirect : '/dashboard');
       router.push(typeof redirect === 'string' ? redirect : '/dashboard');
     } catch (error) {
       let errorMessage = 'Login failed';

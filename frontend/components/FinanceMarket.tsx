@@ -1,8 +1,9 @@
 //components/financeMarket.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, XMarkIcon, ArrowUpIcon, ArrowDownIcon, PlusIcon } from '@heroicons/react/24/outline';
 import AssetSelectionModal from './AssetSelectionModal';
+import { useDashboard } from '../context/DashboardContext';
 
 interface StockData {
   symbol: string;
@@ -52,32 +53,157 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
   setManualAssets,
   setSelectedStocks,
   setSelectedCryptos,
-  setSelectedCommodities
+  setSelectedCommodities,
 }) => {
   const { resolvedTheme } = useTheme();
+  const { addCustomIndex, removeCustomIndex } = useDashboard();
+
+  // Unified search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [newIndexSymbol, setNewIndexSymbol] = useState('');
+  const [newIndexName, setNewIndexName] = useState('');
   const [newManualAsset, setNewManualAsset] = useState('');
   const [showStockModal, setShowStockModal] = useState(false);
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [showCommodityModal, setShowCommodityModal] = useState(false);
 
-  // Exemplos de ativos disponíveis
-  const [availableStocks] = useState<string[]>([
-    'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'BBAS3.SA', // Ações BR
-    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', // Ações EUA
-    '^GSPC', '^IXIC', '^DJI' // Índices EUA
-  ]);
-  
-  const [availableCryptos] = useState<string[]>([
-    'BTC-USD', 'ETH-USD', 'SOL-USD', 'ADA-USD', 'DOGE-USD'
-  ]);
-  
-  const [availableCommodities] = useState<string[]>([
-    'GC=F', // Ouro
-    'SI=F', // Prata
-    'CL=F', // Petróleo
-    'NG=F', // Gás Natural
-    'ZC=F'  // Milho
-  ]);
+  // Adicione este estado para controle de edição
+  const [editingIndex, setEditingIndex] = useState<{symbol: string, name: string} | null>(null);
+
+  // Estado para índices padrão removidos
+  const [removedStandardIndices, setRemovedStandardIndices] = useState<string[]>([]);
+
+  // Exemplo de ações e criptos recomendadas
+  const [defaultStocks] = useState(['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'AAPL', 'MSFT']);
+  const [defaultCryptos] = useState(['BTC-USD', 'ETH-USD', 'USDT-USD']);
+
+  // Filtering logic
+  const lowerSearchTerm = searchTerm.toLowerCase();
+
+  const filteredCustomIndices = customIndices.filter(index =>
+    index.name.toLowerCase().includes(lowerSearchTerm) ||
+    index.symbol.toLowerCase().includes(lowerSearchTerm)
+  );
+
+  const filteredManualAssets = manualAssets.filter(asset =>
+    asset.toLowerCase().includes(lowerSearchTerm)
+  );
+
+  const getCommodityDisplayName = (symbol: string): string => {
+    if (symbol === 'GC=F') return 'Ouro';
+    if (symbol === 'SI=F') return 'Prata';
+    if (symbol === 'CL=F') return 'Petróleo';
+    if (symbol === 'NG=F') return 'Gás Natural';
+    if (symbol === 'ZC=F') return 'Milho';
+    return symbol.replace('=F', '');
+  };
+
+  const filteredTableStocks = marketData?.stocks.filter(stock =>
+    stock.symbol.toLowerCase().includes(lowerSearchTerm)
+  );
+
+  const filteredTableCryptos = marketData?.cryptos.filter(crypto =>
+    crypto.symbol.toLowerCase().includes(lowerSearchTerm)
+  );
+
+  const filteredTableCommodities = marketData?.commodities
+    ? marketData.commodities.filter(commodity =>
+        commodity.symbol.toLowerCase().includes(lowerSearchTerm) ||
+        getCommodityDisplayName(commodity.symbol).toLowerCase().includes(lowerSearchTerm)
+      )
+    : [];
+
+  let atLeastOneResult =
+    filteredCustomIndices.length > 0 ||
+    filteredManualAssets.length > 0 ||
+    (filteredTableStocks && filteredTableStocks.length > 0) ||
+    (filteredTableCryptos && filteredTableCryptos.length > 0) ||
+    (filteredTableCommodities && filteredTableCommodities.length > 0);
+
+  const shouldShowIbovespa = !searchTerm || "ibovespa".includes(lowerSearchTerm) || "^bvsp".includes(lowerSearchTerm);
+  const shouldShowDolar = !searchTerm || "dolar".includes(lowerSearchTerm) || "dólar".includes(lowerSearchTerm) || "brl=x".includes(lowerSearchTerm);
+  const shouldShowSP500 = !searchTerm || "s&p 500".includes(lowerSearchTerm) || "sp500".includes(lowerSearchTerm) || "^gspc".includes(lowerSearchTerm);
+
+  if (shouldShowIbovespa && marketData?.indices['^BVSP']) atLeastOneResult = true;
+  if (shouldShowDolar && marketData?.indices['BRL=X']) atLeastOneResult = true;
+  if (shouldShowSP500 && marketData?.indices['^GSPC']) atLeastOneResult = true;
+
+  // Função para nomes amigáveis dos índices padrão
+  const getFriendlyName = (symbol: string) => {
+    const friendlyNames: Record<string, string> = {
+      '^BVSP': 'IBOVESPA',
+      'BRL=X': 'Dólar',
+      '^GSPC': 'S&P 500',
+      '^IXIC': 'NASDAQ',
+      '^DJI': 'Dow Jones',
+      'BTC-USD': 'Bitcoin',
+      'GC=F': 'Ouro',
+      'CL=F': 'Petróleo'
+      // Adicione outros mapeamentos conforme necessário
+    };
+    return friendlyNames[symbol] || symbol;
+  };
+
+  // Handlers
+  const handleAddCustomIndex = () => {
+    const symbolToAdd = newIndexSymbol.trim().toUpperCase();
+    const nameToAdd = newIndexName.trim() || getFriendlyName(symbolToAdd);
+
+    if (symbolToAdd) {
+      if (editingIndex) {
+        // Se estiver editando um índice padrão
+        if (['^BVSP', 'BRL=X', '^GSPC'].includes(editingIndex.symbol)) {
+          addCustomIndex({ symbol: symbolToAdd, name: nameToAdd });
+          if (symbolToAdd !== editingIndex.symbol) {
+            setRemovedStandardIndices([...removedStandardIndices, editingIndex.symbol]);
+          }
+        } else {
+          // Edição normal de índice customizado
+          const updatedIndices = customIndices.map(index =>
+            index.symbol === editingIndex.symbol
+              ? { symbol: symbolToAdd, name: nameToAdd }
+              : index
+          );
+          setCustomIndices(updatedIndices);
+        }
+        setEditingIndex(null);
+      } else {
+        addCustomIndex({ symbol: symbolToAdd, name: nameToAdd });
+      }
+      setNewIndexSymbol('');
+      setNewIndexName('');
+      refreshMarketData();
+    }
+  };
+
+  // Adicione esta função para iniciar a edição
+  const handleEditCustomIndex = (index: {symbol: string, name: string}) => {
+    setEditingIndex(index);
+    setNewIndexSymbol(index.symbol);
+    setNewIndexName(index.name);
+    document.getElementById('newIndexForm')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Função para editar índice padrão
+  const handleEditStandardIndex = (symbol: string) => {
+    const friendlyName = getFriendlyName(symbol);
+    setEditingIndex({ symbol, name: friendlyName });
+    setNewIndexSymbol(symbol);
+    setNewIndexName(friendlyName);
+    document.getElementById('newIndexForm')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleRemoveCustomIndex = (symbol: string) => {
+    removeCustomIndex(symbol);
+    refreshMarketData();
+  };
+
+  // Função para remover índice padrão
+  const handleRemoveStandardIndex = (symbol: string) => {
+    if (window.confirm(`Remover ${getFriendlyName(symbol)}?`)) {
+      setRemovedStandardIndices([...removedStandardIndices, symbol]);
+    }
+  };
 
   const handleAddManualAsset = () => {
     if (newManualAsset.trim()) {
@@ -91,6 +217,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
   const handleRemoveManualAsset = (asset: string) => {
     setManualAssets(manualAssets.filter(a => a !== asset));
+    refreshMarketData();
   };
 
   const formatValue = (value: number, isCurrency: boolean, currency: string = 'BRL') => {
@@ -110,22 +237,22 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
   if (loadingMarketData) {
     return (
-      <div className="flex justify-center items-center py-10">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex justify-center items-center py-16">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (marketError) {
     return (
-      <div className="p-4 mb-6 rounded-lg bg-red-100 dark:bg-red-900">
+      <div className="p-4 mb-6 rounded-lg bg-red-100/90 dark:bg-red-900/90 border border-red-200 dark:border-red-800">
         <div className="flex items-center gap-2 text-red-700 dark:text-red-200">
-          <ExclamationTriangleIcon className="h-5 w-5" />
+          <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />
           <span>Erro ao carregar dados do mercado: {marketError}</span>
         </div>
-        <button 
+        <button
           onClick={refreshMarketData}
-          className="mt-2 px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition"
+          className="mt-3 px-4 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-1"
         >
           Tentar novamente
         </button>
@@ -133,263 +260,674 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
     );
   }
 
-  if (!marketData) return null;
+  if (!marketData) {
+    return (
+      <div className="p-4 mb-6 rounded-lg bg-yellow-100/90 dark:bg-yellow-900/90 border border-yellow-200 dark:border-yellow-800">
+        <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-200">
+          <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />
+          <span>Nenhum dado do mercado encontrado. Por favor, selecione os ativos.</span>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button
+            onClick={() => setShowStockModal(true)}
+            className={`px-4 py-1.5 rounded-md text-sm flex items-center gap-1 ${
+              resolvedTheme === "dark" 
+                ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+            } transition`}
+          >
+            Selecionar Ações
+          </button>
+          <button
+            onClick={() => setShowCryptoModal(true)}
+            className={`px-4 py-1.5 rounded-md text-sm flex items-center gap-1 ${
+              resolvedTheme === "dark" 
+                ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+            } transition`}
+          >
+            Selecionar Criptomoedas
+          </button>
+          <button
+            onClick={() => setShowCommodityModal(true)}
+            className={`px-4 py-1.5 rounded-md text-sm flex items-center gap-1 ${
+              resolvedTheme === "dark" 
+                ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+            } transition`}
+          >
+            Selecionar Commodities
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`rounded-xl shadow overflow-hidden ${
-      resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
+    <div className={`rounded-xl shadow-lg overflow-hidden border ${
+      resolvedTheme === "dark" 
+        ? "bg-gray-800 border-gray-700" 
+        : "bg-white border-gray-200"
     }`}>
-      {/* Header ajustado */}
-      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
-          <h2 className="text-lg sm:text-xl font-bold">Mercado Financeiro</h2>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              Atualizado em: {new Date(marketData.lastUpdated).toLocaleTimeString()}
+      {/* Header */}
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-gray-700 dark:to-gray-800">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Mercado Financeiro</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              Acompanhamento de ativos em tempo real
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-gray-700/50 px-2 py-1 rounded">
+              Atualizado: {new Date(marketData.lastUpdated).toLocaleTimeString()}
             </span>
-            <button 
+            <button
               onClick={refreshMarketData}
-              className={`text-xs sm:text-sm px-2 sm:px-3 py-1 rounded-lg ${
-                resolvedTheme === "dark" 
-                  ? "bg-blue-600 hover:bg-blue-500 text-white" 
-                  : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-              } transition`}
+              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 ${
+                resolvedTheme === "dark"
+                  ? "bg-blue-600 hover:bg-blue-500 text-white"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              } transition shadow-sm`}
             >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Atualizar
             </button>
           </div>
         </div>
       </div>
-      
-      {/* Conteúdo com padding ajustado */}
-      <div className="p-3 sm:p-6">
-        {/* Índices com grid ajustado */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6">
-          {/* Índice Brasileiro */}
-          <div className={`p-3 sm:p-4 rounded-lg ${
-            resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-          }`}>
-            <h3 className="font-semibold text-sm sm:text-base">IBOVESPA</h3>
-            <div className="flex justify-between items-end mt-2">
-              <span className="text-lg sm:text-2xl font-bold">
-                {marketData.indices['^BVSP']?.toLocaleString('pt-BR') || 'N/A'}
-              </span>
-              <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
-                marketData.indices['^BVSP'] >= 0
-                  ? resolvedTheme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
-                  : resolvedTheme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800"
-              }`}>
-                {marketData.indices['^BVSP'] >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices['^BVSP'] || 0).toFixed(2)}%
-              </span>
-            </div>
-          </div>
 
-          {/* Dólar */}
-          <div className={`p-3 sm:p-4 rounded-lg ${
-            resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-          }`}>
-            <h3 className="font-semibold text-sm sm:text-base">Dólar (USD/BRL)</h3>
-            <div className="flex justify-between items-end mt-2">
-              <span className="text-lg sm:text-2xl font-bold">
-                {formatValue(marketData.indices['BRL=X'] || 0, true)}
-              </span>
-              <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
-                marketData.indices['BRL=X'] >= 0
-                  ? resolvedTheme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
-                  : resolvedTheme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800"
-              }`}>
-                {marketData.indices['BRL=X'] >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices['BRL=X'] || 0).toFixed(2)}%
-              </span>
-            </div>
-          </div>
-
-          {/* S&P 500 */}
-          <div className={`p-3 sm:p-4 rounded-lg ${
-            resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-          }`}>
-            <h3 className="font-semibold text-sm sm:text-base">S&P 500</h3>
-            <div className="flex justify-between items-end mt-2">
-              <span className="text-lg sm:text-2xl font-bold">
-                {marketData.indices['^GSPC']?.toLocaleString('en-US') || 'N/A'}
-              </span>
-              <span className={`text-xs sm:text-sm px-2 py-1 rounded ${
-                marketData.indices['^GSPC'] >= 0
-                  ? resolvedTheme === "dark" ? "bg-green-800 text-green-200" : "bg-green-100 text-green-800"
-                  : resolvedTheme === "dark" ? "bg-red-800 text-red-200" : "bg-red-100 text-red-800"
-              }`}>
-                {marketData.indices['^GSPC'] >= 0 ? '↑' : '↓'} {Math.abs(marketData.indices['^GSPC'] || 0).toFixed(2)}%
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Seções de tabela com overflow controlado */}
-        <div className="mb-6">
-          <div className="mb-3 sm:mb-4">
-            <h3 className="font-semibold text-base sm:text-lg">Ações</h3>
-            <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
-              {selectedStocks.map(stock => (
-                <span 
-                  key={stock}
-                  className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                    resolvedTheme === "dark" 
-                      ? "bg-blue-800 text-blue-200" 
-                      : "bg-blue-100 text-blue-800"
-                  }`}
-                >
-                  {stock.replace('.SA', '')}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs sm:text-sm">
-              <thead className={`${
-                resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-              }`}>
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase">Ativo</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase">Preço</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase">Variação</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase">Volume</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {marketData.stocks.map((stock) => (
-                  <tr key={stock.symbol}>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">
-                      {stock.symbol.replace('.SA', '')}
-                    </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-right ${
-                      stock.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                    }`}>
-                      {formatValue(stock.price, true, stock.currency)}
-                    </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-right ${
-                      stock.changePercent >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                    }`}>
-                      {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">
-                      {stock.volume?.toLocaleString() || '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* Main Content */}
+      <div className="p-4 sm:p-6">
+        {/* Unified Search Bar */}
+        <div className="mb-6 relative">
+          <input
+            type="text"
+            placeholder="Pesquisar ações, criptomoedas, commodities..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2.5 rounded-lg text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
-        {/* Criptomoedas */}
-        <div className="mb-6">
-          <div className="mb-3 sm:mb-4">
-            <h3 className="font-semibold text-base sm:text-lg">Criptomoedas</h3>
-            <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
-              {selectedCryptos.map(crypto => (
-                <span 
-                  key={crypto}
-                  className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                    resolvedTheme === "dark" 
-                      ? "bg-purple-800 text-purple-200" 
-                      : "bg-purple-100 text-purple-800"
-                  }`}
-                >
-                  {crypto.replace('-USD', '')}
-                </span>
-              ))}
+        {/* No Results */}
+        {searchTerm && !atLeastOneResult && (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <div className="mx-auto w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
+            <p className="font-medium">Nenhum resultado encontrado para &quot;{searchTerm}&quot;</p>
+            <p className="text-sm mt-1">Tente buscar por outro termo ou símbolo</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs sm:text-sm">
-              <thead className={`${
-                resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
-              }`}>
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase">Criptomoeda</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase">Preço (USD)</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase">Variação (24h)</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase">Volume (24h)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {marketData.cryptos.map((crypto) => (
-                  <tr key={crypto.symbol}>
-                    <td className="px-4 py-3 whitespace-nowrap font-medium">
-                      {crypto.symbol.replace('-USD', '')}
-                    </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-right ${
-                      crypto.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                    }`}>
-                      {formatValue(crypto.price, true, 'USD')}
-                    </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-right ${
-                      crypto.changePercent >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                    }`}>
-                      {crypto.changePercent >= 0 ? '+' : ''}{crypto.changePercent.toFixed(2)}%
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">
-                      {crypto.volume?.toLocaleString() || '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        )}
 
-        {/* Commodities */}
-        {marketData.commodities && marketData.commodities.length > 0 && (
-          <div className="mb-6">
-            <div className="mb-3 sm:mb-4">
-              <h3 className="font-semibold text-base sm:text-lg">Commodities</h3>
-              <div className="flex flex-wrap gap-1 sm:gap-2 mb-2">
-                {selectedCommodities.map(commodity => (
-                  <span 
-                    key={commodity}
-                    className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                      resolvedTheme === "dark" 
-                        ? "bg-yellow-800 text-yellow-200" 
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
+        {/* Custom Indices */}
+        {(!searchTerm || filteredCustomIndices.length > 0) && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-base sm:text-lg text-gray-800 dark:text-white">Índices Customizados</h3>
+              <div className="flex gap-2">
+                {customIndices.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja remover todos os índices?')) {
+                        setCustomIndices([]);
+                        refreshMarketData();
+                      }
+                    }}
+                    className="text-xs text-red-600 dark:text-red-400 hover:underline"
                   >
-                    {commodity.replace('=F', '')}
-                  </span>
-                ))}
+                    Remover Todos
+                  </button>
+                )}
+                <button
+                  onClick={() => document.getElementById('newIndexForm')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Adicionar novo
+                </button>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs sm:text-sm">
+            
+            {filteredCustomIndices.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                {filteredCustomIndices.map(index => (
+                  <div key={index.symbol} className={`p-3 rounded-lg border ${
+                    resolvedTheme === "dark" 
+                      ? "bg-gray-700/50 border-gray-600" 
+                      : "bg-white border-gray-200"
+                  } shadow-sm relative group`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white">{index.name}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{index.symbol}</p>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleEditCustomIndex(index)}
+                          className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition"
+                          title="Editar"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleRemoveCustomIndex(index.symbol)}
+                          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                          title="Remover"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`p-4 rounded-lg text-center ${
+                resolvedTheme === "dark" 
+                  ? "bg-gray-700/30 border border-gray-600" 
+                  : "bg-gray-50 border border-gray-200"
+              }`}>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum índice customizado adicionado</p>
+              </div>
+            )}
+            
+            {!searchTerm && (
+              <div id="newIndexForm" className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600">
+                <h4 className="font-medium text-sm mb-3 text-gray-800 dark:text-gray-200">
+                  {editingIndex ? 'Editar Índice' : 'Adicionar novo índice customizado'}
+                </h4>
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Selecione o Índice
+                  </label>
+                  <select
+                    value={newIndexSymbol}
+                    onChange={(e) => setNewIndexSymbol(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="IBOVESPA">IBOVESPA</option>
+                    <option value="DOLAR">Dólar Americano</option>
+                    <option value="SP500">S&P 500</option>
+                    <option value="NASDAQ">NASDAQ</option>
+                    <option value="DOWJONES">Dow Jones</option>
+                    <option value="BITCOIN">Bitcoin</option>
+                    <option value="OURO">Ouro</option>
+                    <option value="PETROLEO">Petróleo</option>
+                    {/* Adicione mais opções conforme necessário */}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="indexName" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Nome de Exibição (opcional)
+                  </label>
+                  <input
+                    id="indexName"
+                    name="indexName"
+                    type="text"
+                    placeholder="Nome amigável (ex: S&P 500)"
+                    value={newIndexName}
+                    onChange={(e) => setNewIndexName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-md text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleAddCustomIndex}
+                    disabled={!newIndexSymbol.trim()}
+                    className={`px-4 py-2 rounded-md text-sm flex items-center justify-center gap-1 flex-1 ${
+                      !newIndexSymbol.trim()
+                        ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400'
+                        : resolvedTheme === "dark"
+                          ? "bg-blue-600 hover:bg-blue-500 text-white"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                    } transition`}
+                  >
+                    {editingIndex ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                    )}
+                    {editingIndex ? 'Salvar Edição' : 'Adicionar Índice'}
+                  </button>
+                  {editingIndex && (
+                    <button
+                      onClick={() => {
+                        setEditingIndex(null);
+                        setNewIndexSymbol('');
+                        setNewIndexName('');
+                      }}
+                      className="px-4 py-2 rounded-md text-sm flex items-center justify-center gap-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 transition"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Default Indices Grid */}
+        {(marketData.indices['^BVSP'] || marketData.indices['BRL=X'] || marketData.indices['^GSPC']) && (shouldShowIbovespa || shouldShowDolar || shouldShowSP500 || !searchTerm) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {shouldShowIbovespa && marketData.indices['^BVSP'] && !removedStandardIndices.includes('^BVSP') && (
+              <div className={`p-4 rounded-xl border ${
+                resolvedTheme === "dark" 
+                  ? "bg-gray-700/50 border-gray-600" 
+                  : "bg-white border-gray-200"
+              } shadow-sm hover:shadow-md transition-shadow relative group`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    resolvedTheme === "dark" 
+                      ? "bg-blue-900/30 text-blue-300" 
+                      : "bg-blue-100 text-blue-600"
+                  }`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 dark:text-white">{getFriendlyName('^BVSP')}</h3>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {marketData.indices['^BVSP']?.toLocaleString('pt-BR') || 'N/A'}
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                    marketData.indices['^BVSP'] >= 0
+                      ? resolvedTheme === "dark" 
+                        ? "bg-green-900/30 text-green-300" 
+                        : "bg-green-100 text-green-800"
+                      : resolvedTheme === "dark" 
+                        ? "bg-red-900/30 text-red-300" 
+                        : "bg-red-100 text-red-800"
+                  }`}>
+                    {marketData.indices['^BVSP'] >= 0 ? (
+                      <ArrowUpIcon className="h-3 w-3 mr-0.5" />
+                    ) : (
+                      <ArrowDownIcon className="h-3 w-3 mr-0.5" />
+                    )}
+                    {Math.abs(marketData.indices['^BVSP'] || 0).toFixed(2)}%
+                  </span>
+                </div>
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleEditStandardIndex('^BVSP')}
+                    className="text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition"
+                    title="Editar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleRemoveStandardIndex('^BVSP')}
+                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                    title="Remover"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {shouldShowDolar && marketData.indices['BRL=X'] && !removedStandardIndices.includes('BRL=X') && (
+              <div className={`p-4 rounded-xl border ${
+                resolvedTheme === "dark" 
+                  ? "bg-gray-700/50 border-gray-600" 
+                  : "bg-white border-gray-200"
+              } shadow-sm hover:shadow-md transition-shadow`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    resolvedTheme === "dark" 
+                      ? "bg-green-900/30 text-green-300" 
+                      : "bg-green-100 text-green-600"
+                  }`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 dark:text-white">{getFriendlyName('BRL=X')}</h3>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {formatValue(marketData.indices['BRL=X'] || 0, true)}
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                    marketData.indices['BRL=X'] >= 0
+                      ? resolvedTheme === "dark" 
+                        ? "bg-green-900/30 text-green-300" 
+                        : "bg-green-100 text-green-800"
+                      : resolvedTheme === "dark" 
+                        ? "bg-red-900/30 text-red-300" 
+                        : "bg-red-100 text-red-800"
+                  }`}>
+                    {marketData.indices['BRL=X'] >= 0 ? (
+                      <ArrowUpIcon className="h-3 w-3 mr-0.5" />
+                    ) : (
+                      <ArrowDownIcon className="h-3 w-3 mr-0.5" />
+                    )}
+                    {Math.abs(marketData.indices['BRL=X'] || 0).toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {shouldShowSP500 && marketData.indices['^GSPC'] && !removedStandardIndices.includes('^GSPC') && (
+              <div className={`p-4 rounded-xl border ${
+                resolvedTheme === "dark" 
+                  ? "bg-gray-700/50 border-gray-600" 
+                  : "bg-white border-gray-200"
+              } shadow-sm hover:shadow-md transition-shadow`}>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    resolvedTheme === "dark" 
+                      ? "bg-purple-900/30 text-purple-300" 
+                      : "bg-purple-100 text-purple-600"
+                  }`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold text-gray-800 dark:text-white">{getFriendlyName('^GSPC')}</h3>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {marketData.indices['^GSPC']?.toLocaleString('en-US') || 'N/A'}
+                  </span>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                    marketData.indices['^GSPC'] >= 0
+                      ? resolvedTheme === "dark" 
+                        ? "bg-green-900/30 text-green-300" 
+                        : "bg-green-100 text-green-800"
+                      : resolvedTheme === "dark" 
+                        ? "bg-red-900/30 text-red-300" 
+                        : "bg-red-100 text-red-800"
+                  }`}>
+                    {marketData.indices['^GSPC'] >= 0 ? (
+                      <ArrowUpIcon className="h-3 w-3 mr-0.5" />
+                    ) : (
+                      <ArrowDownIcon className="h-3 w-3 mr-0.5" />
+                    )}
+                    {Math.abs(marketData.indices['^GSPC'] || 0).toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stocks Table */}
+        {(!searchTerm || (filteredTableStocks && filteredTableStocks.length > 0)) && marketData.stocks.length > 0 && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg text-gray-800 dark:text-white">Ações</h3>
+              <div className="flex gap-2">
+                {selectedStocks.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja remover todas as ações?')) {
+                        setSelectedStocks([]);
+                        refreshMarketData();
+                      }
+                    }}
+                    className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  >
+                    Remover Todas
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowStockModal(true)}
+                  className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1 ${
+                    resolvedTheme === "dark" 
+                      ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                      : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                  } transition`}
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Adicionar
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className={`${
-                  resolvedTheme === "dark" ? "bg-gray-700" : "bg-gray-100"
+                  resolvedTheme === "dark" 
+                    ? "bg-gray-700 text-gray-300" 
+                    : "bg-gray-50 text-gray-700"
                 }`}>
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium uppercase">Commodity</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium uppercase">Preço</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium uppercase">Variação</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium uppercase">Volume</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Ativo</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Preço</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Variação</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Volume</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {marketData.commodities.map((commodity) => (
-                    <tr key={commodity.symbol}>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium">
-                        {commodity.symbol === 'GC=F' ? 'Ouro' : 
-                         commodity.symbol === 'SI=F' ? 'Prata' : 
-                         commodity.symbol === 'CL=F' ? 'Petróleo' : 
-                         commodity.symbol === 'NG=F' ? 'Gás Natural' : 
-                         commodity.symbol === 'ZC=F' ? 'Milho' : commodity.symbol.replace('=F', '')}
+                <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${
+                  resolvedTheme === "dark" 
+                    ? "bg-gray-800/50" 
+                    : "bg-white"
+                }`}>
+                  {(searchTerm ? filteredTableStocks ?? [] : marketData.stocks ?? []).map((stock) => (
+                    <tr key={stock.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {stock.symbol.replace('.SA', '')}
+                        {defaultStocks.includes(stock.symbol) && (
+                          <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            Recomendada
+                          </span>
+                        )}
                       </td>
-                      <td className={`px-4 py-3 whitespace-nowrap text-right ${
-                        commodity.change >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right ${
+                        stock.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {formatValue(stock.price, true, stock.currency)}
+                      </td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right ${
+                        stock.changePercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        <span className="inline-flex items-center">
+                          {stock.changePercent >= 0 ? (
+                            <ArrowUpIcon className="h-3 w-3 mr-1" />
+                          ) : (
+                            <ArrowDownIcon className="h-3 w-3 mr-1" />
+                          )}
+                          {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-400">
+                        {stock.volume?.toLocaleString() || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Cryptocurrencies Table */}
+        {(!searchTerm || (filteredTableCryptos && filteredTableCryptos.length > 0)) && marketData.cryptos.length > 0 && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg text-gray-800 dark:text-white">Criptomoedas</h3>
+              <div className="flex gap-2">
+                {selectedCryptos.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja remover todas as criptomoedas?')) {
+                        setSelectedCryptos([]);
+                        refreshMarketData();
+                      }
+                    }}
+                    className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  >
+                    Remover Todas
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowCryptoModal(true)}
+                  className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1 ${
+                    resolvedTheme === "dark" 
+                      ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                      : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                  } transition`}
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Adicionar
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className={`${
+                  resolvedTheme === "dark" 
+                    ? "bg-gray-700 text-gray-300" 
+                    : "bg-gray-50 text-gray-700"
+                }`}>
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Criptomoeda</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Preço (USD)</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Variação (24h)</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Volume (24h)</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${
+                  resolvedTheme === "dark" 
+                    ? "bg-gray-800/50" 
+                    : "bg-white"
+                }`}>
+                  {(searchTerm ? (filteredTableCryptos ?? []) : (marketData.cryptos ?? [])).map((crypto) => (
+                    <tr key={crypto.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {crypto.symbol.replace('-USD', '')}
+                        {defaultCryptos.includes(crypto.symbol) && (
+                          <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            Recomendada
+                          </span>
+                        )}
+                      </td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right ${
+                        crypto.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {formatValue(crypto.price, true, 'USD')}
+                      </td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right ${
+                        crypto.changePercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        <span className="inline-flex items-center">
+                          {crypto.changePercent >= 0 ? (
+                            <ArrowUpIcon className="h-3 w-3 mr-1" />
+                          ) : (
+                            <ArrowDownIcon className="h-3 w-3 mr-1" />
+                          )}
+                          {crypto.changePercent >= 0 ? '+' : ''}{crypto.changePercent.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-400">
+                        {crypto.volume?.toLocaleString() || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Commodities Table */}
+        {(!searchTerm || (filteredTableCommodities && filteredTableCommodities.length > 0)) && marketData.commodities && marketData.commodities.length > 0 && (
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg text-gray-800 dark:text-white">Commodities</h3>
+              <div className="flex gap-2">
+                {selectedCommodities.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Tem certeza que deseja remover todas as commodities?')) {
+                        setSelectedCommodities([]);
+                        refreshMarketData();
+                      }
+                    }}
+                    className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                  >
+                    Remover Todas
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowCommodityModal(true)}
+                  className={`px-3 py-1.5 rounded-md text-xs flex items-center gap-1 ${
+                    resolvedTheme === "dark" 
+                      ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                      : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                  } transition`}
+                >
+                  <PlusIcon className="h-3 w-3" />
+                  Adicionar
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className={`${
+                  resolvedTheme === "dark" 
+                    ? "bg-gray-700 text-gray-300" 
+                    : "bg-gray-50 text-gray-700"
+                }`}>
+                  <tr>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">Commodity</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Preço</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Variação</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider">Volume</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y divide-gray-200 dark:divide-gray-700 ${
+                  resolvedTheme === "dark" 
+                    ? "bg-gray-800/50" 
+                    : "bg-white"
+                }`}>
+                  {(searchTerm ? filteredTableCommodities : marketData.commodities).map((commodity) => (
+                    <tr key={commodity.symbol} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {getCommodityDisplayName(commodity.symbol)}
+                      </td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right ${
+                        commodity.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                       }`}>
                         {formatValue(commodity.price, true, 'USD')}
                       </td>
-                      <td className={`px-4 py-3 whitespace-nowrap text-right ${
-                        commodity.changePercent >= 0 ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right ${
+                        commodity.changePercent >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                       }`}>
-                        {commodity.changePercent >= 0 ? '+' : ''}{commodity.changePercent.toFixed(2)}%
+                        <span className="inline-flex items-center">
+                          {commodity.changePercent >= 0 ? (
+                            <ArrowUpIcon className="h-3 w-3 mr-1" />
+                          ) : (
+                            <ArrowDownIcon className="h-3 w-3 mr-1" />
+                          )}
+                          {commodity.changePercent >= 0 ? '+' : ''}{commodity.changePercent.toFixed(2)}%
+                        </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right text-gray-500 dark:text-gray-400">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500 dark:text-gray-400">
                         {commodity.volume?.toLocaleString() || '-'}
                       </td>
                     </tr>
@@ -400,48 +938,84 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
           </div>
         )}
 
-        {/* Ativos Manuais */}
-        <div className="mt-8 px-6 pb-6">
-          <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Ativos Manuais</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {manualAssets.map(asset => (
-              <span
-                key={asset}
-                className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 ${
-                  resolvedTheme === "dark"
-                    ? "bg-gray-600 text-gray-200"
-                    : "bg-gray-200 text-gray-800"
-                }`}
-              >
-                {asset.replace('-USD', '').replace('.SA', '')}
-                <button 
-                  onClick={() => handleRemoveManualAsset(asset)}
-                  className="hover:opacity-70"
+        {/* Manual Assets */}
+        {(!searchTerm || filteredManualAssets.length > 0) && (
+          <div className="mt-8">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-semibold text-lg text-gray-800 dark:text-white">Ativos Manuais</h3>
+              {!searchTerm && (
+                <button
+                  onClick={() => document.getElementById('manualAssetForm')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
+                  Adicionar novo
                 </button>
-              </span>
-            ))}
+              )}
+            </div>
+            
+            {filteredManualAssets.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4">
+                {filteredManualAssets.map(asset => (
+                  <div key={asset} className={`p-3 rounded-lg border ${
+                    resolvedTheme === "dark" 
+                      ? "bg-gray-700/50 border-gray-600" 
+                      : "bg-white border-gray-200"
+                  } shadow-sm`}>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {asset.replace('-USD', '').replace('.SA', '')}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveManualAsset(asset)}
+                        className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`p-4 rounded-lg text-center ${
+                resolvedTheme === "dark" 
+                  ? "bg-gray-700/30 border border-gray-600" 
+                  : "bg-gray-50 border border-gray-200"
+              }`}>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum ativo manual adicionado</p>
+              </div>
+            )}
+            
+            {!searchTerm && (
+              <div id="manualAssetForm" className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600">
+                <h4 className="font-medium text-sm mb-3 text-gray-800 dark:text-gray-200">Adicionar ativo manual</h4>
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder="Ex: PETR4, BTC, AAPL"
+                    value={newManualAsset}
+                    onChange={(e) => setNewManualAsset(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddManualAsset()}
+                    className="flex-1 px-3 py-2 rounded-md text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleAddManualAsset}
+                    disabled={!newManualAsset.trim()}
+                    className={`px-4 py-2 rounded-md text-sm flex items-center justify-center gap-1 ${
+                      resolvedTheme === "dark" 
+                        ? "bg-blue-600 hover:bg-blue-500 text-white disabled:bg-gray-600" 
+                        : "bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300"
+                    } transition`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Adicionar ativo manual (ex: PETR4, BTC, AAPL)"
-              value={newManualAsset}
-              onChange={(e) => setNewManualAsset(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddManualAsset()}
-              className="flex-1 px-3 py-1 rounded-md text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-            <button
-              onClick={handleAddManualAsset}
-              className={`px-3 py-1 rounded-md text-sm ${resolvedTheme === "dark" ? "bg-blue-600 hover:bg-blue-500 text-white" : "bg-blue-100 hover:bg-blue-200 text-blue-700"} transition`}
-            >
-              Adicionar
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Modais de seleção */}
@@ -454,10 +1028,9 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         }}
         currentSelected={selectedStocks}
         type="stocks"
-        allOptions={availableStocks}
+        allOptions={[]}
         title="Selecionar Ações"
       />
-      
       <AssetSelectionModal
         isOpen={showCryptoModal}
         onClose={() => setShowCryptoModal(false)}
@@ -467,10 +1040,9 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         }}
         currentSelected={selectedCryptos}
         type="cryptos"
-        allOptions={availableCryptos}
+        allOptions={[]}
         title="Selecionar Criptomoedas"
       />
-      
       <AssetSelectionModal
         isOpen={showCommodityModal}
         onClose={() => setShowCommodityModal(false)}
@@ -480,7 +1052,7 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         }}
         currentSelected={selectedCommodities}
         type="commodities"
-        allOptions={availableCommodities}
+        allOptions={[]}
         title="Selecionar Commodities"
       />
     </div>

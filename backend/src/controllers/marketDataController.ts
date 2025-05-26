@@ -32,7 +32,7 @@ export const getMarketDataController = async (
 
     // Validação adicional
     if (!Array.isArray(symbols)) {
-      res.status(400).json({ 
+      res.status(400).json({
         error: 'Invalid symbols format',
         details: 'Symbols must be an array'
       });
@@ -40,7 +40,7 @@ export const getMarketDataController = async (
     }
 
     if (!Array.isArray(cryptos)) {
-      res.status(400).json({ 
+      res.status(400).json({
         error: 'Invalid cryptos format',
         details: 'Cryptos must be an array'
       });
@@ -64,15 +64,24 @@ export const getMarketDataController = async (
     }
 
     const marketData = await getMarketData(symbols, cryptos, manualAssets, customIndices);
+
+    if (!marketData.stocks.length && !marketData.cryptos.length && Object.keys(marketData.indices).length === 0) {
+      res.status(404).json({
+        error: 'No market data found for the provided symbols',
+        details: 'Please check the symbols and try again.'
+      });
+      return;
+    }
+
     res.status(200).json(marketData);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in getMarketData controller:', error);
     
     const statusCode = error instanceof Error && error.name === 'SyntaxError' ? 400 : 500;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     
-    res.status(statusCode).json({ 
+    res.status(statusCode).json({
       error: 'Failed to fetch market data',
       details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
     });

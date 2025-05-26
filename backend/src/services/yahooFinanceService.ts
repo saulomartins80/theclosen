@@ -13,18 +13,30 @@ interface StockData {
 const YAHOO_FINANCE_API_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const REQUEST_TIMEOUT = 10000;
 
+// Atualize o symbolMappings para incluir todos os mapeamentos
 const symbolMappings: Record<string, string> = {
+  'IBOVESPA': '^BVSP',
+  'DOLAR': 'BRL=X',
   'SP500': '^GSPC',
   'NASDAQ': '^IXIC',
   'DOWJONES': '^DJI',
-  'IBOVESPA': '^BVSP',
-  'DOLAR': 'BRL=X',
   'BITCOIN': 'BTC-USD',
-  'ETHEREUM': 'ETH-USD'
+  'OURO': 'GC=F',
+  'PETROLEO': 'CL=F',
+  'PRATA': 'SI=F',
+  'SOJA': 'ZS=F',
+  'CAFE': 'KC=F'
+  // Adicione outros mapeamentos conforme necessário
 };
 
 export const fetchYahooFinanceData = async (symbol: string): Promise<StockData | null> => {
   try {
+    if (!symbol) {
+      console.error('Invalid symbol: Symbol cannot be empty');
+      return null;
+    }
+
+    // Use o mapeamento atualizado
     const resolvedSymbol = symbolMappings[symbol.toUpperCase()] || symbol;
     const symbolVariations = [
       resolvedSymbol,
@@ -56,14 +68,16 @@ export const fetchYahooFinanceData = async (symbol: string): Promise<StockData |
           volume: meta.regularMarketVolume,
           currency: meta.currency || (variation.endsWith('.SA') ? 'BRL' : 'USD')
         };
-      } catch (error) {
+      } catch (error: any) {
+        console.error(`Error fetching data for ${symbol} (variation: ${variation}):`, error.message || error);
         continue;
       }
     }
 
+    console.warn(`No data found for symbol ${symbol}`);
     return null;
-  } catch (error) {
-    console.error(`Error fetching data for ${symbol}:`, error instanceof Error ? error.message : error);
+  } catch (error: any) {
+    console.error(`Error fetching data for ${symbol}:`, error.message || error);
     return null;
   }
 };
@@ -122,7 +136,7 @@ export const getMarketData = async (
       indices,
       lastUpdated: new Date().toISOString()
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in getMarketData:', error);
     return {
       stocks: [],
