@@ -75,6 +75,8 @@ interface CpuUsage {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set('trust proxy', 1); // Necessário para express-rate-limit funcionar corretamente atrás de proxy/reverse proxy
+
 // A validação de variáveis de ambiente agora é primariamente feita em config/env.ts
 // Você pode remover ou ajustar esta seção se desejar.
 // const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'FIREBASE_ADMIN_PROJECT_ID']; 
