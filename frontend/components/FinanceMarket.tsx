@@ -56,7 +56,15 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
   setSelectedCommodities,
 }) => {
   const { resolvedTheme } = useTheme();
-  const { addCustomIndex, removeCustomIndex } = useDashboard();
+  // RECEBENDO LISTAS DE ATIVOS DISPONÍVEIS DO CONTEXTO
+  const {
+    addCustomIndex,
+    removeCustomIndex,
+    updateCustomIndex,
+    availableStocks,
+    availableCryptos,
+    availableCommodities
+  } = useDashboard();
 
   // Unified search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,13 +75,13 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
   const [showCryptoModal, setShowCryptoModal] = useState(false);
   const [showCommodityModal, setShowCommodityModal] = useState(false);
 
-  // Adicione este estado para controle de edição
+  // Edição de índice customizado
   const [editingIndex, setEditingIndex] = useState<{symbol: string, name: string} | null>(null);
 
   // Estado para índices padrão removidos
   const [removedStandardIndices, setRemovedStandardIndices] = useState<string[]>([]);
 
-  // Exemplo de ações e criptos recomendadas
+  // Ações e criptos recomendadas
   const [defaultStocks] = useState(['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'AAPL', 'MSFT']);
   const [defaultCryptos] = useState(['BTC-USD', 'ETH-USD', 'USDT-USD']);
 
@@ -151,32 +159,19 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
     if (symbolToAdd) {
       if (editingIndex) {
-        // Se estiver editando um índice padrão
-        if (['^BVSP', 'BRL=X', '^GSPC'].includes(editingIndex.symbol)) {
-          addCustomIndex({ symbol: symbolToAdd, name: nameToAdd });
-          if (symbolToAdd !== editingIndex.symbol) {
-            setRemovedStandardIndices([...removedStandardIndices, editingIndex.symbol]);
-          }
-        } else {
-          // Edição normal de índice customizado
-          const updatedIndices = customIndices.map(index =>
-            index.symbol === editingIndex.symbol
-              ? { symbol: symbolToAdd, name: nameToAdd }
-              : index
-          );
-          setCustomIndices(updatedIndices);
-        }
-        setEditingIndex(null);
+        // Atualizar índice customizado existente
+        updateCustomIndex(editingIndex.symbol, { symbol: symbolToAdd, name: nameToAdd });
       } else {
+        // Adicionar novo índice customizado
         addCustomIndex({ symbol: symbolToAdd, name: nameToAdd });
       }
       setNewIndexSymbol('');
       setNewIndexName('');
-      refreshMarketData();
+      setEditingIndex(null);
+      // refreshMarketData() é chamado pelo useEffect no contexto
     }
   };
 
-  // Adicione esta função para iniciar a edição
   const handleEditCustomIndex = (index: {symbol: string, name: string}) => {
     setEditingIndex(index);
     setNewIndexSymbol(index.symbol);
@@ -184,7 +179,6 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
     document.getElementById('newIndexForm')?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Função para editar índice padrão
   const handleEditStandardIndex = (symbol: string) => {
     const friendlyName = getFriendlyName(symbol);
     setEditingIndex({ symbol, name: friendlyName });
@@ -195,10 +189,9 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
   const handleRemoveCustomIndex = (symbol: string) => {
     removeCustomIndex(symbol);
-    refreshMarketData();
+    // refreshMarketData() é chamado pelo useEffect no contexto
   };
 
-  // Função para remover índice padrão
   const handleRemoveStandardIndex = (symbol: string) => {
     if (window.confirm(`Remover ${getFriendlyName(symbol)}?`)) {
       setRemovedStandardIndices([...removedStandardIndices, symbol]);
@@ -211,13 +204,14 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
       if (!manualAssets.includes(normalizedAsset)) {
         setManualAssets([...manualAssets, normalizedAsset]);
         setNewManualAsset('');
+        // refreshMarketData() é chamado pelo useEffect no contexto
       }
     }
   };
 
   const handleRemoveManualAsset = (asset: string) => {
     setManualAssets(manualAssets.filter(a => a !== asset));
-    refreshMarketData();
+    // refreshMarketData() é chamado pelo useEffect no contexto
   };
 
   const formatValue = (value: number, isCurrency: boolean, currency: string = 'BRL') => {
@@ -1024,11 +1018,12 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         onClose={() => setShowStockModal(false)}
         onSave={(selected) => {
           setSelectedStocks(selected);
-          refreshMarketData();
+          // refreshMarketData() é chamado pelo useEffect no contexto
         }}
         currentSelected={selectedStocks}
         type="stocks"
-        allOptions={[]}
+        allOptions={availableStocks}
+        defaultOptions={defaultStocks}
         title="Selecionar Ações"
       />
       <AssetSelectionModal
@@ -1036,11 +1031,12 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         onClose={() => setShowCryptoModal(false)}
         onSave={(selected) => {
           setSelectedCryptos(selected);
-          refreshMarketData();
+          // refreshMarketData() é chamado pelo useEffect no contexto
         }}
         currentSelected={selectedCryptos}
         type="cryptos"
-        allOptions={[]}
+        allOptions={availableCryptos}
+        defaultOptions={defaultCryptos}
         title="Selecionar Criptomoedas"
       />
       <AssetSelectionModal
@@ -1048,11 +1044,11 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
         onClose={() => setShowCommodityModal(false)}
         onSave={(selected) => {
           setSelectedCommodities(selected);
-          refreshMarketData();
+          // refreshMarketData() é chamado pelo useEffect no contexto
         }}
         currentSelected={selectedCommodities}
         type="commodities"
-        allOptions={[]}
+        allOptions={availableCommodities}
         title="Selecionar Commodities"
       />
     </div>
