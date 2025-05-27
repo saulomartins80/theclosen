@@ -1,8 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../lib/firebase/client';
-import { useAuth } from '../../context/AuthContext';
 import Link from 'next/link';
 import { FiArrowLeft, FiUser, FiMail, FiLock, FiCheck, FiAlertCircle, FiLoader, FiArrowRight } from 'react-icons/fi';
 import { motion } from 'framer-motion';
@@ -20,8 +17,7 @@ export default function RegisterPage() {
   const [passwordFocus, setPasswordFocus] = useState(false);
 
   const router = useRouter();
-  const { syncSessionWithBackend } = useAuth();
-
+  
   useEffect(() => {
     if (email === '') {
       setEmailValid(true);
@@ -41,7 +37,8 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(''); // Limpar erros anteriores
+    setError(''); 
+    setSuccess(false); 
     try {
       const currentEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       if (!currentEmailValid) {
@@ -58,13 +55,13 @@ export default function RegisterPage() {
         return;
       }
 
-      if (password.length < 8) { // Ajustado para 8 conforme PasswordCriteria
+      if (password.length < 8) { 
         setError('A senha deve ter no mínimo 8 caracteres');
         setLoading(false);
         return;
       }
 
-      // 1. Registrar usuário
+      // 1. Registrar usuário chamando a API do backend
       const registerResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,21 +70,15 @@ export default function RegisterPage() {
       });
 
       if (registerResponse.ok) {
-        // 2. Fazer login imediatamente após registro
-        const { user } = await signInWithEmailAndPassword(auth, email, password);
+        setSuccess(true); // Define sucesso para mostrar a mensagem
 
-        // 3. Forçar atualização do estado de autenticação
-        if (syncSessionWithBackend) {
-          await syncSessionWithBackend({
-            ...user,
-            photoURL: user.photoURL || ''
-          });
-        }
+        // Redirecionar para a página de login após sucesso
+        // Adicionado um pequeno delay visual antes de redirecionar
+        setTimeout(() => {
+          router.push('/auth/login?registration=success');
+        }, 1500); // Redireciona após 1.5 segundos para dar tempo de ver a mensagem
 
-        setSuccess(true);
-        // O redirecionamento pode ser tratado pelo useEffect abaixo ou aqui diretamente
-        // router.push('/dashboard'); 
-        return;
+        // Removida lógica de login imediato e syncSessionWithBackend
       } else {
         let errorMessage = 'Erro ao cadastrar. Tente novamente.';
         try {
@@ -96,7 +87,7 @@ export default function RegisterPage() {
             errorMessage = data.message;
           }
         } catch (parseError) {
-            console.error("Failed to parse error response from register API:", parseError);
+          console.error("Failed to parse error response from register API:", parseError);
         }
         setError(errorMessage);
       }
@@ -118,56 +109,49 @@ export default function RegisterPage() {
     }
   };
 
-  useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        router.push('/dashboard');
-      }, 3000); // Redireciona após 3 segundos
-      return () => clearTimeout(timer);
-    }
-  }, [success, router]);
+  // Removido o useEffect que redirecionava com base no 'success'
 
   const PasswordStrength = ({ password }: { password: string }) => {
-    const strength = { 
-      0: 'Muito fraca', 
-      1: 'Fraca', 
-      2: 'Moderada', 
-      3: 'Forte', 
-      4: 'Muito forte' 
+    const strength = {
+      0: 'Muito fraca',
+      1: 'Fraca',
+      2: 'Moderada',
+      3: 'Forte',
+      4: 'Muito forte'
     };
-    
+
     const getStrength = () => {
       let score = 0;
       if (!password) return { width: '0%', text: strength[0], color: 'bg-red-500' };
-      
+
       if (password.length >= 8) score++;
       if (/[A-Z]/.test(password)) score++;
       if (/[0-9]/.test(password)) score++;
       if (/[^A-Za-z0-9]/.test(password)) score++;
-      
+
       const colors = [
-        'bg-red-500', 
-        'bg-orange-500', 
-        'bg-yellow-500', 
-        'bg-blue-500', 
+        'bg-red-500',
+        'bg-orange-500',
+        'bg-yellow-500',
+        'bg-blue-500',
         'bg-green-500'
       ];
-      
-      return { 
-        width: `${(score / 4) * 100}%`, 
-        text: strength[score as keyof typeof strength], 
-        color: colors[score] 
+
+      return {
+        width: `${(score / 4) * 100}%`,
+        text: strength[score as keyof typeof strength],
+        color: colors[score]
       };
     };
-    
+
     const { width, text, color } = getStrength();
-    
+
     return (
       <div className="mt-1">
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-          <div 
-            className={`h-1.5 rounded-full ${color} transition-all duration-300`} 
-            style={{ width }} 
+          <div
+            className={`h-1.5 rounded-full ${color} transition-all duration-300`}
+            style={{ width }}
           />
         </div>
         {passwordFocus && password.length > 0 && (
@@ -186,7 +170,7 @@ export default function RegisterPage() {
       { regex: /[0-9]/, text: 'Pelo menos 1 número' },
       { regex: /[^A-Za-z0-9]/, text: 'Pelo menos 1 caractere especial' }
     ];
-    
+
     return (
       <div className={`mt-2 space-y-1 transition-all duration-300 ${passwordFocus && password.length > 0 ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         {criteria.map((item, index) => (
@@ -223,7 +207,7 @@ export default function RegisterPage() {
             <motion.div 
               initial={{ width: '0%' }}
               animate={{ width: '100%' }}
-              transition={{ duration: 3 }} 
+              transition={{ duration: 1.5 }} 
               className="h-full bg-gradient-to-r from-blue-500 to-purple-600"
             />
           </div>
@@ -232,7 +216,7 @@ export default function RegisterPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Aguarde o redirecionamento ou 
               <Link
-                href="/dashboard"
+                href="/auth/login"
                 className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               >
                  clique aqui
@@ -280,7 +264,7 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="name"
-                    name="name" // Adicionado
+                    name="name"
                     type="text"
                     autoComplete="name"
                     required
@@ -301,7 +285,7 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="email"
-                    name="email" // Adicionado
+                    name="email"
                     type="email"
                     autoComplete="email"
                     required
@@ -330,11 +314,10 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="password"
-                    name="password" // Adicionado
+                    name="password"
                     type="password"
                     autoComplete="new-password"
                     required
-                    // minLength={8} // PasswordCriteria já lida com isso visualmente
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setPasswordFocus(true)}
@@ -356,11 +339,10 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="confirm-password"
-                    name="confirmPassword" // Adicionado (nome diferente do campo de senha é comum)
+                    name="confirmPassword"
                     type="password"
                     autoComplete="new-password"
                     required
-                    // minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`block w-full pl-10 pr-10 py-3 rounded-lg border ${!passwordMatch && confirmPassword.length > 0 ? 'border-red-500 dark:border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500'} dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm`}
