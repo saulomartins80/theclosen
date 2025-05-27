@@ -53,6 +53,9 @@ export interface DashboardContextType {
   removeStock: (symbol: string) => void;
   removeCrypto: (symbol: string) => void;
   removeCommodity: (symbol: string) => void;
+  availableStocks: string[];
+  availableCryptos: string[];
+  availableCommodities: string[];
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -83,6 +86,24 @@ const SYMBOL_MAPPING: Record<string, string> = {
   // Adicione outros mapeamentos conforme necessário
 };
 
+// Listas estáticas de exemplo para ativos disponíveis
+const EXAMPLE_AVAILABLE_STOCKS = [
+    'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'BBAS3.SA', // B3
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', // EUA
+    // Adicione mais conforme necessário
+];
+
+const EXAMPLE_AVAILABLE_CRYPTOS = [
+    'BTC-USD', 'ETH-USD', 'USDT-USD', 'BNB-USD', 'XRP-USD', 'SOL-USD', 'ADA-USD', 'DOGE-USD',
+    // Adicione mais conforme necessário
+];
+
+const EXAMPLE_AVAILABLE_COMMODITIES = [
+    'GC=F', 'SI=F', 'CL=F', 'NG=F', 'ZC=F', // Metais e Energia
+    // Adicione mais conforme necessário
+];
+
+
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [loadingMarketData, setLoadingMarketData] = useState(false);
@@ -92,6 +113,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [selectedCommodities, setSelectedCommodities] = useState<string[]>(DEFAULT_COMMODITIES);
   const [manualAssets, setManualAssets] = useState<string[]>([]);
   const [customIndices, setCustomIndices] = useState<CustomIndex[]>(DEFAULT_CUSTOM_INDICES);
+
+  // NOVOS ESTADOS para listas disponíveis
+  const [availableStocks, setAvailableStocks] = useState<string[]>(EXAMPLE_AVAILABLE_STOCKS);
+  const [availableCryptos, setAvailableCryptos] = useState<string[]>(EXAMPLE_AVAILABLE_CRYPTOS);
+  const [availableCommodities, setAvailableCommodities] = useState<string[]>(EXAMPLE_AVAILABLE_COMMODITIES);
+
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const refreshMarketData = useCallback(async ({ silent = false } = {}) => {
@@ -124,14 +152,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           manualAssets: convertSymbols(manualAssets),
           customIndices: convertSymbols(customIndices.map(index => index.symbol))
         }),
-        signal: controller.signal
+        signal: controller.signal,
+        credentials: 'include' // ADICIONADO: Envia cookies com a requisição
       });
 
       if (controller.signal.aborted) return;
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch market data');
+        throw new Error(errorData.error || `Failed to fetch market data with status ${response.status}`); // Adicionado status ao erro
       }
 
       const data = await response.json();
@@ -144,20 +173,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       console.error('Error fetching market data:', error);
       if (!silent) {
         setMarketError(error instanceof Error ? error.message : 'Erro ao buscar dados do mercado.');
-        setMarketData(prev => prev || {
-          stocks: [],
-          cryptos: [],
-          indices: {},
-          commodities: [],
-          lastUpdated: new Date().toISOString()
-        });
+        // Mantenha dados anteriores em caso de erro silencioso, limpe se não for silencioso
+        if (!silent) {
+             setMarketData(null); // Limpa dados se houver erro não silencioso
+        }
       }
     } finally {
       if (!silent) {
         setLoadingMarketData(false);
       }
     }
-  }, [selectedStocks, selectedCryptos, selectedCommodities, manualAssets, customIndices]);
+  }, [selectedStocks, selectedCryptos, selectedCommodities, manualAssets, customIndices]); // DEPENDÊNCIAS ATUALIZADAS
 
   useEffect(() => {
     refreshMarketData();
@@ -166,41 +192,57 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       clearInterval(intervalId);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [refreshMarketData, customIndices]);
+  }, [refreshMarketData]); // refreshMarketData agora tem todas as dependências, só precisa dela aqui
 
   const addCustomIndex = (index: { symbol: string; name: string }) => {
-    setCustomIndices(prevIndices => [...prevIndices, index]);
+    // Converte símbolo de entrada se for nome amigável
+    const symbolToAdd = SYMBOL_MAPPING[index.symbol.toUpperCase()] || index.symbol;
+    const nameToAdd = index.name.trim() || symbolToAdd; // Usa símbolo como nome se nenhum for fornecido
+
+    // Verifica se já existe (evita duplicados)
+    if (!customIndices.some(idx => idx.symbol === symbolToAdd)) {
+       setCustomIndices(prevIndices => [...prevIndices, { symbol: symbolToAdd, name: nameToAdd }]);
+       // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect devido à mudança em customIndices
+    } else {
+       console.warn(`Index with symbol ${symbolToAdd} already exists.`);
+    }
   };
 
   const removeCustomIndex = (symbol: string) => {
     setCustomIndices(prevIndices => prevIndices.filter(index => index.symbol !== symbol));
+     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
   // Atualiza um índice customizado (edição)
   const updateCustomIndex = (oldSymbol: string, newIndex: CustomIndex) => {
-    setCustomIndices(prevIndices =>
-      prevIndices.map(index =>
-        index.symbol === oldSymbol ? newIndex : index
-      )
-    );
+     // Converte novo símbolo se for nome amigável
+    const newSymbol = SYMBOL_MAPPING[newIndex.symbol.toUpperCase()] || newIndex.symbol;
+    const newName = newIndex.name.trim() || newSymbol;
+
+     setCustomIndices(prevIndices =>
+       prevIndices.map(index =>
+         index.symbol === oldSymbol ? { symbol: newSymbol, name: newName } : index
+       )
+     );
+      // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
   // Remove uma ação e atualiza o mercado
   const removeStock = (symbol: string) => {
     setSelectedStocks(prev => prev.filter(s => s !== symbol));
-    refreshMarketData();
+     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
   // Remove uma cripto e atualiza o mercado
   const removeCrypto = (symbol: string) => {
     setSelectedCryptos(prev => prev.filter(s => s !== symbol));
-    refreshMarketData();
+     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
   // Remove uma commodity e atualiza o mercado
   const removeCommodity = (symbol: string) => {
     setSelectedCommodities(prev => prev.filter(s => s !== symbol));
-    refreshMarketData();
+     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
   const contextValue: DashboardContextType = {
@@ -223,8 +265,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateCustomIndex,
     removeStock,
     removeCrypto,
-    removeCommodity
+    removeCommodity,
+    // NOVOS: listas de ativos disponíveis exportadas
+    availableStocks,
+    availableCryptos,
+    availableCommodities,
   };
+
+   // Adicione logs para verificar o estado das listas no contexto
+   useEffect(() => {
+       console.log('[DashboardContext] selectedStocks:', selectedStocks);
+       console.log('[DashboardContext] selectedCryptos:', selectedCryptos);
+       console.log('[DashboardContext] selectedCommodities:', selectedCommodities);
+       console.log('[DashboardContext] manualAssets:', manualAssets);
+       console.log('[DashboardContext] customIndices:', customIndices);
+   }, [selectedStocks, selectedCryptos, selectedCommodities, manualAssets, customIndices]);
+
 
   return (
     <DashboardContext.Provider value={contextValue}>

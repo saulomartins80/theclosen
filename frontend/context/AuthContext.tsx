@@ -402,13 +402,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Ensure 'auth' is a valid Firebase Auth instance and email/password are strings
       const userCredential = await signInWithEmailAndPassword(auth, String(email), String(password));
       await syncSessionWithBackend(userCredential.user);
-      
+
       const { redirect } = router.query;
-      router.push(typeof redirect === 'string' ? redirect : '/dashboard');
+      // REMOVIDA A SEGUNDA CHAMADA DUPLICADA DE router.push
       router.push(typeof redirect === 'string' ? redirect : '/dashboard');
     } catch (error) {
       let errorMessage = 'Login failed';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('auth/invalid-email')) {
           errorMessage = 'Email inválido';
@@ -418,7 +418,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           errorMessage = error.message;
         }
       }
-      
+
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -528,7 +528,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshSubscription,
     checkSubscriptionQuick,
     createTestSubscription,
-    login,
+    login, // Incluindo a função login corrigida
     loginWithGoogle,
     logout,
     clearErrors,
@@ -540,7 +540,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshSubscription,
     checkSubscriptionQuick,
     createTestSubscription,
-    login,
+    login, // Incluindo login nas dependências do useMemo
     loginWithGoogle,
     logout,
     clearErrors,
