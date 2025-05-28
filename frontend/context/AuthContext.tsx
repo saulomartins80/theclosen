@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     error: string | null;
     subscriptionError: string | null;
     isAuthReady: boolean;
-  }>({
+  }>( {
     user: null,
     subscription: null,
     loading: false,
@@ -163,7 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadingSubscription: false,
     error: null,
     subscriptionError: null,
-    isAuthReady: false,
+    isAuthReady: false
   });
 
   const clearErrors = useCallback(() => {
@@ -176,84 +176,142 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const syncSessionWithBackend = useCallback(async (firebaseUser: FirebaseUser | null) => {
+    // Sempre atualiza o estado para indicar que a verificação de autenticação está em andamento
+    // e que não está mais no estado inicial de 'loading: true' (que é apenas para o primeiro render)
+    setState(prev => ({ 
+      ...prev, 
+      // user e subscription serão definidos abaixo ou permanecerão null
+      // loading: true, // O loading pode ser gerenciado pela UI que espera por isAuthReady
+      authChecked: false, // Indica que a checagem está ocorrendo
+      isAuthReady: false // Indica que o estado final de auth ainda não foi determinado
+    }));
+
     if (!firebaseUser) {
+      console.log("syncSessionWithBackend: No firebaseUser. Setting state to unauthenticated.");
       setState(prev => ({
         ...prev,
         user: null,
         subscription: null,
-        authChecked: true,
-        loading: false,
-        isAuthReady: true,
+        authChecked: true, // Finalizou a checagem
+        loading: false, // Não está carregando dados do backend
+        isAuthReady: true, // O estado (não autenticado) foi determinado
       }));
       return null;
     }
   
     try {
-      let token = await firebaseUser.getIdToken(true); // Força token fresco
-      let response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`, {
+      console.log("syncSessionWithBackend: Found firebaseUser.");
+      // Força refresh do token para garantir que está atualizado para a chamada ao backend
+      const token = await firebaseUser.getIdToken(true);
+      console.log("syncSessionWithBackend: Obtained fresh token.");
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Envia o token no header para o backend validar
+         },
+        body: JSON.stringify({  }), // O token já está no header
       });
-  
-      // Se o token estiver expirado, tenta novamente com um novo token
-      if (response.status === 401) {
-        const errorData = await response.json();
-        if (errorData.code === 'TOKEN_EXPIRED') {
-          token = await firebaseUser.getIdToken(true);
-          response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
-          });
-        }
-      }
   
       const sessionData = await response.json().catch(() => ({}));
   
       if (!response.ok) {
         let errorMessage = 'Erro ao sincronizar sessão';
+        // console.error("syncSessionWithBackend API error:", response.status, sessionData);
+
         if (response.status === 401) {
+          // Se o backend retorna 401, a sessão no backend é inválida/expirada
           errorMessage = 'Sessão expirada ou inválida. Por favor, faça login novamente.';
+           // Force logout no Firebase e no frontend state
           await firebaseSignOut(auth);
+           setState(prev => ({
+            ...prev,
+            user: null,
+            subscription: null,
+            authChecked: true,
+            loading: false,
+            isAuthReady: true,
+            error: errorMessage,
+          }));
+          return null;
+
         } else if (response.status === 404) {
-          errorMessage = 'Usuário não encontrado no sistema';
+           // Se o backend retorna 404 para /api/auth/session, o usuário pode não existir no DB do backend
+          errorMessage = 'Usuário não encontrado no sistema backend.';
+           // Decide se desloga ou mantém o estado Firebase user e mostra erro
+           // Por segurança, pode ser melhor deslogar aqui também se o backend é a fonte principal de dados do usuário
+          await firebaseSignOut(auth);
+           setState(prev => ({
+            ...prev,
+            user: null,
+            subscription: null,
+            authChecked: true,
+            loading: false,
+            isAuthReady: true,
+            error: errorMessage,
+          }));
+          return null;
+        
         } else if (response.status >= 500) {
-          errorMessage = 'Erro interno do servidor';
+          errorMessage = 'Erro interno do servidor ao sincronizar sessão.';
         } else if (sessionData?.error) {
           errorMessage = sessionData.error;
         }
-        throw new Error(errorMessage);
+        // Para outros erros, mantém o firebaseUser mas limpa user/subscription no estado local
+        setState(prev => ({
+          ...prev,
+          user: null, // Limpa user/subscription no estado local em caso de erro do backend
+          subscription: null,
+          authChecked: true,
+          loading: false,
+          isAuthReady: true,
+          error: errorMessage,
+        }));
+        // console.error("syncSessionWithBackend error:", errorMessage);
+        // Nao joga o erro aqui para nao quebrar o flow do onAuthStateChanged, apenas atualiza o estado
+        return null;
       }
   
       if (!sessionData.user) {
-        throw new Error('Dados do usuário não encontrados na resposta');
+         const errorMessage = 'Dados do usuário não encontrados na resposta do backend.';
+          setState(prev => ({
+            ...prev,
+            user: null, // Limpa user/subscription se os dados do backend estiverem incompletos
+            subscription: null,
+            authChecked: true,
+            loading: false,
+            isAuthReady: true,
+            error: errorMessage,
+          }));
+          // console.error("syncSessionWithBackend error:", errorMessage);
+          return null;
       }
   
+      // Sucesso: normaliza e atualiza o estado do contexto
       const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
-  
+      console.log("syncSessionWithBackend: Session synced. User:", authUser);
+
       setState(prev => ({
         ...prev,
         user: authUser,
         subscription: authUser?.subscription || null,
-        authChecked: true,
-        loading: false,
-        isAuthReady: true,
+        authChecked: true, // Finalizou a checagem
+        loading: false, // Não está carregando dados do backend
+        isAuthReady: true, // O estado (autenticado) foi determinado
+        error: null, // Limpa erros anteriores
       }));
   
       return authUser;
+
     } catch (error) {
-      const shouldSignOut =
-        error instanceof Error &&
-        (error.message.includes('Sessão expirada') ||
-          error.message.includes('inválida'));
+      console.error('syncSessionWithBackend caught error:', error);
   
-      if (shouldSignOut) {
-        await firebaseSignOut(auth);
-      }
-  
+      // Trata erros de rede ou outros erros que impedem a comunicação com o backend
+      // Nestes casos, é prudente deslogar para evitar inconsistência de estado
+      await firebaseSignOut(auth);
+
       setState(prev => ({
         ...prev,
         user: null,
@@ -291,17 +349,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      await firebaseSignOut(auth);
       
+      // Primeiro tenta o logout do Firebase
+      await firebaseSignOut(auth);
+      console.log("Firebase signed out.");
+      
+      // Depois informa o backend para limpar a sessão do lado dele (se aplicável)
       try {
+        // Usa a URL correta para o endpoint de logout do backend
         await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
           method: 'POST',
           credentials: 'include' 
+          // Não precisa enviar token aqui se o backend usa cookies de sessão httpOnly com credentials: 'include'
+          // Se usar header Auth, precisaria do token aqui, mas o Firebase sign out já invalidaria ele logo.
         });
+        console.log("Backend logout endpoint called.");
       } catch (apiError) {
+        // Loga erro do backend logout mas não impede o frontend de prosseguir
         console.error('API logout error:', apiError);
       }
       
+      // Limpa o estado do frontend imediatamente após o logout do Firebase
       setState({
         user: null,
         subscription: null,
@@ -310,26 +378,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loadingSubscription: false,
         error: null,
         subscriptionError: null,
-        isAuthReady: true,
+        isAuthReady: true, // O estado de não autenticado foi determinado
       });
       
+      // Redireciona após limpar o estado
       router.push('/auth/login');
+      console.log("Redirecting to login.");
+
     } catch (error) {
       console.error('Logout error:', error);
+      // Em caso de erro no logout do Firebase, atualiza o estado mas não força o redirect
       setState(prev => ({ 
         ...prev, 
-        error: 'Erro ao sair', 
-        loading: false 
+        error: error instanceof Error ? error.message : 'Erro ao sair', 
+        loading: false,
+        // Mantém o estado de autenticação como estava ou tenta re-sincronizar?
+        // Melhor manter o estado como estava antes do erro de logout, ou talvez isAuthReady: true com user: null
+        isAuthReady: true,
+        user: null, // Assumimos que se tentou sair, a intenção é não estar mais logado
+        subscription: null,
       }));
     }
   }, [router]);
 
   const fetchSubscription = useCallback(async (userId: string) => {
-    if (!userId) return;
+    if (!userId) {
+      console.warn("fetchSubscription called without userId");
+      setState(prev => ({ ...prev, subscription: null, loadingSubscription: false }));
+       return; // Sai da função se não houver userId
+    }
     
     setState(prev => ({ ...prev, loadingSubscription: true, subscriptionError: null }));
     
     try {
+      // Certifique-se de que subscriptionAPI.get usa o token de autenticação se necessário
+      // E que a URL construída é correta (sem o 'undefined')
       const subscriptionData = await subscriptionAPI.get(userId);
       const normalizedSubscription = normalizeSubscription(subscriptionData);
       
@@ -341,31 +424,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } : null,
         subscription: normalizedSubscription,
         loadingSubscription: false,
+        subscriptionError: null, // Limpa erros anteriores de subscription
       }));
     } catch (error) {
+      console.error('fetchSubscription error:', error);
       setState(prev => ({
         ...prev,
+        subscription: null, // Limpa a subscription em caso de erro
         subscriptionError: error instanceof Error ? error.message : 'Failed to load subscription',
         loadingSubscription: false,
       }));
     }
-  }, []);
+  }, []); // Depende de subscriptionAPI (se ela mudar, mas geralmente não acontece)
 
   const checkSubscriptionQuick = useCallback(async (userId: string): Promise<boolean> => {
+     if (!userId) {
+       console.warn("checkSubscriptionQuick called without userId");
+       return false;
+     }
     try {
+      // Certifique-se de que subscriptionAPI.quickCheck usa o token de autenticação se necessário
+      // E que a URL construída é correta (sem o 'undefined')
       return await subscriptionAPI.quickCheck(userId);
     } catch (error) {
       console.error('Quick check subscription error:', error);
+       // Em caso de erro na checagem rápida, assume que não há subscription ativa
       return false;
     }
-  }, []);
+  }, []); // Depende de subscriptionAPI
 
   const createTestSubscription = useCallback(async (plan: string): Promise<Subscription | void> => {
-    if (!state.user?.uid) return;
+    if (!state.user?.uid) {
+      console.warn("createTestSubscription called without authenticated user");
+      setState(prev => ({ ...prev, subscriptionError: 'Usuário não autenticado', loadingSubscription: false }));
+      return;
+    }
     
-    setState(prev => ({ ...prev, loadingSubscription: true }));
+    setState(prev => ({ ...prev, loadingSubscription: true, subscriptionError: null }));
     
     try {
+      // Certifique-se de que subscriptionAPI.createTest usa o token de autenticação se necessário
+      // E que a URL construída é correta
       const subscriptionData = await subscriptionAPI.createTest(state.user.uid, plan);    
       const normalizedSubscription = normalizeSubscription(subscriptionData);
       
@@ -382,31 +481,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       return normalizedSubscription as Subscription;
     } catch (error) {
+       console.error('createTestSubscription error:', error);
       setState(prev => ({ 
         ...prev, 
+        subscription: null, // Limpa a subscription em caso de erro na criação
         subscriptionError: error instanceof Error ? error.message : 'Failed to create subscription',
         loadingSubscription: false
       }));
-      throw error;
+      throw error; // Re-throw para que o componente que chamou possa tratar
     }
-  }, [state.user?.uid]);
+  }, [state.user?.uid]); // Depende de state.user?.uid e subscriptionAPI
 
   const refreshSubscription = useCallback(async () => {
     if (state.user?.uid) {
       await fetchSubscription(state.user.uid);
+    } else {
+       console.warn("refreshSubscription called without authenticated user");
+       // Se não há usuário logado, garante que o estado de subscription está limpo
+       setState(prev => ({ ...prev, subscription: null }));
     }
   }, [state.user?.uid, fetchSubscription]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
       // Ensure 'auth' is a valid Firebase Auth instance and email/password are strings
       const userCredential = await signInWithEmailAndPassword(auth, String(email), String(password));
-      await syncSessionWithBackend(userCredential.user);
+      console.log("Firebase email/password login successful.", userCredential.user.uid);
 
+      // Sincroniza com o backend após login bem-sucedido no Firebase
+      await syncSessionWithBackend(userCredential.user);
+       console.log("Backend session synced after login.");
+
+      // Redireciona para a página desejada ou dashboard
       const { redirect } = router.query;
-      // REMOVIDA A SEGUNDA CHAMADA DUPLICADA DE router.push
-      router.push(typeof redirect === 'string' ? redirect : '/dashboard');
+      const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
+      console.log("Redirecting to:", redirectTo);
+      router.push(redirectTo);
+
     } catch (error) {
+       console.error('Email/Password login error:', error);
       let errorMessage = 'Login failed';
 
       if (error instanceof Error) {
@@ -415,6 +529,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else if (error.message.includes('auth/user-not-found') || error.message.includes('auth/wrong-password')) {
           errorMessage = 'Email ou senha incorretos';
         } else {
+          // Assume outros erros do Firebase auth
           errorMessage = error.message;
         }
       }
@@ -423,27 +538,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         ...prev,
         error: errorMessage,
         loading: false,
+        // No login error, user should be null, isAuthReady should be true (state determined)
+        user: null,
+        subscription: null,
+        authChecked: true,
+        isAuthReady: true,
       }));
-      throw error;
+      throw error; // Re-throw para que a UI possa lidar com o erro
     }
   }, [router, syncSessionWithBackend]);
 
   const loginWithGoogle = useCallback(async () => {
   try {
     setState(prev => ({ ...prev, loading: true, error: null }));
+    console.log("Starting Google login popup.");
     
-    // Usando a função renomeada
+    // Usando a função renomeada para login com Google popup
     const userCredential = await firebaseLoginWithGoogle();
     
     if (!userCredential?.user) {
-      throw new Error('No user returned from Google login');
+       console.warn("Google login popup closed or no user returned.");
+      // Se o popup for fechado ou não retornar usuário, apenas limpa o loading e não atualiza o estado de user/authChecked
+      setState(prev => ({ ...prev, loading: false }));
+      return; // Sai da função
+      // throw new Error('No user returned from Google login'); // Melhor não jogar erro se for apenas popup fechado
     }
     
+    console.log("Firebase Google login successful.", userCredential.user.uid);
+
+    // Sincroniza com o backend após login bem-sucedido no Firebase
     await syncSessionWithBackend(userCredential.user);
-    
+    console.log("Backend session synced after Google login.");
+
+    // Redireciona para a página desejada ou dashboard
     const { redirect } = router.query;
-    const redirectPath = typeof redirect === 'string' ? redirect : '/dashboard';
-    router.push(redirectPath);
+    const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
+    console.log("Redirecting to:", redirectTo);
+    router.push(redirectTo);
     
   } catch (error) {
     console.error('Google login error:', error);
@@ -457,61 +588,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else if (error.message.includes('auth/argument-error')) {
         errorMessage = 'Erro de configuração no login com Google';
       }
+       else {
+          // Assume outros erros do Firebase auth
+          errorMessage = error.message;
+        }
     }
     
     setState(prev => ({
       ...prev,
       error: errorMessage,
       loading: false,
+       // No login error, user should be null, isAuthReady should be true (state determined)
+      user: null,
+      subscription: null,
+      authChecked: true,
+      isAuthReady: true,
     }));
+     // Não re-throw para não quebrar o popup flow, o erro é mostrado no estado
   }
 }, [router, syncSessionWithBackend]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("onAuthStateChanged triggered with:", firebaseUser);
-
-      if (firebaseUser) {
-        console.log("User is logged in - UID:", firebaseUser.uid);
-        try {
-          // Forçar refresh do token
-          const freshToken = await firebaseUser.getIdToken(true);
-          console.log("Fresh token obtained");
-          await syncSessionWithBackend(firebaseUser);
-        } catch (error) {
-          console.error("Error in auth state change:", error);
-          setState(prev => ({
-            ...prev,
-            user: null,
-            subscription: null,
-            authChecked: true,
-            loading: false,
-            isAuthReady: true,
-            error: error instanceof Error ? error.message : 'Erro ao verificar autenticação'
-          }));
-        }
-      } else {
-        console.log("No user detected - checking auth state");
-        // Verifique se há um usuário ativo que pode não ter sido detectado
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          console.log("Found currentUser that wasn't detected:", currentUser.uid);
-          await syncSessionWithBackend(currentUser);
-        } else {
-          setState(prev => ({
-            ...prev,
-            user: null,
-            subscription: null,
-            authChecked: true,
-            loading: false,
-            isAuthReady: true,
-          }));
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [syncSessionWithBackend]);
 
   const value: AuthContextType = useMemo(() => ({
     ...state,
@@ -528,7 +624,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshSubscription,
     checkSubscriptionQuick,
     createTestSubscription,
-    login, // Incluindo a função login corrigida
+    login,
     loginWithGoogle,
     logout,
     clearErrors,
@@ -540,7 +636,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshSubscription,
     checkSubscriptionQuick,
     createTestSubscription,
-    login, // Incluindo login nas dependências do useMemo
+    login,
     loginWithGoogle,
     logout,
     clearErrors,
@@ -548,6 +644,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updateUserContextProfile,
     syncSessionWithBackend,
   ]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log("onAuthStateChanged triggered with:", firebaseUser);
+
+      // Chamar syncSessionWithBackend para processar o usuário do Firebase e backend sync
+      await syncSessionWithBackend(firebaseUser);
+
+      // Garante que isAuthReady se torna true após a checagem inicial, mesmo que syncSessionWithBackend falhe
+      setState(prev => ({ ...prev, isAuthReady: true }));
+      console.log("onAuthStateChanged finished. isAuthReady set to true.");
+    });
+
+    // Limpar o listener ao desmontar
+    return () => unsubscribe();
+  }, [syncSessionWithBackend]);
 
   return (
     <AuthContext.Provider value={value}>

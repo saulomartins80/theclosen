@@ -82,8 +82,11 @@ router.post('/verify-token',
 
 router.post('/session', asyncHandler(async (req: Request, res: Response) => {
   try {
-    const token = req.body.token;
-    if (!token) throw new AppError(400, 'Token necessário');
+    // Obter o token do header Authorization (formato "Bearer TOKEN")
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) throw new AppError(401, 'Token de autenticação ausente no cabeçalho.');
 
     // Adiciona tolerância para expiração do token
     let decodedToken;
@@ -91,7 +94,6 @@ router.post('/session', asyncHandler(async (req: Request, res: Response) => {
       decodedToken = await adminAuth.verifyIdToken(token, true);
     } catch (error: any) {
       if (error.code === 'auth/id-token-expired') {
-        // Solicitar novo token ao frontend
         res.status(401).json({
           error: 'Token expirado',
           code: 'TOKEN_EXPIRED'
