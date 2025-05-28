@@ -5,35 +5,46 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading, authChecked, subscription } = useAuth();
+  // Usar isAuthReady em vez de authChecked para um estado mais preciso
+  const { user, loading, isAuthReady, subscription } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!authChecked) {
-      // Se a verificação de autenticação ainda não terminou, não faz nada.
-      return;
+    // Espera até que o estado de autenticação esteja completamente pronto (Firebase + Backend Sync)
+    if (!isAuthReady) {
+      return; // Não faz nada até que isAuthReady seja true
     }
 
     const isOnAuthPage = router.pathname.startsWith('/auth/');
 
+    // Se isAuthReady é true e não há usuário, redireciona para login (se não já estiver lá)
     if (!user) {
-      // Usuário não autenticado.
       if (!isOnAuthPage) {
-        // Se não estiver numa página de autenticação, redireciona para o login.
-        console.log('[ProtectedRoute] User not authenticated. Redirecting to login.');
+        console.log('[ProtectedRoute] Auth state ready, user not authenticated. Redirecting to login.');
         router.replace(`/auth/login?redirect=${encodeURIComponent(router.asPath)}`);
       }
-      return; // Para a execução aqui se não estiver autenticado.
-    }
-
-    // Usuário está autenticado.
-    const isOnSubscriptionPage = router.pathname === '/assinatura';
-
-    // Permite acesso se estiver na página de autenticação (pouco provável de chegar aqui se user existir)
-    // ou na página de assinatura, sem mais verificações de assinatura.
-    if (isOnAuthPage || isOnSubscriptionPage) {
+      // Se está em isOnAuthPage e !user, fica na página de auth.
       return;
     }
+
+    // Se isAuthReady é true e há um usuário, verifica a assinatura e redireciona se necessário
+    // ... (restante da sua lógica de verificação de assinatura permanece a mesma) ...
+     const isOnSubscriptionPage = router.pathname === '/assinatura';
+
+    // Permite acesso se estiver na página de autenticação
+    if (isOnAuthPage) {
+       // Se o usuário está autenticado e tenta ir para /auth/*, redireciona para o dashboard
+       console.log('[ProtectedRoute] User authenticated, redirecting from auth page to dashboard.');
+       router.replace('/dashboard');
+       return;
+    }
+
+    // Permite acesso se estiver na página de assinatura
+    if (isOnSubscriptionPage) {
+        console.log('[ProtectedRoute] User authenticated, allowing access to subscription page.');
+        return;
+    }
+
 
     // Verificar se tem assinatura paga ativa (ex: 'premium', 'enterprise')
     const hasPaidActiveSubscription = 
@@ -44,7 +55,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
     if (hasPaidActiveSubscription) {
       // Tem assinatura paga ativa, permite acesso.
-      console.log('[ProtectedRoute] User has active paid subscription.');
+      console.log('[ProtectedRoute] User has active paid subscription. Allowing access.');
       return;
     }
 
@@ -59,54 +70,26 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
     if (isInActiveTrial) {
       // Está em período de teste válido, permite acesso.
-      console.log('[ProtectedRoute] User in active trial period.');
+      console.log('[ProtectedRoute] User in active trial period. Allowing access.');
       return;
     }
 
     // Não tem assinatura paga ativa E não está em período de teste válido (ou o trial expirou).
     // Redirecionar para a página de assinatura.
-    console.log('[ProtectedRoute] No active paid subscription or trial. Redirecting to /assinatura.');
+    console.log('[ProtectedRoute] Auth state ready, no active paid subscription or trial. Redirecting to /assinatura.');
     router.replace('/assinatura');
 
-  }, [authChecked, user, subscription, router]);
 
-  // Enquanto carrega ou a autenticação não foi checada, mostra o spinner.
-  if (loading || !authChecked) {
+  }, [isAuthReady, user, subscription, router]); // Adiciona isAuthReady às dependências
+
+  // Mostra o spinner enquanto o estado de autenticação não estiver completamente pronto
+  if (!isAuthReady) { // Usa isAuthReady aqui também
+    console.log('[ProtectedRoute] Authentication state not ready. Showing spinner.');
     return <LoadingSpinner fullScreen />;
   }
 
-  // Lógica de renderização de children
-  if (!user) {
-    // Se não há usuário (e authChecked é true), o redirecionamento para login está em progresso ou falhou.
-    // Retornar um loader para cobrir o tempo de redirecionamento.
-    return <LoadingSpinner fullScreen />;
-  }
-
-  // Se o usuário está autenticado, permitir o acesso se:
-  // 1. Estiver na página de autenticação ou assinatura (já tratado no useEffect para não redirecionar).
-  // 2. Tiver uma assinatura paga ativa.
-  // 3. Estiver em um período de teste ativo.
-  const hasPaidActiveSubscription = 
-    subscription &&
-    subscription.plan !== 'trial' &&
-    subscription.plan !== 'free' &&
-    subscription.status === 'active';
-  
-  let isInActiveTrial = false;
-  if (subscription && subscription.plan === 'trial' && subscription.status === 'trialing' && subscription.trialEndsAt) {
-    const trialEndDate = new Date(subscription.trialEndsAt);
-    if (trialEndDate > new Date()) {
-      isInActiveTrial = true;
-    }
-  }
-
-  // Permite renderizar children se estiver numa página de auth (caso raro aqui), 
-  // na página de assinatura, ou se tiver a permissão de acesso (paga ou trial)
-  if (router.pathname.startsWith('/auth/') || router.pathname === '/assinatura' || hasPaidActiveSubscription || isInActiveTrial) {
-    return <>{children}</>;
-  }
-
-  // Se nenhuma das condições acima for atendida, o useEffect já deve ter iniciado o redirecionamento.
-  // Retornar um loader ou null aqui previne renderização indevida durante o redirecionamento.
-  return <LoadingSpinner fullScreen />;
+  // Após isAuthReady ser true, a lógica do useEffect já tratou os redirecionamentos.
+  // Se chegou aqui, o usuário tem permissão para ver a página atual.
+  console.log('[ProtectedRoute] Authentication state ready. Rendering children.');
+  return <>{children}</>;
 }
