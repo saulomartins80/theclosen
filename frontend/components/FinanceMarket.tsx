@@ -335,37 +335,8 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
 
       {/* Main Content */}
       <div className="p-4 sm:p-6">
-        {/* Unified Search Bar */}
-        <div className="mb-6 relative">
-          <input
-            type="text"
-            placeholder="Pesquisar ações, criptomoedas, commodities..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
-          )}
-        </div>
-
-        {/* No Results */}
-        {searchTerm && !atLeastOneResult && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <div className="mx-auto w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-full mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <p className="font-medium">Nenhum resultado encontrado para &quot;{searchTerm}&quot;</p>
-            <p className="text-sm mt-1">Tente buscar por outro termo ou símbolo</p>
-          </div>
-        )}
+        {/* REMOVIDA A BARRA DE PESQUISA */}
+        {/* REMOVIDA A BARRA QUE FICA PERTO DO ÍNDICE (apenas o botão de atualizar permanece) */}
 
         {/* Custom Indices */}
         {(!searchTerm || filteredCustomIndices.length > 0) && (
