@@ -48,15 +48,18 @@ export default function HomePage() {
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
-      controls.start({
-        opacity: window.scrollY > 200 ? 1 : 0,
-        y: window.scrollY > 200 ? 0 : 20
-      });
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [controls]);
+  }, []);
+
+  useEffect(() => {
+    controls.start({
+      opacity: window.scrollY > 200 ? 1 : 0,
+      y: window.scrollY > 200 ? 0 : 20
+    });
+  }, [isScrolled, controls]);
 
   useEffect(() => {
     if (isInView) {
@@ -155,7 +158,6 @@ export default function HomePage() {
         <title>Finanext PRO | Revolução Financeira</title>
         <meta name="description" content="Plataforma financeira completa com IA integrada" />
         <meta property="og:image" content="https://finanext.com/social-preview.jpg" />
-        <link rel="preload" href="/fonts/Inter.var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </Head>
 
       {/* Navbar */}
