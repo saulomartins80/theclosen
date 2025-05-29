@@ -12,6 +12,8 @@ import { loginWithGoogle as firebaseLoginWithGoogle } from '../lib/firebase/clie
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase/client';
+import api from '../services/api'; // Adicione esta linha no topo do arquivo
+import Cookies from 'js-cookie';    // Adicione esta linha se ainda não estiver importado
 // Ensure that 'auth' is exported as a properly initialized Firebase Auth instance from your firebase/client file.
 import { subscriptionAPI } from '../services/api/subscriptionAPI';
 
@@ -176,14 +178,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const syncSessionWithBackend = useCallback(async (firebaseUser: FirebaseUser | null) => {
-    // Sempre atualiza o estado para indicar que a verificação de autenticação está em andamento
-    // e que não está mais no estado inicial de 'loading: true' (que é apenas para o primeiro render)
     setState(prev => ({ 
       ...prev, 
-      // user e subscription serão definidos abaixo ou permanecerão null
-      // loading: true, // O loading pode ser gerenciado pela UI que espera por isAuthReady
-      authChecked: false, // Indica que a checagem está ocorrendo
-      isAuthReady: false // Indica que o estado final de auth ainda não foi determinado
+      authChecked: false,
+      isAuthReady: false
     }));
 
     if (!firebaseUser) {
@@ -192,84 +190,81 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         ...prev,
         user: null,
         subscription: null,
-        authChecked: true, // Finalizou a checagem
-        loading: false, // Não está carregando dados do backend
-        isAuthReady: true, // O estado (não autenticado) foi determinado
+        authChecked: true,
+        loading: false,
+        isAuthReady: true,
       }));
+      // Limpa cookies se não há firebaseUser
+      Cookies.remove('token', { path: '/' });
+      Cookies.remove('user', { path: '/' });
       return null;
     }
-  
+
     try {
       console.log("syncSessionWithBackend: Found firebaseUser.");
-      // Força refresh do token para garantir que está atualizado para a chamada ao backend
       const token = await firebaseUser.getIdToken(true);
       console.log("syncSessionWithBackend: Obtained fresh token.");
 
-      // ALTERAÇÃO: usa caminho relativo para passar pela reescrita do Vercel/Next.js
-      const response = await fetch('/api/auth/session', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Envia o token no header para o backend validar
+      // Substitua fetch por api.post (Axios)
+      const response = await api.post('/api/auth/session', {}, { // <-- Adicione /api aqui
+        headers: {
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({}), // O token já está no header
+        withCredentials: true
       });
 
-      const sessionData = await response.json().catch(() => ({}));
-      console.log("syncSessionWithBackend: Received sessionData:", sessionData); // Adicionado este log
-      console.log("syncSessionWithBackend: sessionData.user:", sessionData?.user); // Adicionado este log
-  
-      if (!sessionData.user) {
-        const errorMessage = 'Dados do usuário não encontrados na resposta do backend.';
+      const sessionData = response.data;
+      console.log('syncSessionWithBackend: Received sessionData:', sessionData);
+      console.log('syncSessionWithBackend: sessionData.user:', sessionData.user);
+
+      if (sessionData.user) {
+        const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
+        console.log("syncSessionWithBackend: Result of normalizeUser:", authUser);
+        console.log("syncSessionWithBackend: Session synced. User:", authUser);
+
         setState(prev => ({
           ...prev,
-          user: null, // Limpa user/subscription se os dados do backend estiverem incompletos
+          user: authUser,
+          subscription: authUser?.subscription || null,
+          authChecked: true,
+          loading: false,
+          isAuthReady: true,
+          error: null,
+        }));
+
+        return authUser;
+      } else {
+        // Backend retornou sucesso mas user está ausente
+        console.warn('syncSessionWithBackend: Backend sync successful, but user data is missing.');
+        setState(prev => ({
+          ...prev,
+          user: null,
           subscription: null,
           authChecked: true,
           loading: false,
           isAuthReady: true,
-          error: errorMessage,
+          error: 'Dados do usuário não encontrados na resposta do backend.',
         }));
-        // console.error("syncSessionWithBackend error:", errorMessage);
+        Cookies.remove('token', { path: '/' });
+        Cookies.remove('user', { path: '/' });
+        // Redireciona para login se necessário
+        // router.push('/auth/login');
         return null;
       }
-  
-      // Sucesso: normaliza e atualiza o estado do contexto
-      const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
-      console.log("syncSessionWithBackend: Result of normalizeUser:", authUser); // Adicionado este log
-
-      console.log("syncSessionWithBackend: Session synced. User:", authUser); // Já existe, bom manter
-
-      setState(prev => ({
-        ...prev,
-        user: authUser,
-        subscription: authUser?.subscription || null,
-        authChecked: true, // Finalizou a checagem
-        loading: false, // Não está carregando dados do backend
-        isAuthReady: true, // O estado (autenticado) foi determinado
-        error: null, // Limpa erros anteriores
-      }));
-  
-      return authUser;
-
     } catch (error) {
-      console.error('syncSessionWithBackend caught error:', error);
-  
-      // Trata erros de rede ou outros erros que impedem a comunicação com o backend
-      // Nestes casos, é prudente deslogar para evitar inconsistência de estado
-      await firebaseSignOut(auth);
-
+      console.error('syncSessionWithBackend: Error syncing session with backend:', error);
       setState(prev => ({
         ...prev,
         user: null,
         subscription: null,
         authChecked: true,
         loading: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido na sincronização',
         isAuthReady: true,
+        error: error instanceof Error ? error.message : 'Erro desconhecido na sincronização',
       }));
-  
+      Cookies.remove('token', { path: '/' });
+      Cookies.remove('user', { path: '/' });
+      // router.push('/auth/login');
       return null;
     }
   }, []);
