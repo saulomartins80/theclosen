@@ -140,18 +140,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const convertSymbols = (items: string[]) =>
         items.map(item => SYMBOL_MAPPING[item.toUpperCase()] || item);
 
-      const response = await fetch('/api/market-data', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // ADICIONADO LOGS AQUI
+      console.log('[refreshMarketData] Fetching market data...');
+      console.log('[refreshMarketData] Selected Stocks:', selectedStocks);
+      console.log('[refreshMarketData] Selected Cryptos:', selectedCryptos);
+      console.log('[refreshMarketData] Selected Commodities:', selectedCommodities);
+      console.log('[refreshMarketData] Manual Assets:', manualAssets);
+      console.log('[refreshMarketData] Custom Indices:', customIndices);
+      const requestBody = {
           symbols: convertSymbols(selectedStocks),
           cryptos: convertSymbols(selectedCryptos),
           commodities: convertSymbols(selectedCommodities),
           manualAssets: convertSymbols(manualAssets),
           customIndices: convertSymbols(customIndices.map(index => index.symbol))
-        }),
+        };
+      console.log('[refreshMarketData] Request body:', JSON.stringify(requestBody));
+
+      const response = await fetch('/api/market-data', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
         credentials: 'include' // ADICIONADO: Envia cookies com a requisição
       });
@@ -160,10 +170,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // ADICIONADO LOGS DE ERRO AQUI
+        console.error('[refreshMarketData] API Error Response Status:', response.status);
+        console.error('[refreshMarketData] API Error Response Data:', errorData);
         throw new Error(errorData.error || `Failed to fetch market data with status ${response.status}`); // Adicionado status ao erro
       }
 
       const data = await response.json();
+      // ADICIONADO LOG DE SUCESSO AQUI
+      console.log('[refreshMarketData] Successful Response Data:', data);
       setMarketData(data);
     } catch (error: any) {
       if (error.name === 'AbortError') {
