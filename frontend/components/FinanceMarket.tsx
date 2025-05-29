@@ -56,7 +56,6 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
   setSelectedCommodities,
 }) => {
   const { resolvedTheme } = useTheme();
-  // RECEBENDO LISTAS DE ATIVOS DISPONÍVEIS DO CONTEXTO
   const {
     addCustomIndex,
     removeCustomIndex,
@@ -106,21 +105,38 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
     return symbol.replace('=F', '');
   };
 
-  const filteredTableStocks = marketData?.stocks.filter(stock =>
-    stock.symbol.toLowerCase().includes(lowerSearchTerm)
+  // Defensive: fallback para arrays vazias se marketData não estiver pronto
+  const stocks = marketData?.stocks ?? [];
+  const cryptos = marketData?.cryptos ?? [];
+  const commodities = marketData?.commodities ?? [];
+  const indices = marketData?.indices ?? {};
+  const lastUpdated = marketData?.lastUpdated ?? '';
+
+  // Defensive: fallback para arrays vazias se filtrando sem marketData
+  const filteredTableStocks = stocks.filter(stock =>
+    stock?.symbol?.toLowerCase?.().includes(lowerSearchTerm)
   );
 
-  const filteredTableCryptos = marketData?.cryptos.filter(crypto =>
-    crypto.symbol.toLowerCase().includes(lowerSearchTerm)
+  const filteredTableCryptos = cryptos.filter(crypto =>
+    crypto?.symbol?.toLowerCase?.().includes(lowerSearchTerm)
   );
 
-  const filteredTableCommodities = marketData?.commodities
-    ? marketData.commodities.filter(commodity =>
-        commodity.symbol.toLowerCase().includes(lowerSearchTerm) ||
-        getCommodityDisplayName(commodity.symbol).toLowerCase().includes(lowerSearchTerm)
-      )
-    : [];
+  const filteredTableCommodities = commodities.filter(commodity =>
+    commodity?.symbol?.toLowerCase?.().includes(lowerSearchTerm) ||
+    getCommodityDisplayName(commodity?.symbol ?? '').toLowerCase().includes(lowerSearchTerm)
+  );
 
+  // Defensive: fallback para empty object for indices
+  const shouldShowIbovespa = !searchTerm || "ibovespa".includes(lowerSearchTerm) || "^bvsp".includes(lowerSearchTerm);
+  const shouldShowDolar = !searchTerm || "dolar".includes(lowerSearchTerm) || "dólar".includes(lowerSearchTerm) || "brl=x".includes(lowerSearchTerm);
+  const shouldShowSP500 = !searchTerm || "s&p 500".includes(lowerSearchTerm) || "sp500".includes(lowerSearchTerm) || "^gspc".includes(lowerSearchTerm);
+
+  // Defensive: check for indices existence before accessing
+  const hasIbovespa = indices && typeof indices['^BVSP'] !== 'undefined';
+  const hasDolar = indices && typeof indices['BRL=X'] !== 'undefined';
+  const hasSP500 = indices && typeof indices['^GSPC'] !== 'undefined';
+
+  // Defensive: fallback for atLeastOneResult
   let atLeastOneResult =
     filteredCustomIndices.length > 0 ||
     filteredManualAssets.length > 0 ||
@@ -128,13 +144,9 @@ const FinanceMarket: React.FC<FinanceMarketProps> = ({
     (filteredTableCryptos && filteredTableCryptos.length > 0) ||
     (filteredTableCommodities && filteredTableCommodities.length > 0);
 
-  const shouldShowIbovespa = !searchTerm || "ibovespa".includes(lowerSearchTerm) || "^bvsp".includes(lowerSearchTerm);
-  const shouldShowDolar = !searchTerm || "dolar".includes(lowerSearchTerm) || "dólar".includes(lowerSearchTerm) || "brl=x".includes(lowerSearchTerm);
-  const shouldShowSP500 = !searchTerm || "s&p 500".includes(lowerSearchTerm) || "sp500".includes(lowerSearchTerm) || "^gspc".includes(lowerSearchTerm);
-
-  if (shouldShowIbovespa && marketData?.indices['^BVSP']) atLeastOneResult = true;
-  if (shouldShowDolar && marketData?.indices['BRL=X']) atLeastOneResult = true;
-  if (shouldShowSP500 && marketData?.indices['^GSPC']) atLeastOneResult = true;
+  if (shouldShowIbovespa && hasIbovespa) atLeastOneResult = true;
+  if (shouldShowDolar && hasDolar) atLeastOneResult = true;
+  if (shouldShowSP500 && hasSP500) atLeastOneResult = true;
 
   // Função para nomes amigáveis dos índices padrão
   const getFriendlyName = (symbol: string) => {

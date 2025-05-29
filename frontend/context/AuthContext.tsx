@@ -205,64 +205,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const token = await firebaseUser.getIdToken(true);
       console.log("syncSessionWithBackend: Obtained fresh token.");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/session`, {
+      // ALTERAÇÃO: usa caminho relativo para passar pela reescrita do Vercel/Next.js
+      const response = await fetch('/api/auth/session', {
         method: 'POST',
         credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` // Envia o token no header para o backend validar
-         },
-        body: JSON.stringify({  }), // O token já está no header
+        },
+        body: JSON.stringify({}), // O token já está no header
       });
-  
+
       const sessionData = await response.json().catch(() => ({}));
+      console.log("syncSessionWithBackend: Received sessionData:", sessionData); // Adicionado este log
+      console.log("syncSessionWithBackend: sessionData.user:", sessionData?.user); // Adicionado este log
   
-      if (!response.ok) {
-        let errorMessage = 'Erro ao sincronizar sessão';
-        // console.error("syncSessionWithBackend API error:", response.status, sessionData);
-
-        if (response.status === 401) {
-          // Se o backend retorna 401, a sessão no backend é inválida/expirada
-          errorMessage = 'Sessão expirada ou inválida. Por favor, faça login novamente.';
-           // Force logout no Firebase e no frontend state
-          await firebaseSignOut(auth);
-           setState(prev => ({
-            ...prev,
-            user: null,
-            subscription: null,
-            authChecked: true,
-            loading: false,
-            isAuthReady: true,
-            error: errorMessage,
-          }));
-          return null;
-
-        } else if (response.status === 404) {
-           // Se o backend retorna 404 para /api/auth/session, o usuário pode não existir no DB do backend
-          errorMessage = 'Usuário não encontrado no sistema backend.';
-           // Decide se desloga ou mantém o estado Firebase user e mostra erro
-           // Por segurança, pode ser melhor deslogar aqui também se o backend é a fonte principal de dados do usuário
-          await firebaseSignOut(auth);
-           setState(prev => ({
-            ...prev,
-            user: null,
-            subscription: null,
-            authChecked: true,
-            loading: false,
-            isAuthReady: true,
-            error: errorMessage,
-          }));
-          return null;
-        
-        } else if (response.status >= 500) {
-          errorMessage = 'Erro interno do servidor ao sincronizar sessão.';
-        } else if (sessionData?.error) {
-          errorMessage = sessionData.error;
-        }
-        // Para outros erros, mantém o firebaseUser mas limpa user/subscription no estado local
+      if (!sessionData.user) {
+        const errorMessage = 'Dados do usuário não encontrados na resposta do backend.';
         setState(prev => ({
           ...prev,
-          user: null, // Limpa user/subscription no estado local em caso de erro do backend
+          user: null, // Limpa user/subscription se os dados do backend estiverem incompletos
           subscription: null,
           authChecked: true,
           loading: false,
@@ -270,28 +232,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           error: errorMessage,
         }));
         // console.error("syncSessionWithBackend error:", errorMessage);
-        // Nao joga o erro aqui para nao quebrar o flow do onAuthStateChanged, apenas atualiza o estado
         return null;
-      }
-  
-      if (!sessionData.user) {
-         const errorMessage = 'Dados do usuário não encontrados na resposta do backend.';
-          setState(prev => ({
-            ...prev,
-            user: null, // Limpa user/subscription se os dados do backend estiverem incompletos
-            subscription: null,
-            authChecked: true,
-            loading: false,
-            isAuthReady: true,
-            error: errorMessage,
-          }));
-          // console.error("syncSessionWithBackend error:", errorMessage);
-          return null;
       }
   
       // Sucesso: normaliza e atualiza o estado do contexto
       const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
-      console.log("syncSessionWithBackend: Session synced. User:", authUser);
+      console.log("syncSessionWithBackend: Result of normalizeUser:", authUser); // Adicionado este log
+
+      console.log("syncSessionWithBackend: Session synced. User:", authUser); // Já existe, bom manter
 
       setState(prev => ({
         ...prev,
