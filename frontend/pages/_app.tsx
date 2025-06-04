@@ -33,6 +33,7 @@ function AppContent({ Component, pageProps }: AppProps) {
     return (
       <PublicLayout>
         <Component {...pageProps} />
+        <ToastContainer position="bottom-right" />
       </PublicLayout>
     )
   }

@@ -4,11 +4,11 @@ import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useFinance } from "../context/FinanceContext";
 import { useDashboard } from "../context/DashboardContext";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../context/ThemeContext"; // Import useTheme
 import Graficos from "../components/Graficos";
 import LoadingSpinner from "../components/LoadingSpinner";
 import FinanceMarket from '../components/FinanceMarket';
-import { ArrowUp, ArrowDown, Wallet, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { ArrowUp, ArrowDown, Wallet, TrendingUp, TrendingDown, DollarSign, User } from 'lucide-react'; // Added User icon for header
 
 type TransacaoAdaptada = {
   _id: string | { $oid: string };
@@ -35,8 +35,8 @@ const getGreeting = (): string => {
 
 const formatCurrency = (value: number | undefined, currency: string = 'BRL'): string => {
   if (typeof value !== 'number' || isNaN(value)) return '--';
-  return value.toLocaleString(currency === 'BRL' ? 'pt-BR' : 'en-US', { 
-    style: 'currency', 
+  return value.toLocaleString(currency === 'BRL' ? 'pt-BR' : 'en-US', {
+    style: 'currency',
     currency: currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -44,13 +44,13 @@ const formatCurrency = (value: number | undefined, currency: string = 'BRL'): st
 };
 
 const DashboardContent: React.FC = () => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme(); // Usar resolvedTheme
   const { user } = useAuth();
   const { transactions, investimentos, loading, error, fetchData } = useFinance();
-  const { 
-    marketData, 
-    loadingMarketData, 
-    marketError, 
+  const {
+    marketData,
+    loadingMarketData,
+    marketError,
     selectedStocks,
     selectedCryptos,
     selectedCommodities = [],
@@ -61,8 +61,10 @@ const DashboardContent: React.FC = () => {
     setSelectedStocks,
     setSelectedCryptos,
     setSelectedCommodities = () => {},
-    setCustomIndices = () => {}
-  } = useDashboard();
+    setCustomIndices = (indices: string[]) => {}
+  } = useDashboard() as ReturnType<typeof useDashboard> & {
+    setCustomIndices: (indices: string[]) => void;
+  };
 
   const getSafeId = (idObj: string | { $oid: string }): string => {
     return typeof idObj === 'string' ? idObj : idObj.$oid;
@@ -96,29 +98,59 @@ const DashboardContent: React.FC = () => {
   const totalInvestimentos = mappedInvestments.reduce((acc, inv) => acc + inv.valor, 0);
 
   // Cálculo de variação (simulado para exemplo)
-  const variacaoSaldo = saldoAtual / (totalReceitas + totalDespesas) * 100 || 0;
-  const variacaoReceitas = 15;
-  const variacaoDespesas = -10;
-  const variacaoInvestimentos = 8;
+  // Cálculo de variação ajustado para evitar divisão por zero e valores negativos no denominador
+  const variacaoSaldo = (saldoAtual / (Math.abs(totalReceitas) + Math.abs(totalDespesas) || 1)) * 100 || 0;
+  const variacaoReceitas = 15; // Exemplo
+  const variacaoDespesas = -10; // Exemplo
+  const variacaoInvestimentos = 8; // Exemplo
 
   useEffect(() => {
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    // Ajustado para usar fetchData diretamente do contexto e não um intervalo fixo aqui,
+    // pois o FinanceContext já lida com o polling.
+    // Removido o setInterval daqui.
+    // O fetchData inicial é chamado no useEffect do FinanceContext.
+  }, [fetchData]); // Dependência de fetchData (agora estável no FinanceContext)
+
+  // Efeito para chamar refreshMarketData na montagem e em intervalos
+  useEffect(() => {
+    if (refreshMarketData) {
+      refreshMarketData(); // Initial fetch
+
+      // Fetch every 5 minutes (300000 ms)
+      const marketInterval = setInterval(() => refreshMarketData({ silent: true }), 300000);
+
+      return () => {
+        clearInterval(marketInterval);
+        // Assumindo que refreshMarketData tem lógica de abortar chamadas pendentes
+        // se um novo fetch iniciar ou o componente desmontar.
+        // Se não tiver, você precisaria adicionar essa lógica no useDashboard ou aqui.
+      };
+    }
+  }, [refreshMarketData]); // Dependência de refreshMarketData (agora no useDashboard)
 
   if (loading || loadingMarketData) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className={`flex items-center justify-center h-screen ${resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <LoadingSpinner />
       </div>
     );
   }
-  
+
   if (error || marketError) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-red-500 p-4 rounded-lg bg-red-50 dark:bg-red-900/20">
-          Erro: {(error as any)?.message || marketError || "Erro desconhecido"}
+      <div className={`flex items-center justify-center h-screen ${resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`p-4 rounded-lg max-w-md text-center ${resolvedTheme === 'dark' ? 'bg-red-900/20 text-red-300 border border-red-700' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          <h3 className="font-bold mb-2">Erro ao carregar dados</h3>
+          <p>{(error as any)?.message || marketError || "Erro desconhecido"}</p>
+          {/* Botão de tentar novamente pode ser adicionado se fetchData e refreshMarketData forem expostos */}
+           {fetchData && (
+             <button
+               onClick={() => {fetchData(); refreshMarketData();}}
+               className={`mt-4 px-4 py-2 rounded ${resolvedTheme === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+             >
+               Tentar novamente
+             </button>
+           )}
         </div>
       </div>
     );
@@ -136,54 +168,62 @@ const DashboardContent: React.FC = () => {
     value: number;
     variation: number;
     icon: React.ReactNode;
-    color: string;
+    color: string; // Tailwind color base (e.g., 'blue', 'green', 'rose')
   }) => {
     const isPositive = variation >= 0;
-    const variationColor = isPositive ? 'text-green-500' : 'text-red-500';
-    const bgColor = theme === 'dark' ? 'bg-gray-800' : 'bg-white';
-    const iconBgColor = theme === 'dark' ? `bg-${color}-900/30` : `bg-${color}-100`;
-    
+    // Usar resolvedTheme para as cores
+    const variationColor = isPositive
+      ? (resolvedTheme === 'dark' ? 'text-green-400' : 'text-green-600')
+      : (resolvedTheme === 'dark' ? 'text-red-400' : 'text-red-600');
+
+    const bgColor = resolvedTheme === 'dark' ? 'bg-gray-800' : 'bg-white';
+    const borderColor = resolvedTheme === 'dark' ? 'border-gray-700' : 'border-gray-200';
+    const iconBgColor = resolvedTheme === 'dark' ? `bg-${color}-900/30` : `bg-${color}-100`;
+    const iconColor = resolvedTheme === 'dark' ? `text-${color}-300` : `text-${color}-600`; // Cor do ícone
+
     return (
       <motion.div
-        whileHover={{ y: -2, boxShadow: theme === 'dark' ? '0 10px 25px -5px rgba(0, 0, 0, 0.3)' : '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-        className={`p-5 rounded-xl shadow-sm border ${bgColor} ${
-          theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
-        } transition-all duration-200`}
+        whileHover={{ y: -2, boxShadow: resolvedTheme === 'dark' ? '0 10px 25px -5px rgba(0, 0, 0, 0.3)' : '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
+        className={`p-5 rounded-xl shadow-sm border ${bgColor} ${borderColor} transition-all duration-200`}
       >
         <div className="flex justify-between items-start">
           <div>
-            <p className={`text-sm font-medium ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <p className={`text-sm font-medium ${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
               {title}
             </p>
-            <p className={`text-2xl font-bold mt-1 ${color}`}>
+            {/* Cor do valor principal */}
+             <p className={`text-2xl font-bold mt-1 ${
+               title === 'Saldo Atual'
+                 ? (saldoAtual >= 0 ? (resolvedTheme === 'dark' ? 'text-green-400' : 'text-green-600') : (resolvedTheme === 'dark' ? 'text-red-400' : 'text-red-600'))
+                 : (title === 'Receitas' ? (resolvedTheme === 'dark' ? 'text-blue-400' : 'text-blue-600') : (title === 'Despesas' ? (resolvedTheme === 'dark' ? 'text-rose-400' : 'text-rose-600') : (resolvedTheme === 'dark' ? 'text-purple-400' : 'text-purple-600'))) // Cor base do card para Investimentos
+             }`}>
               {formatCurrency(value)}
             </p>
           </div>
-          <div className={`p-3 rounded-lg ${iconBgColor} ${color}`}>
+          <div className={`p-3 rounded-lg ${iconBgColor} ${iconColor}`}> {/* Aplicada cor do ícone */}
             {icon}
           </div>
         </div>
-        <div className={`flex items-center mt-4 text-sm ${variationColor}`}>
-          {isPositive ? (
-            <ArrowUp className="w-4 h-4 mr-1" />
-          ) : (
-            <ArrowDown className="w-4 h-4 mr-1" />
-          )}
+        <div className={`flex items-center mt-4 text-sm font-medium ${variationColor}`}>
+          {isPositive ? 
+            <ArrowUp className={`w-4 h-4 mr-1 ${variationColor}`} /> 
+            : 
+            <ArrowDown className={`w-4 h-4 mr-1 ${variationColor}`} />
+          }
           <span>
-            {isPositive ? '+' : ''}{Math.abs(variation).toFixed(2)}% em relação ao mês anterior
+            {isPositive ? '+' : ''}{Math.abs(variation).toFixed(2)}%
           </span>
+           <span className={`ml-2 opacity-80 ${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>vs mês anterior</span>
         </div>
       </motion.div>
     );
   };
 
   return (
+    // Contêiner principal: aplica o background do tema a toda a área
     <div className={`min-h-screen w-full transition-colors duration-300 ${
-      theme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+      resolvedTheme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
     } px-4 sm:px-6 py-6`}>
-      {/* Container principal com largura controlada */}
       <div className="mx-auto w-full max-w-[1800px]">
         {/* Cabeçalho ajustado */}
         <motion.div
@@ -193,94 +233,92 @@ const DashboardContent: React.FC = () => {
           className="mb-8"
         >
           <div className="flex items-center gap-3">
+             {/* Ícone do Cabeçalho - Corrigido para usar resolvedTheme */}
             <span className={`p-2 rounded-lg ${
-              theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+              resolvedTheme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
             }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-9-9 9 9 0 0 1 9-9 9 9 0 0 1 9 9z"></path>
-                <path d="M9 10a3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3z"></path>
-                <path d="M8 21v-1a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1"></path>
-              </svg>
+              <User size={24} /> {/* Usando ícone de usuário para o cabeçalho geral */}
             </span>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">
-                {getGreeting()}, <span className="text-blue-500">
+                {getGreeting()}, <span className={`${resolvedTheme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`}> {/* Cor ajustada para o nome */}
                   {user?.name || user?.email?.split("@")[0] || "Usuário"}
                 </span>!
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className={`text-sm ${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}> {/* Cor ajustada para o subtítulo */}
                 Aqui está o seu resumo financeiro.
               </p>
             </div>
           </div>
         </motion.div>
 
-        {/* Cards de Resumo Aprimorados */}
+        {/* Cards de Resumo Super Impactantes */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Card de Saldo - Efeito de destaque */}
           <SummaryCard
-            title="Saldo Atual"
-            value={saldoAtual}
-            variation={variacaoSaldo}
-            icon={<Wallet className="w-5 h-5" />}
-            color={saldoAtual >= 0 ? "text-green-500" : "text-red-500"}
+             title="Saldo Atual"
+             value={saldoAtual}
+             variation={variacaoSaldo} // Usando variação simulada ou real se disponível
+             icon={<Wallet size={24} />}
+             color={saldoAtual >= 0 ? 'green' : 'rose'} // Cor base para o ícone e fundo dele
           />
-          
+
+          {/* Card de Receitas */}
           <SummaryCard
-            title="Receitas"
-            value={totalReceitas}
-            variation={variacaoReceitas}
-            icon={<TrendingUp className="w-5 h-5" />}
-            color="text-blue-500"
+             title="Receitas"
+             value={totalReceitas}
+             variation={variacaoReceitas} // Usando variação simulada ou real
+             icon={<TrendingUp size={24} />}
+             color="blue" // Cor base para o ícone e fundo dele
           />
-          
+
+          {/* Card de Despesas */}
           <SummaryCard
-            title="Despesas"
-            value={totalDespesas}
-            variation={variacaoDespesas}
-            icon={<TrendingDown className="w-5 h-5" />}
-            color="text-red-500"
+             title="Despesas"
+             value={totalDespesas}
+             variation={variacaoDespesas} // Usando variação simulada ou real
+             icon={<TrendingDown size={24} />}
+             color="rose" // Cor base para o ícone e fundo dele
           />
-          
-          <SummaryCard
-            title="Investimentos"
-            value={totalInvestimentos}
-            variation={variacaoInvestimentos}
-            icon={<DollarSign className="w-5 h-5" />}
-            color="text-purple-500"
+
+          {/* Card de Investimentos */}
+           <SummaryCard
+             title="Investimentos"
+             value={totalInvestimentos}
+             variation={variacaoInvestimentos} // Usando variação simulada ou real
+             icon={<DollarSign size={24} />}
+             color="purple" // Cor base para o ícone e fundo dele
           />
+
         </div>
 
         {/* Seção de Mercado Financeiro */}
         <div className="mb-8">
-          {marketData && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <FinanceMarket
-                marketData={marketData}
-                loadingMarketData={loadingMarketData}
-                marketError={marketError}
-                selectedStocks={selectedStocks}
-                selectedCryptos={selectedCryptos}
-                selectedCommodities={selectedCommodities}
-                manualAssets={manualAssets}
-                customIndices={customIndices}
-                refreshMarketData={refreshMarketData}
-                setManualAssets={setManualAssets}
-                setSelectedStocks={setSelectedStocks}
-                setSelectedCryptos={setSelectedCryptos}
-                setSelectedCommodities={setSelectedCommodities}
-                setCustomIndices={setCustomIndices}
-              />
-            </motion.div>
-          )}
+          {/* O componente FinanceMarket deve aplicar seus próprios estilos de fundo/bordas com base no resolvedTheme */}
+           {/* Certifique-se de que o FinanceMarket receba o resolvedTheme ou o theme corretamente,
+               ou que use useTheme() internamente para aplicar estilos.
+               Pelo código anterior, ele já usa resolvedTheme. */}
+          <FinanceMarket
+            marketData={marketData}
+            loadingMarketData={loadingMarketData}
+            marketError={marketError}
+            selectedStocks={selectedStocks}
+            selectedCryptos={selectedCryptos}
+            selectedCommodities={selectedCommodities}
+            refreshMarketData={refreshMarketData}
+            setSelectedStocks={setSelectedStocks}
+            setSelectedCryptos={setSelectedCryptos}
+            setSelectedCommodities={setSelectedCommodities}
+             // customIndices é passado para o FinanceMarket, que usa useDashboard para obtê-lo
+             // Não precisa passar explicitamente aqui a menos que o FinanceMarket não use useDashboard
+          />
         </div>
 
         {/* Seção de Gráficos */}
+        {/* O componente Graficos deve aplicar seus próprios estilos de fundo/bordas com base no resolvedTheme */}
+        {/* Verifique o código de Graficos.tsx para garantir que use useTheme() para estilos internos. */}
         <div className={`rounded-xl shadow mb-8 ${
-          theme === "dark" ? "bg-gray-800" : "bg-white"
+          resolvedTheme === "dark" ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-200" // Aplicando tema aqui também
         }`}>
           <div className="p-6">
             <Graficos />

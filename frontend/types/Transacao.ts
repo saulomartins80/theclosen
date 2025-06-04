@@ -1,4 +1,4 @@
-// types//Transacao.ts 
+// types//Transacao.ts
 export type Transacao = {
   _id: string;
   descricao: string;
@@ -7,6 +7,7 @@ export type Transacao = {
   categoria: string;
   tipo: 'receita' | 'despesa' | 'transferencia';
   conta: string;
+  observacao: string; // Add this line
 };
 
 export type NovaTransacaoPayload = {

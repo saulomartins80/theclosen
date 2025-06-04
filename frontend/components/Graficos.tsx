@@ -13,7 +13,7 @@ import {
   Filler,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../context/ThemeContext"; // Import useTheme
 
 // Registro dos componentes (mantido igual)
 ChartJS.register(
@@ -58,11 +58,11 @@ const parseDate = (dateString: string | { $date: string }): Date => {
   try {
     const date = typeof dateString === 'string' ? dateString : dateString.$date;
     const parsedDate = new Date(date);
-    
+
     if (isNaN(parsedDate.getTime())) {
       throw new Error("Data inválida");
     }
-    
+
     return parsedDate;
   } catch (error) {
     console.error("Erro ao parsear data:", dateString, error);
@@ -75,7 +75,7 @@ const parseDate = (dateString: string | { $date: string }): Date => {
  */
 const agruparPorMes = (transacoes: Transacao[]): DadosMes[] => {
   const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-  
+
   return meses.map((mes, index) => {
     const transacoesDoMes = transacoes.filter((t) => {
       try {
@@ -114,17 +114,17 @@ const calcularSaldoAcumulado = (transacoes: Transacao[]): SaldoAcumulado[] => {
   return transacoesOrdenadas.reduce((acc, t) => {
     const saldoAnterior = acc.length > 0 ? acc[acc.length - 1].saldo : 0;
     const novoSaldo = saldoAnterior + (t.tipo === "receita" ? t.valor : -t.valor);
-    
+
     try {
       const dataFormatada = parseDate(t.data);
-      acc.push({ 
-        data: dataFormatada.toISOString(), 
-        saldo: novoSaldo 
+      acc.push({
+        data: dataFormatada.toISOString(),
+        saldo: novoSaldo
       });
     } catch (error) {
       console.error("Erro ao processar transação:", t, error);
     }
-    
+
     return acc;
   }, [] as SaldoAcumulado[]);
 };

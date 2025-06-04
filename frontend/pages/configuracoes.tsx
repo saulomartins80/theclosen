@@ -15,10 +15,11 @@ import {
   FiShield,
   FiTrash2,
   FiKey,
-  FiHardDrive
+  FiHardDrive,
+  FiPlusCircle // Novo ícone para adicionar notificação de exemplo
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
-import { doc, setDoc, getFirestore, getDoc } from 'firebase/firestore'; 
+import { doc, setDoc, getFirestore, getDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { useTheme, Theme } from '../context/ThemeContext';
 import { motion } from 'framer-motion';
@@ -27,6 +28,7 @@ import Modal from "../components/Modal";
 import PasswordChangeForm from "../components/PasswordChangeForm";
 import TwoFactorAuthSetup from "../components/TwoFactorAuthSetup";
 import { useRouter } from 'next/router';
+import Notifications, { NotificationItem } from '../components/Notifications'; // Importe o componente e tipo
 
 interface Settings {
   language: string;
@@ -49,6 +51,10 @@ export default function ConfiguracoesPage() {
   const [backupStatus, setBackupStatus] = useState<'idle' | 'in-progress' | 'completed' | 'failed'>('idle');
   const router = useRouter();
 
+  // Estado local para notificações de exemplo
+  const [sampleNotifications, setSampleNotifications] = useState<NotificationItem[]>([]);
+  const [notificationCounter, setNotificationCounter] = useState(0);
+
   const [settings, setSettings] = useState<Settings>({
     language: 'pt-BR',
     emailNotifications: true,
@@ -62,13 +68,11 @@ export default function ConfiguracoesPage() {
 
   const loadInitialData = useCallback(async () => {
     if (!user?.uid) return;
-    
     setIsLoading(true);
     try {
       const db = getFirestore();
       const userRef = doc(db, 'users', user.uid);
       const docSnap = await getDoc(userRef);
-      
       if (docSnap.exists() && docSnap.data().settings) {
         const userSettings = docSnap.data().settings as Partial<Settings>;
         setSettings(prev => ({
@@ -101,18 +105,16 @@ export default function ConfiguracoesPage() {
     setIsLoading(true);
     try {
       const db = getFirestore();
-      if (!user?.uid) { 
+      if (!user?.uid) {
         toast.error('Usuário não autenticado. Não é possível salvar configurações.');
         setIsLoading(false);
         return;
       }
       const userRef = doc(db, 'users', user.uid);
       await setDoc(userRef, { settings }, { merge: true });
-      
       if (setUser && user) {
         setUser(prev => prev ? { ...prev, settings } : null);
       }
-      
       toast.success('Configurações salvas com sucesso!');
     } catch (error) {
       toast.error('Erro ao salvar configurações.');
@@ -144,9 +146,37 @@ export default function ConfiguracoesPage() {
   const handle2FASetupComplete = (success: boolean) => {
     setShow2FAModal(false);
     if (success) {
-      setSettings(prev => ({ ...prev, twoFactorEnabled: true }));
+      const updatedSettings = { ...settings, twoFactorEnabled: true };
+      setSettings(updatedSettings);
+      saveSettings();
       toast.success('Autenticação de dois fatores ativada com sucesso!');
+    } else {
+      toast.error('Falha na configuração da Autenticação de Dois Fatores.');
     }
+  };
+
+  // Funções para gerenciar notificações de exemplo
+  const addSampleNotification = (type: NotificationItem['type'], message: string) => {
+    setNotificationCounter(prev => prev + 1);
+    const newNotification: NotificationItem = {
+      id: `sample-${notificationCounter}`,
+      type,
+      message,
+      read: false,
+      createdAt: new Date().toISOString()
+    };
+    setSampleNotifications(prev => [newNotification, ...prev]);
+    toast.info(`Nova notificação de exemplo: ${message}`);
+  };
+
+  const markSampleAsRead = (id: string) => {
+    setSampleNotifications(sampleNotifications.map(n =>
+      n.id === id ? { ...n, read: true } : n
+    ));
+  };
+
+  const markAllSampleAsRead = () => {
+    setSampleNotifications(sampleNotifications.map(n => ({ ...n, read: true })));
   };
 
   interface SettingOption {
@@ -156,7 +186,7 @@ export default function ConfiguracoesPage() {
   }
 
   interface AccountSetting {
-    name: string;
+    name: keyof Settings | 'themeSelector' | 'changePassword' | 'backup';
     label: string;
     description: string;
     type: "toggle" | "select" | "radiogroup" | "action";
@@ -181,18 +211,33 @@ export default function ConfiguracoesPage() {
       ],
       currentValue: theme,
       onChange: handleThemeChange,
-      icon: resolvedTheme === 'dark' ? <FiMoon className="h-5 w-5" /> : <FiSun className="h-5 w-5" /> 
+      icon: resolvedTheme === 'dark' ? <FiMoon className="h-5 w-5" /> : <FiSun className="h-5 w-5" />
+    },
+    {
+      name: "language",
+      label: "Idioma",
+      description: "Selecione o idioma da interface",
+      type: "select",
+      options: [
+        { value: "pt-BR", label: "Português (Brasil)" },
+        { value: "en-US", label: "English (US)" },
+      ],
+      currentValue: settings.language,
+      onChange: (value) => handleSettingChange('language', value),
+      icon: <FiGlobe className="h-5 w-5" />
     },
     {
       name: "currency",
-      label: "Moeda",
-      description: "Selecione a moeda padrão para exibição",
+      label: "Moeda Padrão",
+      description: "Selecione a moeda padrão para exibição de valores",
       type: "select",
       options: [
         { value: "BRL", label: "Real Brasileiro (R$)" },
         { value: "USD", label: "Dólar Americano (US$)" },
         { value: "EUR", label: "Euro (€)" }
       ],
+      currentValue: settings.currency,
+      onChange: (value) => handleSettingChange('currency', value),
       icon: <FiCreditCard className="h-5 w-5" />
     }
   ];
@@ -203,6 +248,8 @@ export default function ConfiguracoesPage() {
       label: "Notificações por email",
       description: "Receba atualizações importantes por email",
       type: "toggle",
+      currentValue: settings.emailNotifications,
+      onChange: (value) => handleSettingChange('emailNotifications', value),
       icon: <FiMail className="h-5 w-5" />
     },
     {
@@ -210,6 +257,8 @@ export default function ConfiguracoesPage() {
       label: "Notificações push",
       description: "Receba notificações em tempo real no seu dispositivo",
       type: "toggle",
+      currentValue: settings.pushNotifications,
+      onChange: (value) => handleSettingChange('pushNotifications', value),
       icon: <FiBell className="h-5 w-5" />
     }
   ];
@@ -217,22 +266,26 @@ export default function ConfiguracoesPage() {
   const privacySettings: AccountSetting[] = [
     {
       name: "dataSharing",
-      label: "Compartilhamento de dados",
-      description: "Permita que usemos seus dados para melhorar nossos serviços",
+      label: "Compartilhamento de dados de uso",
+      description: "Permita o uso de dados anonimizados para melhorar nossos serviços",
       type: "toggle",
+      currentValue: settings.dataSharing,
+      onChange: (value) => handleSettingChange('dataSharing', value),
       icon: <FiDatabase className="h-5 w-5" />
     },
     {
       name: "sessionTimeout",
-      label: "Tempo de sessão",
+      label: "Tempo limite da sessão",
       description: "Minutos de inatividade antes do logout automático",
       type: "select",
       options: [
         { value: 15, label: "15 minutos" },
         { value: 30, label: "30 minutos" },
         { value: 60, label: "1 hora" },
-        { value: 1440, label: "24 horas" }
+        { value: 1440, label: "24 horas (Não recomendado em dispositivos compartilhados)" }
       ],
+      currentValue: settings.sessionTimeout,
+      onChange: (value) => handleSettingChange('sessionTimeout', Number(value)),
       icon: <FiShield className="h-5 w-5" />
     }
   ];
@@ -262,51 +315,45 @@ export default function ConfiguracoesPage() {
       type: "action",
       icon: <FiHardDrive className="h-5 w-5" />,
       action: handleBackupData,
-      status: backupStatus === 'completed' ? "Último backup: Hoje" : 
+      status: backupStatus === 'completed' ? "Último backup: Hoje" :
               backupStatus === 'in-progress' ? "Backup em andamento..." :
-              backupStatus === 'failed' ? "Falha no último backup" : ""
+              backupStatus === 'failed' ? "Falha no último backup" : "Nunca realizado ou status desconhecido"
     }
   ];
 
-  const selectBaseClasses = "bg-white text-gray-900 border-gray-300 focus:ring-blue-500 focus:border-blue-500";
-  const selectDarkClasses = "dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+  const inputBaseClasses = "w-full p-2 border rounded-lg focus:outline-none focus:ring-2";
+  const inputThemeClasses = resolvedTheme === 'dark'
+    ? 'bg-gray-700 border-gray-600 text-white focus:ring-blue-600'
+    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-400';
 
   const renderSettingControl = (setting: AccountSetting) => {
     switch (setting.type) {
       case "toggle":
         return (
-          <button 
-            type="button" 
-            onClick={() => {
-              if (setting.name === 'themeSelector') {
-                // Lógica específica para o tema
-                const newValue = !(theme === 'dark');
-                handleThemeChange(newValue ? 'dark' : 'light');
-              } else {
-                handleSettingChange(
-                  setting.name as keyof Settings, 
-                  !settings[setting.name as keyof Settings]
-                );
-              }
-            }} 
-            className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 
-                        ${(setting.name === 'themeSelector' ? (theme === 'dark') : settings[setting.name as keyof Settings]) 
-                          ? 'bg-blue-600 dark:bg-blue-500' 
-                          : 'bg-gray-200 dark:bg-gray-600'}`}
+          <button
+            type="button"
+            onClick={() => setting.onChange?.(!setting.currentValue)}
+            className={`relative inline-flex flex-shrink-0 h-6 w-11 rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                        ${setting.currentValue
+                          ? 'bg-blue-600'
+                          : 'bg-gray-200 dark:bg-gray-600'
+                        }`}
           >
-            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out 
-                            ${(setting.name === 'themeSelector' ? (theme === 'dark') : settings[setting.name as keyof Settings]) 
-                              ? 'translate-x-5' 
-                              : 'translate-x-0'}`} 
+            <span
+              aria-hidden="true"
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                            ${setting.currentValue
+                              ? 'translate-x-5'
+                              : 'translate-x-0'}`}
             />
           </button>
         );
       case "select":
         return (
-          <select 
-            value={String(settings[setting.name as keyof Settings])} 
-            onChange={(e) => handleSettingChange(setting.name as keyof Settings, e.target.value)} 
-            className={`mt-1 block w-full sm:w-48 pl-3 pr-10 py-2 text-base sm:text-sm rounded-md focus:outline-none ${selectBaseClasses} ${selectDarkClasses}`}
+          <select
+            value={String(setting.currentValue)}
+            onChange={(e) => setting.onChange?.(e.target.value)}
+            className={`mt-1 block w-full sm:w-48 pl-3 pr-10 py-2 text-base sm:text-sm rounded-md focus:outline-none ${inputBaseClasses} ${inputThemeClasses}`}
           >
             {setting.options?.map((option) => (
               <option key={String(option.value)} value={option.value}>
@@ -319,13 +366,14 @@ export default function ConfiguracoesPage() {
         return (
           <div className="flex items-center space-x-2">
             {setting.options?.map((option) => (
-              <button 
-                key={String(option.value)} 
-                onClick={() => setting.onChange?.(option.value as Theme)} 
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors 
-                            ${setting.currentValue === option.value 
-                              ? 'bg-blue-600 text-white dark:bg-blue-500 dark:text-gray-100' 
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}
+              <button
+                key={String(option.value)}
+                onClick={() => setting.onChange?.(option.value as Theme)}
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
+                            ${setting.currentValue === option.value
+                              ? resolvedTheme === 'dark' ? 'bg-blue-500 text-white' : 'bg-blue-600 text-white'
+                              : resolvedTheme === 'dark' ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
               >
                 {option.icon} {option.label}
               </button>
@@ -334,10 +382,13 @@ export default function ConfiguracoesPage() {
         );
       case "action":
         return (
+          <>
           <button
             onClick={setting.action}
             disabled={backupStatus === 'in-progress' && setting.name === 'backup'}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-600"
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+               resolvedTheme === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
+            } ${backupStatus === 'in-progress' && setting.name === 'backup' ? '' : 'shadow-sm'}`}
           >
             {backupStatus === 'in-progress' && setting.name === 'backup' ? (
               <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -345,9 +396,20 @@ export default function ConfiguracoesPage() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             ) : null}
-            {setting.name === 'twoFactorEnabled' ? (settings.twoFactorEnabled ? 'Gerenciar' : 'Ativar') : 
+            {setting.name === 'twoFactorEnabled' ? (settings.twoFactorEnabled ? 'Gerenciar' : 'Ativar') :
              setting.name === 'backup' ? 'Executar Backup' : 'Alterar'}
           </button>
+           {setting.name === 'twoFactorEnabled' && settings.twoFactorEnabled && (
+              <button
+                 onClick={() => setShow2FAModal(true)}
+                 className={`ml-2 px-4 py-2 text-sm font-medium rounded-md transition-colors shadow-sm ${
+                    resolvedTheme === 'dark' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white'
+                 }`}
+              >
+                 Desativar
+              </button>
+           )}
+           </>
         );
       default:
         return null;
@@ -355,34 +417,36 @@ export default function ConfiguracoesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={`min-h-screen w-full transition-colors duration-300 ${
+      resolvedTheme === "dark" ? "bg-gray-900 text-gray-100" : "bg-gray-50 text-gray-900"
+    }`}>
       {/* Modals */}
-      <Modal 
-        isOpen={showPasswordModal} 
+      <Modal
+        isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         title="Alterar Senha"
       >
-        <PasswordChangeForm 
-          onSuccess={handlePasswordChangeSuccess} 
-          onCancel={() => setShowPasswordModal(false)} 
+        <PasswordChangeForm
+          onSuccess={handlePasswordChangeSuccess}
+          onCancel={() => setShowPasswordModal(false)}
         />
       </Modal>
 
-      <Modal 
-        isOpen={show2FAModal} 
+      <Modal
+        isOpen={show2FAModal}
         onClose={() => setShow2FAModal(false)}
-        title="Configurar Autenticação de Dois Fatores"
+        title={settings.twoFactorEnabled ? "Gerenciar Autenticação de Dois Fatores" : "Configurar Autenticação de Dois Fatores"}
         size="lg"
       >
-        <TwoFactorAuthSetup 
-          onComplete={handle2FASetupComplete} 
+        <TwoFactorAuthSetup
+          onComplete={handle2FASetupComplete}
           currentStatus={settings.twoFactorEnabled}
         />
       </Modal>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <motion.h1 
+          <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -410,9 +474,10 @@ export default function ConfiguracoesPage() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full text-left px-6 py-4 flex items-center transition-colors duration-150 ${
-                      activeTab === tab.id 
-                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300' 
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/50'}`}
+                      activeTab === tab.id
+                        ? resolvedTheme === 'dark' ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-50 text-blue-600'
+                        : resolvedTheme === 'dark' ? 'text-gray-300 hover:bg-gray-700/50' : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                   >
                     {tab.icon}
                     {tab.label}
@@ -436,7 +501,7 @@ export default function ConfiguracoesPage() {
                     {accountSettings.map((setting) => (
                       <div key={setting.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start sm:items-center">
-                          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-3">
+                          <div className={`p-2 rounded-lg mr-3 ${resolvedTheme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
                             {setting.icon}
                           </div>
                           <div>
@@ -453,10 +518,10 @@ export default function ConfiguracoesPage() {
                     ))}
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 text-right">
-                  <button 
-                    onClick={saveSettings} 
-                    disabled={isLoading} 
+                <div className={`px-6 py-4 text-right ${resolvedTheme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <button
+                    onClick={saveSettings}
+                    disabled={isLoading}
                     className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
                   >
                     {isLoading ? (
@@ -474,7 +539,7 @@ export default function ConfiguracoesPage() {
             )}
 
             {activeTab === 'notifications' && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -482,11 +547,35 @@ export default function ConfiguracoesPage() {
               >
                 <div className="p-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Configurações de Notificação</h2>
+
+                  {/* Seção para exibir notificações dinâmicas */}
+                  <div className="mb-8">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className={`text-lg font-semibold ${resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Suas Notificações Recentes</h3>
+                      {/* Botão para adicionar notificação de exemplo */}
+                      <button
+                        onClick={() => addSampleNotification('info', `Notificação de Exemplo ${notificationCounter + 1}`)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm transition-colors ${resolvedTheme === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                      >
+                        <FiPlusCircle size={16} /> Adicionar Exemplo
+                      </button>
+                    </div>
+                    {/* Componente de Notificações */}
+                    <Notifications
+                      resolvedTheme={resolvedTheme}
+                      initialNotifications={sampleNotifications}
+                      onMarkAsRead={markSampleAsRead}
+                      onMarkAllAsRead={markAllSampleAsRead}
+                    />
+                  </div>
+
                   <div className="space-y-6">
                     {notificationSettings.map((setting) => (
                       <div key={setting.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start sm:items-center">
-                          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-3">{setting.icon}</div>
+                          <div className={`p-2 rounded-lg mr-3 ${resolvedTheme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                            {setting.icon}
+                          </div>
                           <div>
                             <h3 className="text-sm font-medium text-gray-900 dark:text-white">{setting.label}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{setting.description}</p>
@@ -497,10 +586,10 @@ export default function ConfiguracoesPage() {
                     ))}
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 text-right">
-                  <button 
-                    onClick={saveSettings} 
-                    disabled={isLoading} 
+                <div className={`px-6 py-4 text-right ${resolvedTheme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <button
+                    onClick={saveSettings}
+                    disabled={isLoading}
                     className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
                   >
                     {isLoading ? 'Salvando...' : 'Salvar Alterações'}
@@ -510,7 +599,7 @@ export default function ConfiguracoesPage() {
             )}
 
             {activeTab === 'privacy' && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -522,7 +611,9 @@ export default function ConfiguracoesPage() {
                     {privacySettings.map((setting) => (
                       <div key={setting.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start sm:items-center">
-                          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-3">{setting.icon}</div>
+                          <div className={`p-2 rounded-lg mr-3 ${resolvedTheme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                            {setting.icon}
+                          </div>
                           <div>
                             <h3 className="text-sm font-medium text-gray-900 dark:text-white">{setting.label}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{setting.description}</p>
@@ -533,10 +624,10 @@ export default function ConfiguracoesPage() {
                     ))}
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 text-right">
-                  <button 
-                    onClick={saveSettings} 
-                    disabled={isLoading} 
+                <div className={`px-6 py-4 text-right ${resolvedTheme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <button
+                    onClick={saveSettings}
+                    disabled={isLoading}
                     className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
                   >
                     {isLoading ? 'Salvando...' : 'Salvar Alterações'}
@@ -546,7 +637,7 @@ export default function ConfiguracoesPage() {
             )}
 
             {activeTab === 'security' && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -558,7 +649,9 @@ export default function ConfiguracoesPage() {
                     {securitySettings.map((setting) => (
                       <div key={setting.name} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start sm:items-center">
-                          <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 mr-3">{setting.icon}</div>
+                          <div className={`p-2 rounded-lg mr-3 ${resolvedTheme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                            {setting.icon}
+                          </div>
                           <div>
                             <h3 className="text-sm font-medium text-gray-900 dark:text-white">{setting.label}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{setting.description}</p>
@@ -572,10 +665,10 @@ export default function ConfiguracoesPage() {
                     ))}
                   </div>
                 </div>
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 text-right">
-                  <button 
-                    onClick={saveSettings} 
-                    disabled={isLoading} 
+                <div className={`px-6 py-4 text-right ${resolvedTheme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <button
+                    onClick={saveSettings}
+                    disabled={isLoading}
                     className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all"
                   >
                     {isLoading ? 'Salvando...' : 'Salvar Alterações'}
@@ -585,7 +678,7 @@ export default function ConfiguracoesPage() {
             )}
 
             {activeTab === 'danger' && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -596,7 +689,7 @@ export default function ConfiguracoesPage() {
                   <p className="text-gray-600 dark:text-gray-400 mb-6">
                     Ações nesta seção são irreversíveis. Por favor, proceda com cautela.
                   </p>
-                  <DangerZone 
+                  <DangerZone
                     userId={user?.uid || ''}
                     onAccountDeleted={() => {
                       if (setUser) setUser(null);

@@ -1,33 +1,29 @@
-// context/DashboardContext.tsx
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
-interface StockData {
+export interface StockData {
   symbol: string;
   price: number;
   change: number;
   changePercent: number;
   volume?: number;
   currency?: string;
-}
-
-interface CryptoData {
-  symbol: string;
-  price: number;
-  change: number;
-  changePercent: number;
-  volume?: number;
-  currency: string;
+  marketCap?: number;
+  name?: string;
+  exchange?: string;
 }
 
 interface MarketData {
   stocks: StockData[];
-  cryptos: CryptoData[];
-  indices: Record<string, number>;
+  cryptos: StockData[];
+  indices: StockData[]; 
+  fiis: StockData[];
+  etfs: StockData[];
   commodities: StockData[];
+  currencies: StockData[];
   lastUpdated: string;
 }
 
-interface CustomIndex {
+export interface CustomIndex {
   symbol: string;
   name: string;
 }
@@ -39,86 +35,118 @@ export interface DashboardContextType {
   selectedStocks: string[];
   selectedCryptos: string[];
   selectedCommodities: string[];
+  selectedFiis: string[];
+  selectedEtfs: string[];
+  selectedCurrencies: string[];
   manualAssets: string[];
-  customIndices: CustomIndex[];
+  customIndices: CustomIndex[]; // Único estado para índices
+  setCustomIndices: (indices: CustomIndex[]) => void; // Substitui setSelectedIndices
   refreshMarketData: (options?: { silent?: boolean }) => Promise<void>;
-  setManualAssets: (assets: string[]) => void;
-  setSelectedStocks: (stocks: string[]) => void;
-  setSelectedCryptos: (cryptos: string[]) => void;
-  setSelectedCommodities: (commodities: string[]) => void;
-  setCustomIndices: (indices: CustomIndex[]) => void;
   addCustomIndex: (index: { symbol: string; name: string }) => void;
   removeCustomIndex: (symbol: string) => void;
   updateCustomIndex: (oldSymbol: string, newIndex: CustomIndex) => void;
   removeStock: (symbol: string) => void;
   removeCrypto: (symbol: string) => void;
   removeCommodity: (symbol: string) => void;
+  removeFii: (symbol: string) => void;
+  removeEtf: (symbol: string) => void;
+  removeCurrency: (symbol: string) => void;
+  setManualAssets: (assets: string[]) => void;
+  setSelectedStocks: (stocks: string[]) => void;
+  setSelectedCryptos: (cryptos: string[]) => void;
+  setSelectedCommodities: (commodities: string[]) => void;
+  setSelectedFiis: (fiis: string[]) => void;
+  setSelectedEtfs: (etfs: string[]) => void;
+  setSelectedCurrencies: (currencies: string[]) => void;
   availableStocks: string[];
   availableCryptos: string[];
   availableCommodities: string[];
+  availableFiis: string[];
+  availableEtfs: string[];
+  availableCurrencies: string[];
+  availableIndices: string[];
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
-// Valores padrão
+// Valores padrão atualizados
 const DEFAULT_STOCKS = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'BBAS3.SA'];
 const DEFAULT_CRYPTOS = ['BTC-USD', 'ETH-USD'];
-const DEFAULT_COMMODITIES = ['GC=F']; // Ouro
+const DEFAULT_COMMODITIES = ['GC=F', 'CL=F'];
+const DEFAULT_FIIS = ['HGLG11.SA', 'KNRI11.SA'];
+const DEFAULT_ETFS = ['BOVA11.SA', 'IVVB11.SA'];
+const DEFAULT_CURRENCIES = ['BRL=X', 'EURBRL=X'];
 const DEFAULT_CUSTOM_INDICES = [
   { symbol: '^BVSP', name: 'IBOVESPA' },
-  { symbol: 'BRL=X', name: 'Dólar Americano' }
+  { symbol: '^GSPC', name: 'S&P 500' }
 ];
 
-// Adicione este mapeamento no início do arquivo
-const SYMBOL_MAPPING: Record<string, string> = {
-  'IBOVESPA': '^BVSP',
-  'DOLAR': 'BRL=X',
-  'DÓLAR': 'BRL=X',
-  'SP500': '^GSPC',
-  'S&P500': '^GSPC',
-  'NASDAQ': '^IXIC',
-  'DOWJONES': '^DJI',
-  'BITCOIN': 'BTC-USD',
-  'BTC': 'BTC-USD',
-  'OURO': 'GC=F',
-  'PETROLEO': 'CL=F',
-  'PETRÓLEO': 'CL=F'
-  // Adicione outros mapeamentos conforme necessário
-};
-
-// Listas estáticas de exemplo para ativos disponíveis
+// Listas completas de ativos disponíveis
 const EXAMPLE_AVAILABLE_STOCKS = [
-    'PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'BBAS3.SA', // B3
-    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', // EUA
-    // Adicione mais conforme necessário
+  // Ações brasileiras
+  'PETR3.SA', 'PETR4.SA', 'VALE3.SA', 'ITUB3.SA', 'ITUB4.SA', 
+  'BBDC3.SA', 'BBDC4.SA', 'BBAS3.SA', 'ABEV3.SA', 'WEGE3.SA',
+  'B3SA3.SA', 'SUZB3.SA', 'JBSS3.SA', 'RENT3.SA', 'RADL3.SA',
+  
+  // Ações internacionais
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA',
+  'JPM', 'V', 'MA', 'JNJ', 'PG', 'WMT', 'DIS', 'NFLX'
 ];
 
 const EXAMPLE_AVAILABLE_CRYPTOS = [
-    'BTC-USD', 'ETH-USD', 'USDT-USD', 'BNB-USD', 'XRP-USD', 'SOL-USD', 'ADA-USD', 'DOGE-USD',
-    // Adicione mais conforme necessário
+  'BTC-USD', 'ETH-USD', 'BNB-USD', 'XRP-USD', 'SOL-USD',
+  'ADA-USD', 'DOGE-USD', 'DOT-USD', 'AVAX-USD', 'MATIC-USD'
 ];
 
 const EXAMPLE_AVAILABLE_COMMODITIES = [
-    'GC=F', 'SI=F', 'CL=F', 'NG=F', 'ZC=F', // Metais e Energia
-    // Adicione mais conforme necessário
+  'GC=F', 'SI=F', 'CL=F', 'NG=F', 'ZC=F', 'ZS=F', 'KC=F',
+  'LE=F', 'CT=F', 'OJ=F', 'HG=F', 'RB=F', 'ZW=F', 'SB=F'
 ];
 
+const EXAMPLE_AVAILABLE_FIIS = [
+  'HGLG11.SA', 'XPML11.SA', 'KNRI11.SA', 'HGBS11.SA', 'HGRE11.SA',
+  'XPLG11.SA', 'BCFF11.SA', 'BRCR11.SA', 'VISC11.SA', 'HFOF11.SA'
+];
+
+const EXAMPLE_AVAILABLE_ETFS = [
+  'BOVA11.SA', 'SMAL11.SA', 'IVVB11.SA', 'BRAX11.SA', 'ECOO11.SA',
+  'DIVO11.SA', 'FIND11.SA', 'GOLD11.SA', 'SPXI11.SA', 'BBSD11.SA'
+];
+
+const EXAMPLE_AVAILABLE_CURRENCIES = [
+  'BRL=X', 'EURBRL=X', 'GBPBRL=X', 'ARSBRL=X', 'CNYBRL=X',
+  'JPYBRL=X', 'CHFBRL=X', 'AUDBRL=X', 'CADBRL=X'
+];
+
+const EXAMPLE_AVAILABLE_INDICES = [
+  '^BVSP', '^IBXL', '^IBXX', '^IDIV', '^IFNC', '^IGCT',
+  '^GSPC', '^IXIC', '^DJI', '^FTSE', '^GDAXI', '^FCHI',
+  '^N225', '^HSI', '^STI', '^KS11', '^TWII', '^AXJO'
+];
 
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [loadingMarketData, setLoadingMarketData] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
+
+  // Estados para ativos selecionados
   const [selectedStocks, setSelectedStocks] = useState<string[]>(DEFAULT_STOCKS);
   const [selectedCryptos, setSelectedCryptos] = useState<string[]>(DEFAULT_CRYPTOS);
   const [selectedCommodities, setSelectedCommodities] = useState<string[]>(DEFAULT_COMMODITIES);
+  const [selectedFiis, setSelectedFiis] = useState<string[]>(DEFAULT_FIIS);
+  const [selectedEtfs, setSelectedEtfs] = useState<string[]>(DEFAULT_ETFS);
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(DEFAULT_CURRENCIES);
   const [manualAssets, setManualAssets] = useState<string[]>([]);
-  const [customIndices, setCustomIndices] = useState<CustomIndex[]>(DEFAULT_CUSTOM_INDICES);
+  const [customIndices, setCustomIndices] = useState<CustomIndex[]>(DEFAULT_CUSTOM_INDICES); // Mantenha esta
 
-  // NOVOS ESTADOS para listas disponíveis
+  // Estados para ativos disponíveis
   const [availableStocks, setAvailableStocks] = useState<string[]>(EXAMPLE_AVAILABLE_STOCKS);
   const [availableCryptos, setAvailableCryptos] = useState<string[]>(EXAMPLE_AVAILABLE_CRYPTOS);
   const [availableCommodities, setAvailableCommodities] = useState<string[]>(EXAMPLE_AVAILABLE_COMMODITIES);
-
+  const [availableFiis, setAvailableFiis] = useState<string[]>(EXAMPLE_AVAILABLE_FIIS);
+  const [availableEtfs, setAvailableEtfs] = useState<string[]>(EXAMPLE_AVAILABLE_ETFS);
+  const [availableCurrencies, setAvailableCurrencies] = useState<string[]>(EXAMPLE_AVAILABLE_CURRENCIES);
+  const [availableIndices, setAvailableIndices] = useState<string[]>(EXAMPLE_AVAILABLE_INDICES);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -126,7 +154,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -136,128 +163,146 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     try {
-      // Converte nomes simples para símbolos técnicos
-      const convertSymbols = (items: string[]) =>
-        items.map(item => SYMBOL_MAPPING[item.toUpperCase()] || item);
-
-      // ADICIONADO LOGS AQUI
-      console.log('[refreshMarketData] Fetching market data...');
-      console.log('[refreshMarketData] Selected Stocks:', selectedStocks);
-      console.log('[refreshMarketData] Selected Cryptos:', selectedCryptos);
-      console.log('[refreshMarketData] Selected Commodities:', selectedCommodities);
-      console.log('[refreshMarketData] Manual Assets:', manualAssets);
-      console.log('[refreshMarketData] Custom Indices:', customIndices);
+      // Garante que customIndicesList é sempre um array de string (símbolos)
       const requestBody = {
-          symbols: convertSymbols(selectedStocks),
-          cryptos: convertSymbols(selectedCryptos),
-          commodities: convertSymbols(selectedCommodities),
-          manualAssets: convertSymbols(manualAssets),
-          customIndices: convertSymbols(customIndices.map(index => index.symbol))
-        };
-      console.log('[refreshMarketData] Request body:', JSON.stringify(requestBody));
+        symbols: selectedStocks,
+        cryptos: selectedCryptos,
+        commodities: selectedCommodities,
+        fiis: selectedFiis,
+        etfs: selectedEtfs,
+        currencies: selectedCurrencies,
+        manualAssets,
+        customIndicesList: customIndices.map(index => index.symbol)
+      };
+      console.log('[DashboardContext] requestBody:', requestBody);
 
       const response = await fetch('/api/market-data', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
-        credentials: 'include' // ADICIONADO: Envia cookies com a requisição
+        credentials: 'include'
       });
 
       if (controller.signal.aborted) return;
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        // ADICIONADO LOGS DE ERRO AQUI
-        console.error('[refreshMarketData] API Error Response Status:', response.status);
-        console.error('[refreshMarketData] API Error Response Data:', errorData);
-        throw new Error(errorData.error || `Failed to fetch market data with status ${response.status}`); // Adicionado status ao erro
+        let errorData: any = {};
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          errorData = await response.json().catch(() => ({}));
+        } else {
+          errorData = { error: await response.text() };
+        }
+        throw new Error(errorData.error || `Failed to fetch market data with status ${response.status}`);
       }
 
-      const data = await response.json();
-      // ADICIONADO LOG DE SUCESSO AQUI
-      console.log('[refreshMarketData] Successful Response Data:', data);
+      const data: MarketData = await response.json();
       setMarketData(data);
+      console.log('[DashboardContext] Market data after setMarketData:', data);
+
     } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('Market data fetch aborted.');
-        return;
-      }
-      console.error('Error fetching market data:', error);
+      if (error.name === 'AbortError') return;
       if (!silent) {
         setMarketError(error instanceof Error ? error.message : 'Erro ao buscar dados do mercado.');
-        // Mantenha dados anteriores em caso de erro silencioso, limpe se não for silencioso
-        if (!silent) {
-             setMarketData(null); // Limpa dados se houver erro não silencioso
-        }
+        setMarketData(null);
       }
     } finally {
-      if (!silent) {
-        setLoadingMarketData(false);
-      }
+      if (!silent) setLoadingMarketData(false);
     }
-  }, [selectedStocks, selectedCryptos, selectedCommodities, manualAssets, customIndices]); // DEPENDÊNCIAS ATUALIZADAS
+  }, [
+    selectedStocks,
+    selectedCryptos,
+    selectedCommodities,
+    selectedFiis,
+    selectedEtfs,
+    selectedCurrencies,
+    manualAssets,
+    customIndices
+  ]);
 
   useEffect(() => {
+    console.log('[DashboardContext] useEffect: refreshing market data...');
     refreshMarketData();
+    // Fetch every 5 minutes (300000 ms)
     const intervalId = setInterval(() => refreshMarketData({ silent: true }), 300000);
     return () => {
       clearInterval(intervalId);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [refreshMarketData]); // refreshMarketData agora tem todas as dependências, só precisa dela aqui
+  }, [refreshMarketData]);
 
   const addCustomIndex = (index: { symbol: string; name: string }) => {
-    // Converte símbolo de entrada se for nome amigável
-    const symbolToAdd = SYMBOL_MAPPING[index.symbol.toUpperCase()] || index.symbol;
-    const nameToAdd = index.name.trim() || symbolToAdd; // Usa símbolo como nome se nenhum for fornecido
+    const symbolToAdd = index.symbol;
+    // Add a basic check if the symbol is already a default index or another selected type
+    const isAlreadySelected = customIndices.some(idx => idx.symbol === symbolToAdd) ||
+                              selectedStocks.includes(symbolToAdd) ||
+                              selectedCryptos.includes(symbolToAdd) ||
+                              selectedCommodities.includes(symbolToAdd) ||
+                              selectedFiis.includes(symbolToAdd) ||
+                              selectedEtfs.includes(symbolToAdd) ||
+                              selectedCurrencies.includes(symbolToAdd) ||
+                              manualAssets.includes(symbolToAdd);
 
-    // Verifica se já existe (evita duplicados)
-    if (!customIndices.some(idx => idx.symbol === symbolToAdd)) {
-       setCustomIndices(prevIndices => [...prevIndices, { symbol: symbolToAdd, name: nameToAdd }]);
-       // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect devido à mudança em customIndices
+    if (!isAlreadySelected) {
+      setCustomIndices(prevIndices => [...prevIndices, { symbol: symbolToAdd, name: index.name.trim() || symbolToAdd }]);
     } else {
-       console.warn(`Index with symbol ${symbolToAdd} already exists.`);
+      console.warn(`Index or asset with symbol ${symbolToAdd} is already selected or added.`);
     }
   };
 
   const removeCustomIndex = (symbol: string) => {
     setCustomIndices(prevIndices => prevIndices.filter(index => index.symbol !== symbol));
-     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
-  // Atualiza um índice customizado (edição)
   const updateCustomIndex = (oldSymbol: string, newIndex: CustomIndex) => {
-     // Converte novo símbolo se for nome amigável
-    const newSymbol = SYMBOL_MAPPING[newIndex.symbol.toUpperCase()] || newIndex.symbol;
+    const newSymbol = newIndex.symbol;
     const newName = newIndex.name.trim() || newSymbol;
 
-     setCustomIndices(prevIndices =>
-       prevIndices.map(index =>
-         index.symbol === oldSymbol ? { symbol: newSymbol, name: newName } : index
-       )
-     );
-      // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
+    // Prevent updating to a symbol that already exists in any selected list
+     const isAlreadySelected = customIndices.some(idx => idx.symbol === newSymbol && idx.symbol !== oldSymbol) ||
+                               selectedStocks.includes(newSymbol) ||
+                               selectedCryptos.includes(newSymbol) ||
+                               selectedCommodities.includes(newSymbol) ||
+                               selectedFiis.includes(newSymbol) ||
+                               selectedEtfs.includes(newSymbol) ||
+                               selectedCurrencies.includes(newSymbol) ||
+                               manualAssets.includes(newSymbol);
+
+    if (!isAlreadySelected) {
+        setCustomIndices(prevIndices =>
+          prevIndices.map(index =>
+            index.symbol === oldSymbol ? { symbol: newSymbol, name: newName } : index
+          )
+        );
+    } else {
+         console.warn(`Cannot update index. Symbol ${newSymbol} is already selected or added.`);
+    }
   };
 
-  // Remove uma ação e atualiza o mercado
+  // Funções para remover ativos - Logic seems correct, just ensuring they are present
   const removeStock = (symbol: string) => {
     setSelectedStocks(prev => prev.filter(s => s !== symbol));
-     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
-  // Remove uma cripto e atualiza o mercado
   const removeCrypto = (symbol: string) => {
     setSelectedCryptos(prev => prev.filter(s => s !== symbol));
-     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
   };
 
-  // Remove uma commodity e atualiza o mercado
   const removeCommodity = (symbol: string) => {
     setSelectedCommodities(prev => prev.filter(s => s !== symbol));
-     // Não chamar refreshMarketData aqui, ele será chamado pelo useEffect
+  };
+
+  const removeFii = (symbol: string) => {
+    setSelectedFiis(prev => prev.filter(s => s !== symbol));
+  };
+
+  const removeEtf = (symbol: string) => {
+    setSelectedEtfs(prev => prev.filter(s => s !== symbol));
+  };
+
+  const removeCurrency = (symbol: string) => {
+    setSelectedCurrencies(prev => prev.filter(s => s !== symbol));
   };
 
   const contextValue: DashboardContextType = {
@@ -267,35 +312,37 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     selectedStocks,
     selectedCryptos,
     selectedCommodities,
+    selectedFiis,
+    selectedEtfs,
+    selectedCurrencies,
     manualAssets,
     customIndices,
+    setCustomIndices, // Use diretamente no lugar de setSelectedIndices
     refreshMarketData,
-    setManualAssets,
-    setSelectedStocks,
-    setSelectedCryptos,
-    setSelectedCommodities,
-    setCustomIndices,
     addCustomIndex,
     removeCustomIndex,
     updateCustomIndex,
     removeStock,
     removeCrypto,
     removeCommodity,
-    // NOVOS: listas de ativos disponíveis exportadas
+    removeFii,
+    removeEtf,
+    removeCurrency,
+    setManualAssets,
+    setSelectedStocks,
+    setSelectedCryptos,
+    setSelectedCommodities,
+    setSelectedFiis,
+    setSelectedEtfs,
+    setSelectedCurrencies,
     availableStocks,
     availableCryptos,
     availableCommodities,
+    availableFiis,
+    availableEtfs,
+    availableCurrencies,
+    availableIndices
   };
-
-   // Adicione logs para verificar o estado das listas no contexto
-   useEffect(() => {
-       console.log('[DashboardContext] selectedStocks:', selectedStocks);
-       console.log('[DashboardContext] selectedCryptos:', selectedCryptos);
-       console.log('[DashboardContext] selectedCommodities:', selectedCommodities);
-       console.log('[DashboardContext] manualAssets:', manualAssets);
-       console.log('[DashboardContext] customIndices:', customIndices);
-   }, [selectedStocks, selectedCryptos, selectedCommodities, manualAssets, customIndices]);
-
 
   return (
     <DashboardContext.Provider value={contextValue}>

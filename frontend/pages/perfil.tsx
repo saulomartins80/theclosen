@@ -12,7 +12,8 @@ interface AuthUserData {
   uid: string;
   email: string | null;
   name: string | null;
-  photoUrl: string | null;
+  photoUrl?: string | null;
+  photoURL?: string | null;
   subscription?: { plan?: string; status?: string; expiresAt?: string } | null;
 }
 
@@ -25,11 +26,11 @@ interface ProfileAuthContextType {
 }
 
 export default function ProfilePage() {
-  const { 
-    user, 
-    subscription, 
-    loadingSubscription, 
-    refreshSubscription, 
+  const {
+    user,
+    subscription,
+    loadingSubscription,
+    refreshSubscription,
     updateUserContextProfile
   } = useAuth() as ProfileAuthContextType;
 
@@ -55,13 +56,13 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       setFormData({
-        name: user.name || '', 
+        name: user.name || '',
         email: user.email || '',
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-      setAvatarPreview(user.photoUrl || '/default-avatar.png');
+      setAvatarPreview(user.photoUrl || user.photoURL || '/default-avatar.png');
     }
   }, [user]);
 
@@ -77,14 +78,14 @@ export default function ProfilePage() {
       if (!validTypes.includes(file.type)) {
         toast.error('Tipo de arquivo inválido. Use JPEG, PNG ou WEBP');
         setAvatarFile(null);
-        setAvatarPreview(user?.photoUrl || '/default-avatar.png');
+        setAvatarPreview(user?.photoUrl || user?.photoURL || '/default-avatar.png');
         return;
       }
 
       if (file.size > 2 * 1024 * 1024) { // 2MB
         toast.error('A imagem deve ter menos de 2MB');
         setAvatarFile(null);
-        setAvatarPreview(user?.photoUrl || '/default-avatar.png');
+        setAvatarPreview(user?.photoUrl || user?.photoURL || '/default-avatar.png');
         return;
       }
 
@@ -99,15 +100,18 @@ export default function ProfilePage() {
 
     try {
       if (!user?.uid) {
-        throw new Error('Usuário não autenticado');
+        throw new Error('Usuário não autenticado ou UID indisponível');
       }
 
       const updatePayload: any = {};
-      let finalPhotoUrl = user.photoUrl;
+      let finalPhotoUrl = user.photoUrl || user.photoURL;
 
       if (avatarFile) {
         setIsUploading(true);
         try {
+          if (!user.uid) {
+            throw new Error('UID do usuário indisponível para upload de avatar.');
+          }
           const timestamp = Date.now();
           const storageRef = ref(storage, `avatars/${user.uid}/avatar_${timestamp}`);
           await uploadBytes(storageRef, avatarFile);
@@ -116,87 +120,87 @@ export default function ProfilePage() {
         } catch (error) {
           console.error('Erro no upload da foto:', error);
           toast.error('Falha ao carregar a nova foto.');
-          setIsUploading(false);
-          setIsLoading(false);
-          return;
         } finally {
-           setIsUploading(false);
+          setIsUploading(false);
         }
       }
 
-      if (formData.name !== user.name) {
-        updatePayload.name = formData.name;
-      }
+      const hasProfileChanges = formData.name !== user.name || formData.email !== user.email;
+      const hasPasswordChanges = formData.newPassword !== '';
 
-      if (formData.email !== user.email) {
-         if (!formData.currentPassword) {
+      if (hasProfileChanges || hasPasswordChanges || updatePayload.photoUrl) {
+        if (formData.name !== user.name) {
+          updatePayload.name = formData.name;
+        }
+
+        if (formData.email !== user.email) {
+          if (!formData.currentPassword) {
             throw new Error('Forneça sua senha atual para alterar o email');
           }
-         updatePayload.email = formData.email;
-         updatePayload.currentPassword = formData.currentPassword;
-      }
-
-      if (formData.newPassword) {
-        if (formData.newPassword !== formData.confirmPassword) {
-          throw new Error('As novas senhas não coincidem');
+          updatePayload.email = formData.email;
+          updatePayload.currentPassword = formData.currentPassword;
         }
-        if (!formData.currentPassword) {
-          throw new Error('Forneça sua senha atual para alterar a senha');
-        }
-        updatePayload.newPassword = formData.newPassword;
-      }
 
-      if (Object.keys(updatePayload).length > 0) {
-         console.log('Sending update payload to backend:', updatePayload);
-         const response = await api.put('/api/users/profile', updatePayload);
-         
-         if (!response.data.success) {
-            throw new Error(response.data.message || 'Falha ao atualizar perfil no backend');
-         }
-         
-         const updatedBackendProfile = response.data.data;
-         
-         if (updatedBackendProfile) {
-           const profileForContext: Partial<SessionUser> = {
-             name: updatedBackendProfile.name,
-             email: updatedBackendProfile.email,
-             photoUrl: updatedBackendProfile.photoUrl,
-           };
-           updateUserContextProfile(profileForContext);
-         } else {
-           await refreshSubscription(); 
-         }
+        if (formData.newPassword) {
+          if (formData.newPassword !== formData.confirmPassword) {
+            throw new Error('As novas senhas não coincidem');
+          }
+          if (!formData.currentPassword) {
+            throw new Error('Forneça sua senha atual para alterar a senha');
+          }
+          updatePayload.newPassword = formData.newPassword;
+          updatePayload.currentPassword = formData.currentPassword;
+        }
+
+        const response = await api.put('/api/users/profile', updatePayload);
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Falha ao atualizar perfil no backend');
+        }
+
+        const updatedUserData = response.data.data;
+        if (updatedUserData) {
+          const profileForContext: Partial<SessionUser> = {
+            ...user,
+            name: updatedUserData.name !== undefined ? updatedUserData.name : user.name,
+            email: updatedUserData.email !== undefined ? updatedUserData.email : user.email,
+            photoUrl: updatedUserData.photoUrl !== undefined ? updatedUserData.photoUrl : user.photoUrl || user.photoURL,
+            // Only update subscription if backend returns a valid subscription object with id
+            ...(updatedUserData.subscription && updatedUserData.subscription.id
+              ? { subscription: updatedUserData.subscription }
+              : {}),
+          };
+          updateUserContextProfile(profileForContext);
+        } else {
+          // Se o backend não retornar o usuário atualizado, talvez refreshSubscription?
+          // refreshSubscription();
+        }
+        toast.success('Perfil atualizado com sucesso!');
       } else {
-         toast.info('Nenhuma mudança para salvar.');
+        toast.info('Nenhuma mudança para salvar.');
       }
 
-      toast.success('Perfil atualizado com sucesso!');
       setIsEditing(false);
       setAvatarFile(null);
-      setFormData(prev => ({...prev, currentPassword: '', newPassword: '', confirmPassword: '' })); // Limpa campos de senha no frontend
+      setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
 
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
       toast.error(error.message || 'Erro ao atualizar perfil');
     } finally {
       setIsLoading(false);
-      setIsUploading(false);
     }
   };
 
   const handleManageSubscription = async () => {
     try {
       if (!user?.uid) throw new Error('Usuário não autenticado');
-      
-      // Corrigindo a URL da chamada para a API Route do Next.js
       const response = await api.post('/api/manage-subscription', { userId: user.uid });
-
       if (response.data && response.data.redirectUrl) {
         window.location.href = response.data.redirectUrl;
       } else {
-         throw new Error(response.data.message || 'Não foi possível iniciar o gerenciamento da assinatura.');
+        throw new Error(response.data.message || 'Não foi possível iniciar o gerenciamento da assinatura.');
       }
-      
     } catch (error: any) {
       console.error('Error managing subscription:', error);
       toast.error(error.message || 'Erro ao gerenciar assinatura');
@@ -206,16 +210,12 @@ export default function ProfilePage() {
   const handleUpgrade = async () => {
     try {
       if (!user?.uid) throw new Error('Usuário não autenticado');
-
       const response = await api.post('/api/subscription/upgrade', { userId: user.uid, plan: 'premium' });
-
       if (!response.data.success) {
         throw new Error(response.data.message || 'Falha ao solicitar upgrade');
       }
-
-      await refreshSubscription(); 
+      await refreshSubscription();
       toast.success('Solicitação de upgrade enviada! Sua assinatura será atualizada em breve.');
-
     } catch (error: any) {
       console.error('Erro ao solicitar upgrade:', error);
       toast.error(error.message || 'Erro ao solicitar upgrade. Tente novamente.');
@@ -223,6 +223,7 @@ export default function ProfilePage() {
   };
 
   const subscriptionStatus = useMemo(() => {
+    if (loadingSubscription) return 'Carregando status...';
     if (!subscription) return 'Nenhum plano ativo';
 
     const statusMap = {
@@ -230,17 +231,24 @@ export default function ProfilePage() {
       inactive: 'Inativo',
       canceled: 'Cancelado',
       expired: 'Expirado',
-      pending: 'Pendente'
+      pending: 'Pendente',
+      trialing: 'Teste Gratuito',
+      past_due: 'Pagamento Pendente'
     };
 
-    return `Status: ${statusMap[subscription.status as keyof typeof statusMap] || subscription.status}`;
-  }, [subscription]);
+    const planName = subscription.plan ? `Plano ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}` : '';
+    const statusText = `Status: ${statusMap[subscription.status as keyof typeof statusMap] || subscription.status}`;
+    const expiresText = subscription?.expiresAt && new Date(subscription.expiresAt).getTime() > Date.now()
+      ? ` - Válido até ${new Date(subscription.expiresAt).toLocaleDateString()}`
+      : (subscription?.status === 'active' ? ' - Data de expiração não disponível' : '');
 
-  const currentAvatarSrc = avatarPreview || user?.photoUrl || '/default-avatar.png';
+    return `${planName} ${statusText}${expiresText}`;
+  }, [subscription, loadingSubscription]);
+
+  const currentAvatarSrc = avatarPreview || user?.photoUrl || user?.photoURL || '/default-avatar.png';
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -249,51 +257,62 @@ export default function ProfilePage() {
               Gerencie suas informações pessoais e segurança
             </p>
           </div>
-          {isEditing ? (
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={() => {
-                   setIsEditing(false);
-                   setAvatarFile(null);
-                   setAvatarPreview(user?.photoUrl || '/default-avatar.png');
-                   setFormData({
+          <div className="flex space-x-2">
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setAvatarFile(null);
+                    setAvatarPreview(user?.photoUrl || user?.photoURL || '/default-avatar.png');
+                    setFormData({
                       name: user?.name || '',
                       email: user?.email || '',
                       currentPassword: '',
                       newPassword: '',
                       confirmPassword: ''
-                   });
-                }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <FiX className="inline mr-2" /> Cancelar
-              </button>
+                    });
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <FiX className="inline mr-2" /> Cancelar
+                </button>
+                <button
+                  type="submit"
+                  onClick={handleSubmit}
+                  disabled={isLoading || isUploading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                >
+                  {isLoading || isUploading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <FiCheck className="inline mr-2" /> Salvar
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
               <button
-                type="submit"
-                onClick={handleSubmit}
-                disabled={isLoading || isUploading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
               >
-                {isLoading || isUploading ? 'Salvando...' : (
-                  <>
-                    <FiCheck className="inline mr-2" /> Salvar
-                  </>
-                )}
+                <FiEdit className="inline mr-2" /> Editar Perfil
               </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
-            >
-              <FiEdit className="inline mr-2" /> Editar Perfil
-            </button>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+          {/* Seção de cabeçalho com foto de perfil */}
           <div className="relative bg-gradient-to-r from-blue-500 to-purple-600 p-6">
             <div className="flex flex-col items-center">
               <div className="relative group">
@@ -314,7 +333,7 @@ export default function ProfilePage() {
                 </div>
                 {isEditing && !isUploading && (
                   <>
-                    <label 
+                    <label
                       htmlFor="avatar-upload"
                       className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     >
@@ -336,12 +355,12 @@ export default function ProfilePage() {
                 {isEditing ? (
                   <input
                     type="text"
-                    id="header-name" // Adicionado ID
+                    id="header-name"
                     name="name"
-                    autoComplete="name" // Adicionado autocomplete
+                    autoComplete="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="bg-transparent border-b border-white text-center text-white focus:outline-none placeholder-white::placeholder"
+                    className="bg-transparent border-b border-white text-center text-white placeholder-white::placeholder focus:outline-none"
                   />
                 ) : (
                   user?.name || 'Usuário'
@@ -356,6 +375,7 @@ export default function ProfilePage() {
           <div className="p-6">
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
+                {/* Seção de Informações Pessoais */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     Informações Pessoais
@@ -370,7 +390,7 @@ export default function ProfilePage() {
                           type="text"
                           id="name"
                           name="name"
-                          autoComplete="name" // Adicionado
+                          autoComplete="name"
                           value={formData.name}
                           onChange={handleInputChange}
                           className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -391,7 +411,7 @@ export default function ProfilePage() {
                           type="email"
                           id="email"
                           name="email"
-                          autoComplete="email" // Adicionado
+                          autoComplete="email"
                           value={formData.email}
                           onChange={handleInputChange}
                           className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-blue-500 focus:border-blue-500"
@@ -406,22 +426,23 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* Seção de Segurança (campos de senha - visível apenas em edição) */}
                 {isEditing && (
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                      Segurança
+                      Segurança (Alterar Senha/Email)
                     </h3>
                     <div className="space-y-4">
                       <div>
                         <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Senha Atual (para alterar email/senha)
+                          Senha Atual (Necessária para alterar email ou senha)
                         </label>
                         <div className="relative">
                           <input
                             type={showCurrentPassword ? "text" : "password"}
                             id="currentPassword"
                             name="currentPassword"
-                            autoComplete="current-password" // Adicionado
+                            autoComplete="current-password"
                             value={formData.currentPassword}
                             onChange={handleInputChange}
                             className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
@@ -446,7 +467,7 @@ export default function ProfilePage() {
                               type={showNewPassword ? "text" : "password"}
                               id="newPassword"
                               name="newPassword"
-                              autoComplete="new-password" // Adicionado
+                              autoComplete="new-password"
                               value={formData.newPassword}
                               onChange={handleInputChange}
                               className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
@@ -470,7 +491,7 @@ export default function ProfilePage() {
                               type={showConfirmPassword ? "text" : "password"}
                               id="confirmPassword"
                               name="confirmPassword"
-                              autoComplete="new-password" // Adicionado
+                              autoComplete="new-password"
                               value={formData.confirmPassword}
                               onChange={handleInputChange}
                               className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white pr-10 focus:ring-blue-500 focus:border-blue-500"
@@ -490,23 +511,26 @@ export default function ProfilePage() {
                   </div>
                 )}
 
+                {/* Seção de Assinatura */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     Assinatura
                   </h3>
                   <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-700/50 dark:to-gray-800/60 p-6 rounded-lg border border-blue-100 dark:border-gray-700">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                       <div>
                         <h4 className="font-bold text-lg text-gray-900 dark:text-white">
-                          {subscription?.plan ? `Plano ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}` : 'Nenhum plano ativo'}
-                        </h4>
-                        <p className="text-gray-600 dark:text-gray-400">
                           {subscriptionStatus}
-                          {subscription?.expiresAt && ` - Válido até ${new Date(subscription.expiresAt).toLocaleDateString()}`}
-                        </p>
+                        </h4>
+                        {subscription?.status === 'trialing' && (
+                          <p className="text-green-600 dark:text-green-400 text-sm mt-1">Aproveite seu período de teste gratuito!</p>
+                        )}
+                        {subscription?.status === 'past_due' && (
+                          <p className="text-red-600 dark:text-red-400 text-sm mt-1">Pagamento pendente. Atualize suas informações de pagamento.</p>
+                        )}
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3">
-                        <button 
+                        <button
                           type="button"
                           onClick={handleManageSubscription}
                           disabled={loadingSubscription}
@@ -514,15 +538,14 @@ export default function ProfilePage() {
                         >
                           {loadingSubscription ? 'Carregando...' : 'Gerenciar Assinatura'}
                         </button>
-                        {/* Mostrar botão de upgrade apenas se não for premium */}
                         {subscription?.plan !== 'premium' && (
-                           <button 
-                           type="button"
-                           onClick={handleUpgrade}
-                           className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm"
-                         >
-                           Upgrade para Premium
-                         </button>
+                          <button
+                            type="button"
+                            onClick={handleUpgrade}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm"
+                          >
+                            Upgrade para Premium
+                          </button>
                         )}
                       </div>
                     </div>

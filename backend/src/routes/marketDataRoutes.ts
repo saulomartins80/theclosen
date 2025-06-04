@@ -1,3 +1,4 @@
+//src/routes/marketDAtaRoutes.ts
 import express from 'express';
 import { getMarketDataController } from '../controllers/marketDataController';
 import { validateMarketDataRequest } from '../middlewares/marketDataValidation';

@@ -1,3 +1,4 @@
+//src/middlewares/marketDAtaValidation.ts
 import { Request, Response, NextFunction } from 'express';
 
 export const validateMarketDataRequest = (
@@ -10,14 +11,27 @@ export const validateMarketDataRequest = (
     return;
   }
 
-  const { symbols, cryptos, customIndices } = req.body;
+  const { symbols, cryptos, manualAssets, customIndices } = req.body;
 
-  if (!symbols && !cryptos && !customIndices) {
-    res.status(400).json({ 
-      error: 'At least one of symbols, cryptos or customIndices must be provided'
-    });
-    return;
-  }
+  // Check if at least one of the expected fields is provided and is an array (basic check)
+  if (!Array.isArray(symbols) && !Array.isArray(cryptos) && !Array.isArray(manualAssets) && !Array.isArray(customIndices)) {
+     res.status(400).json({ 
+       error: 'At least one of symbols, cryptos, manualAssets, or customIndices must be provided as an array'
+     });
+     return;
+   }
+
+  // Although controller also validates array types, basic type checking here is good practice
+   if ((symbols && !Array.isArray(symbols)) || 
+       (cryptos && !Array.isArray(cryptos)) || 
+       (manualAssets && !Array.isArray(manualAssets)) || 
+       (customIndices && !Array.isArray(customIndices))) {
+     res.status(400).json({
+       error: 'Invalid data format',
+       details: 'symbols, cryptos, manualAssets, and customIndices must be arrays if provided.'
+     });
+     return;
+   }
 
   next();
 };
