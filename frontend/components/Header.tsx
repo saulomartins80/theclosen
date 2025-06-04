@@ -1,31 +1,37 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FiX, FiSun, FiMoon, FiMonitor, FiMenu, FiSearch, FiBell, FiSettings, FiUser, FiLogOut, FiChevronRight } from 'react-icons/fi';
+import { FiX, FiSun, FiMoon, FiMonitor, FiMenu, FiSearch, FiSettings, FiUser, FiLogOut, FiChevronRight } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
+import Notifications, { NotificationItem } from './Notifications'; // Importar componente e tipo
 
 type Theme = 'light' | 'dark' | 'system';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
   toggleMobileSidebar: () => void;
+  notifications?: NotificationItem[];
+  unreadNotificationCount?: number;
 }
 
-export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderProps) {
+export default function Header({
+  isSidebarOpen,
+  toggleMobileSidebar,
+  notifications = [],
+  unreadNotificationCount = 0
+}: HeaderProps) {
   const { user, logout: authContextLogout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [showThemeDropdown, setShowThemeDropdown] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleClickOutside = useCallback((event: MouseEvent) => {
     if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
       setShowThemeDropdown(false);
       setShowProfileDropdown(false);
-      setShowNotifications(false);
     }
   }, []);
 
@@ -41,13 +47,8 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
     { value: 'system', icon: FiMonitor, label: 'Sistema' }
   ];
 
-  const notifications = [
-    { id: 1, text: 'Nova mensagem recebida', read: false },
-    { id: 2, text: 'Atualização do sistema disponível', read: true }
-  ];
-
   if (!user) {
-    return null; 
+    return null;
   }
 
   if (!mounted) {
@@ -64,16 +65,16 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
   }
 
   return (
-    <header 
+    <header
       className={`
         fixed top-0 left-0 right-0 z-20
         h-16 flex items-center justify-between
         px-2 sm:px-4 shadow-sm w-full
-        ${resolvedTheme === 'dark'       
-          ? 'bg-gray-800 border-b border-gray-700' 
+        ${resolvedTheme === 'dark'
+          ? 'bg-gray-800 border-b border-gray-700'
           : 'bg-white border-b border-gray-200'
         }
-      `} 
+      `}
       ref={dropdownRef}
     >
       {/* Botão do menu mobile */}
@@ -81,8 +82,8 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
         onClick={toggleMobileSidebar}
         className={`
           p-1 sm:p-2 rounded-full md:hidden flex-shrink-0
-          ${resolvedTheme === 'dark' 
-            ? 'hover:bg-gray-700 text-white' 
+          ${resolvedTheme === 'dark'
+            ? 'hover:bg-gray-700 text-white'
             : 'hover:bg-gray-200 text-gray-900'
           }
           transition-colors duration-200
@@ -95,7 +96,7 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
       {/* Logo/Título */}
       <div className="flex items-center ml-1 sm:ml-2 md:ml-4 min-w-0 flex-shrink">
         <Link href="/" className="text-xl font-bold cursor-pointer truncate min-w-0">
-          {/* Seu Logo ou Nome do App aqui */}
+          FinTrack
         </Link>
       </div>
 
@@ -132,7 +133,6 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
             onClick={() => {
               setShowThemeDropdown(!showThemeDropdown);
               setShowProfileDropdown(false);
-              setShowNotifications(false);
             }}
             className={`
               p-1 sm:p-2 rounded-full
@@ -182,94 +182,11 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
           )}
         </div>
 
-        {/* Notificações */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowThemeDropdown(false);
-              setShowProfileDropdown(false);
-            }}
-            className={`
-              p-1 sm:p-2 rounded-full relative
-              ${resolvedTheme === 'dark'
-                ? 'hover:bg-gray-700 text-gray-300'
-                : 'hover:bg-gray-200 text-gray-700'
-              }
-            `}
-            aria-label="Notificações"
-          >
-            <FiBell size={20} />
-            {notifications.some(n => !n.read) && (
-              <span className={`
-                absolute top-0 right-0 w-2 h-2 rounded-full
-                ${resolvedTheme === 'dark' ? 'bg-red-500' : 'bg-red-600'}
-              `}></span>
-            )}
-          </button>
-
-          {showNotifications && (
-            <div className={`
-              absolute right-0 mt-2 w-72 z-40
-              rounded-md shadow-lg py-1
-              ${resolvedTheme === 'dark'
-                ? 'bg-gray-700 border border-gray-600'
-                : 'bg-white border border-gray-200'
-              }
-            `}>
-              <div className={`
-                px-4 py-2 border-b
-                ${resolvedTheme === 'dark' 
-                  ? 'border-gray-600 text-white' 
-                  : 'border-gray-200 text-gray-800'
-                }
-              `}>
-                <h3 className="font-medium">Notificações</h3>
-              </div>
-              <div className="max-h-60 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map(notification => (
-                    <div 
-                      key={notification.id}
-                      className={`
-                        px-4 py-3 border-b
-                        ${!notification.read 
-                          ? resolvedTheme === 'dark' 
-                            ? 'bg-blue-900/20 border-blue-800' 
-                            : 'bg-blue-50 border-blue-100'
-                          : resolvedTheme === 'dark'
-                            ? 'border-gray-600'
-                            : 'border-gray-100'
-                        }
-                      `}
-                    >
-                      <p className={`
-                        ${resolvedTheme === 'dark' ? 'text-gray-200' : 'text-gray-700'}
-                      `}>
-                        {notification.text}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-4 py-3 text-center text-gray-500">
-                    Nenhuma notificação
-                  </div>
-                )}
-              </div>
-              <div className={`
-                px-4 py-2 text-center
-                ${resolvedTheme === 'dark' 
-                  ? 'text-blue-400 hover:text-blue-300' 
-                  : 'text-blue-600 hover:text-blue-500'
-                }
-              `}>
-                <Link href="/notificacoes" className="hover:underline">
-                  Ver todas
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Notificações dinâmicas */}
+        <Notifications
+          resolvedTheme={resolvedTheme}
+          initialNotifications={notifications}
+        />
 
         {/* Perfil do usuário */}
         <div className="relative">
@@ -277,7 +194,6 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
             onClick={() => {
               setShowProfileDropdown(!showProfileDropdown);
               setShowThemeDropdown(false);
-              setShowNotifications(false);
             }}
             className={`
               flex items-center gap-1 sm:gap-2 p-1 sm:p-2 rounded
@@ -296,8 +212,8 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
               }
             `}>
               {(user.photoUrl || user.photoURL) ? (
-                <Image 
-                  src={user.photoUrl || user.photoURL || ''} 
+                <Image
+                  src={user.photoUrl || user.photoURL || ''}
                   alt="Avatar do usuário"
                   width={32}
                   height={32}
@@ -307,12 +223,12 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
                 user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase()
               )}
             </div>
-            <span className="hidden md:inline truncate max-w-[120px]">
+            <span className="hidden md:inline truncate max-w-[120px] text-gray-900 dark:text-white">
               {user.name || user.email}
             </span>
             <FiChevronRight className={`
               ${showProfileDropdown ? 'transform rotate-90' : ''}
-              transition-transform hidden sm:block
+              transition-transform hidden sm:block text-gray-500 dark:text-gray-400
             `} />
           </button>
 
@@ -327,8 +243,8 @@ export default function Header({ isSidebarOpen, toggleMobileSidebar }: HeaderPro
             `}>
               <div className={`
                 px-4 py-3 border-b
-                ${resolvedTheme === 'dark' 
-                  ? 'border-gray-600 text-white' 
+                ${resolvedTheme === 'dark'
+                  ? 'border-gray-600 text-white'
                   : 'border-gray-200 text-gray-800'
                 }
               `}>

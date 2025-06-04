@@ -1,5 +1,15 @@
 import Link from "next/link";
-import { Home, TrendingUp, Target, Book, PlusSquare, X, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  PieChart,
+  BarChart2,
+  Target,
+  DollarSign,
+  BookOpen,
+  Sliders,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -9,7 +19,7 @@ interface SidebarProps {
   isMobile: boolean;
   isOpen: boolean;
   onClose: () => void;
-  onToggle?: () => void; // Opcional para desktop
+  onToggle?: () => void;
   initialCollapsed?: boolean;
 }
 
@@ -19,16 +29,16 @@ interface MenuItem {
   label: string;
 }
 
-export default function Sidebar({ 
-  isOpen = false, 
-  onClose = () => {}, 
+export default function Sidebar({
+  isOpen = false,
+  onClose = () => {},
   onToggle = () => {},
   isMobile = false,
-  initialCollapsed = false
+  initialCollapsed = false,
 }: SidebarProps) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
-  
+
   const isActive = (path: string) => router.pathname === path;
 
   // Sincroniza com o estado do layout
@@ -41,7 +51,7 @@ export default function Sidebar({
   // Fecha com ESC no mobile
   useEffect(() => {
     if (!isMobile) return;
-    
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -49,7 +59,7 @@ export default function Sidebar({
     if (isOpen) {
       window.addEventListener("keydown", handleEscape);
     }
-    
+
     return () => {
       window.removeEventListener("keydown", handleEscape);
     };
@@ -57,25 +67,56 @@ export default function Sidebar({
 
   // Persiste preferência do usuário
   useEffect(() => {
-    if (!isMobile && typeof window !== 'undefined') {
-      localStorage.setItem('sidebarCollapsed', String(collapsed));
+    if (!isMobile && typeof window !== "undefined") {
+      localStorage.setItem("sidebarCollapsed", String(collapsed));
     }
   }, [collapsed, isMobile]);
 
   const menuItems: MenuItem[] = [
-    { path: "/", icon: Home, label: "Visão geral" },
-    { path: "/transacoes", icon: TrendingUp, label: "Transações" },
-    { path: "/metas", icon: Target, label: "Metas" },
-    { path: "/investimentos", icon: PlusSquare, label: "Investimentos" },
-    { path: "/ebook", icon: Book, label: "E-book" },
-    { path: "/configuracoes", icon: Settings, label: "Configurações" },
+    {
+      path: "/",
+      icon: PieChart,
+      label: "Visão geral",
+    },
+    {
+      path: "/transacoes",
+      icon: BarChart2,
+      label: "Transações",
+    },
+    {
+      path: "/metas",
+      icon: Target,
+      label: "Metas",
+    },
+    {
+      path: "/investimentos",
+      icon: DollarSign,
+      label: "Investimentos",
+    },
+    {
+      path: "/ebook",
+      icon: BookOpen,
+      label: "E-book",
+    },
+    {
+      path: "/configuracoes",
+      icon: Sliders,
+      label: "Configurações",
+    },
   ];
 
   const sidebarContent = (
     <>
-      <div className={`flex items-center mb-6 ${collapsed ? 'px-2 justify-center' : 'px-4 justify-between'}`}>
+      <div
+        className={`flex items-center mb-6 ${
+          collapsed ? "px-2 justify-center" : "px-4 justify-between"
+        }`}
+      >
         {!collapsed && (
-          <Link href="/dashboard" className="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+          <Link
+            href="/dashboard"
+            className="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
             Finanext
           </Link>
         )}
@@ -86,7 +127,7 @@ export default function Sidebar({
             aria-label="Fechar menu"
             aria-expanded={isOpen}
           >
-            <X size={24} />
+            <X size={24} className="text-rose-500 dark:text-rose-400" />
           </button>
         ) : (
           <button
@@ -98,11 +139,15 @@ export default function Sidebar({
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             aria-expanded={!collapsed}
           >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {collapsed ? (
+              <ChevronRight size={20} className="text-blue-500 dark:text-blue-400" />
+            ) : (
+              <ChevronLeft size={20} className="text-blue-500 dark:text-blue-400" />
+            )}
           </button>
         )}
       </div>
-      
+
       <nav aria-label="Navegação principal">
         <ul className="space-y-2">
           {menuItems.map(({ path, icon: Icon, label }) => (
@@ -113,23 +158,33 @@ export default function Sidebar({
                   isActive(path)
                     ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-200"
                     : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
-                } ${collapsed ? 'justify-center' : ''}`}
+                } ${collapsed ? "justify-center" : ""}`}
                 onClick={isMobile ? onClose : undefined}
                 aria-current={isActive(path) ? "page" : undefined}
               >
-                <Icon
-                  size={20}
-                  className={`flex-shrink-0 ${
-                    isActive(path)
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-500 dark:text-gray-400"
-                  } ${collapsed ? 'mr-0' : 'mr-3'}`}
-                  aria-hidden="true"
-                />
+                <div className={`relative ${collapsed ? "mr-0" : "mr-3"}`}>
+                  <Icon
+                    size={22}
+                    className={`flex-shrink-0 ${
+                      isActive(path)
+                        ? "text-blue-600 dark:text-blue-400"
+                        : "text-gray-600 dark:text-gray-400"
+                    }`}
+                    aria-hidden="true"
+                    strokeWidth={2.5}
+                  />
+                  {isActive(path) && (
+                    <motion.span
+                      layoutId="activeIndicator"
+                      className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 dark:bg-blue-400 rounded-r-full"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  )}
+                </div>
                 {!collapsed && (
-                  <span className="text-sm font-medium">
-                    {label}
-                  </span>
+                  <span className="text-sm font-medium">{label}</span>
                 )}
               </Link>
             </li>
@@ -154,15 +209,15 @@ export default function Sidebar({
                 onClick={onClose}
                 aria-hidden="true"
               />
-              
+
               <motion.div
-                initial={{ x: '-100%' }}
+                initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ 
-                  type: "tween", 
+                exit={{ x: "-100%" }}
+                transition={{
+                  type: "tween",
                   duration: 0.2,
-                  ease: "easeInOut"
+                  ease: "easeInOut",
                 }}
                 className="fixed top-0 left-0 w-64 bg-white dark:bg-gray-800 h-full flex flex-col p-5 shadow-lg z-50 md:hidden"
                 role="dialog"
@@ -180,18 +235,16 @@ export default function Sidebar({
         <motion.aside
           initial={false}
           animate={{ width: collapsed ? 80 : 256 }}
-          transition={{ 
-            type: "spring", 
+          transition={{
+            type: "spring",
             stiffness: 300,
             damping: 30,
-            mass: 0.5
+            mass: 0.5,
           }}
           className={`hidden md:flex flex-col fixed inset-y-0 left-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-30 overflow-x-hidden`}
           aria-label="Barra lateral"
         >
-          <div className="p-2 h-full overflow-y-auto">
-            {sidebarContent}
-          </div>
+          <div className="p-2 h-full overflow-y-auto">{sidebarContent}</div>
         </motion.aside>
       )}
     </>

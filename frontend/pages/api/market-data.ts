@@ -19,34 +19,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
+        // Log the URL being used for the backend request
+        const backendUrl = `${BACKEND_API_URL}/market-data`;
+        console.log(`[market-data API Route] Proxying POST request to backend: ${backendUrl}`);
+        console.log(`[market-data API Route] Request body being sent to backend:`, req.body); // Also log the body here
+
         try {
-            const backendResponse = await axios.post(`${BACKEND_API_URL}/market-data`, req.body, {
+            const backendResponse = await axios.post(backendUrl, req.body, {
                 headers: headers, // Usar os cabeçalhos configurados
                 timeout: 10000 // 10 segundos
             });
             res.status(backendResponse.status).json(backendResponse.data);
         } catch (error: any) {
-            console.error('Error proxying POST to backend /market-data:', error.message);
+            console.error('[market-data API Route] Error proxying POST to backend /market-data:', error.message);
             if (axios.isAxiosError(error) && error.response) {
                 // Encaminhar o status e corpo da resposta de erro do backend
-                console.error('Backend error response data:', error.response.data);
+                console.error('[market-data API Route] Backend error response data:', error.response.data);
                 res.status(error.response.status).json(error.response.data);
             } else {
                  // Tratar erros que não são respostas do backend (como ECONNREFUSED)
                  const errorMessage = error.message || 'Failed to proxy request to backend';
-                 console.error('Details:', errorMessage);
+                 console.error('[market-data API Route] Details:', errorMessage);
                  res.status(500).json({ error: 'Failed to proxy request to backend', details: errorMessage });
             }
         }
     } else if (req.method === 'GET') {
-         // A lógica para GET aqui parece inconsistente com o POST na rota marketDataRoutes (que é apenas POST)
-         // Se você precisa de GET, ajuste a rota do backend e o código aqui.
-         // POR ENQUANTO, vamos focar no POST, pois os logs mostraram POST 307.
-         res.setHeader('Allow', ['POST']); // Permitir apenas POST conforme a rota backend
+         res.setHeader('Allow', ['POST']);
          res.status(405).end(`Method ${req.method} Not Allowed`);
 
     } else {
-        res.setHeader('Allow', ['POST']); // Permitir apenas POST
+        res.setHeader('Allow', ['POST']);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 }
