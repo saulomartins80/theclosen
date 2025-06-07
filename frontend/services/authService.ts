@@ -1,3 +1,4 @@
+//frontend/services/authservices.ts
 import { auth, loginWithGoogle } from '../lib/firebase/client';
 import api from './api';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';

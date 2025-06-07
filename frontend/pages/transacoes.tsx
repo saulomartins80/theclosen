@@ -13,6 +13,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from 'framer-motion';
 
+
 const Transacoes = () => {
   const { user } = useAuth();
   const { resolvedTheme } = useTheme(); 
@@ -81,70 +82,29 @@ const Transacoes = () => {
     resetForm(); 
   };
 
-  const handleSaveTransacao = async () => {
-    setIsSubmitting(true);
-    try {
-      if (!formData.descricao || !formData.valor || !formData.data || 
-          !formData.categoria || !formData.conta) {
-        toast.error("Preencha todos os campos obrigatórios");
-        setIsSubmitting(false);
-        return;
-      }
-  
-      const valorNumerico = Number(
-        formData.valor.toString().replace(/[^0-9,-]/g, '').replace(',', '.')
-      );
-  
-      if (isNaN(valorNumerico) || valorNumerico === 0) {
-        toast.error("Valor inválido ou igual a zero!");
-        setIsSubmitting(false);
-        return;
-      }
-      if (formData.tipo !== 'transferencia' && valorNumerico < 0) {
-        toast.error("Valor para receita ou despesa não pode ser negativo.");
-        setIsSubmitting(false);
-        return;
-      }
-  
-      const dataObj = new Date(formData.data);
-      if (isNaN(dataObj.getTime())) {
-        toast.error("Data inválida!");
-        setIsSubmitting(false);
-        return;
-      }
-  
-      const payload: NovaTransacaoPayload = {
-        descricao: formData.descricao.trim(),
-        valor: valorNumerico,
-        categoria: formData.categoria.trim(),
-        tipo: formData.tipo,
-        conta: formData.conta.trim(),
-        data: { $date: dataObj.toISOString() }
-      };
-  
-      if (editingId) {
-        const updatePayload: AtualizarTransacaoPayload = {
-          ...payload,
-          data: payload.data
-        };
-        await transacaoAPI.update(editingId, updatePayload);
-        toast.success("Transação atualizada!");
-      } else {
-        await transacaoAPI.create(payload);
-        toast.success("Transação criada!");
-      }
-  
-      fetchTransacoes();
-      closeModal();
-  
-    } catch (error: unknown) {
-      console.error('Erro completo:', error);
-      const apiError = (error as any)?.response?.data?.message || (error instanceof Error ? error.message : 'Erro desconhecido');
-      toast.error(`Erro ao salvar: ${apiError}`);
-    } finally {
-      setIsSubmitting(false);
+  const handleSaveTransacao = async (payload: NovaTransacaoPayload | (AtualizarTransacaoPayload & { _id: string })) => {
+  setIsSubmitting(true);
+  try {
+    if (editingId) {
+      // Para edição, garantimos que o payload tem _id
+      await transacaoAPI.update(editingId, payload as AtualizarTransacaoPayload & { _id: string });
+      toast.success("Transação atualizada!");
+    } else {
+      // Para criação, usamos apenas NovaTransacaoPayload
+      await transacaoAPI.create(payload as NovaTransacaoPayload);
+      toast.success("Transação criada!");
     }
-  };
+
+    fetchTransacoes();
+    closeModal();
+  } catch (error: unknown) {
+    console.error('Erro completo:', error);
+    const apiError = (error as any)?.response?.data?.message || (error instanceof Error ? error.message : 'Erro desconhecido');
+    toast.error(`Erro ao salvar: ${apiError}`);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const totalReceitas = transacoes
     .filter((t) => t.tipo === "receita")

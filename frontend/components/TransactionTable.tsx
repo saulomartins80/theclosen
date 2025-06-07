@@ -1,4 +1,3 @@
-//frontnd/comeponents/TransactionTanble.tsx
 import React, { useState } from "react";
 import { 
   Edit, 
@@ -55,15 +54,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
-    });
-  };
-
-  const formatTime = (dateInput: string | { $date: string }): string => {
-    const dateStr = isMongoDate(dateInput) ? dateInput.$date : dateInput as string;
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString("pt-BR", {
-      hour: '2-digit',
-      minute: '2-digit'
     });
   };
 
@@ -222,9 +212,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className={`text-sm ${resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                         {formatDate(transacao.data)}
-                      </div>
-                      <div className={`text-xs ${resolvedTheme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {formatTime(transacao.data)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -412,10 +399,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                       </div>
                       <div>
                         <p className={`font-medium ${resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Data/Hora
+                          Data
                         </p>
                         <p className={`${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {formatTime(transacao.data)}
+                          {formatDate(transacao.data)}
                         </p>
                       </div>
                       {transacao.observacao && (

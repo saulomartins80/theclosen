@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+// frontend/pages/_app.tsx
 import { useRouter } from 'next/router'
 import { ThemeProvider } from '../context/ThemeContext'
 import { AuthProvider } from '../context/AuthContext'
@@ -33,7 +33,6 @@ function AppContent({ Component, pageProps }: AppProps) {
     return (
       <PublicLayout>
         <Component {...pageProps} />
-        <ToastContainer position="bottom-right" />
       </PublicLayout>
     )
   }

@@ -1,3 +1,4 @@
+//frontend/services/yahooFinance.ts
 interface YahooFinanceResponse {
   symbol: string;
   price: number;
