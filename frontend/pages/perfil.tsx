@@ -1,4 +1,3 @@
-//pages/profile.tsx
 import { useAuth, SessionUser } from '../context/AuthContext';
 import { useState, useEffect, useMemo } from 'react';
 import { FiUser, FiMail, FiLock, FiCreditCard, FiEdit, FiCamera, FiCheck, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
@@ -7,6 +6,7 @@ import { toast } from 'react-toastify';
 import Image from 'next/image';
 import DeepSeekChat from '../components/DeepSeekChat';
 import api from '../services/api';
+import { FirebaseApp, getApp } from 'firebase/app';
 
 interface AuthUserData {
   uid: string;
@@ -51,7 +51,16 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const storage = getStorage();
+  // Initialize Firebase Storage with explicit app initialization
+  const storage = useMemo(() => {
+    try {
+      const firebaseApp = getApp();
+      return getStorage(firebaseApp);
+    } catch (error) {
+      console.error('Failed to initialize Firebase Storage:', error);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -109,9 +118,17 @@ export default function ProfilePage() {
       if (avatarFile) {
         setIsUploading(true);
         try {
+          // Add robust checks before upload
+          if (!storage) {
+            throw new Error('Serviço de armazenamento não disponível');
+          }
           if (!user.uid) {
             throw new Error('UID do usuário indisponível para upload de avatar.');
           }
+          if (!(avatarFile instanceof Blob)) {
+            throw new Error('Tipo de arquivo inválido para upload.');
+          }
+
           const timestamp = Date.now();
           const storageRef = ref(storage, `avatars/${user.uid}/avatar_${timestamp}`);
           await uploadBytes(storageRef, avatarFile);
@@ -120,6 +137,9 @@ export default function ProfilePage() {
         } catch (error) {
           console.error('Erro no upload da foto:', error);
           toast.error('Falha ao carregar a nova foto.');
+          setAvatarFile(null);
+          setAvatarPreview(user?.photoUrl || user?.photoURL || '/default-avatar.png');
+          return;
         } finally {
           setIsUploading(false);
         }
@@ -129,15 +149,15 @@ export default function ProfilePage() {
       const hasPasswordChanges = formData.newPassword !== '';
 
       if (hasProfileChanges || hasPasswordChanges || updatePayload.photoUrl) {
-        if (formData.name !== user.name) {
-          updatePayload.name = formData.name;
+        if (formData.name !== user.name && formData.name.trim() !== '') {
+          updatePayload.name = formData.name.trim();
         }
 
-        if (formData.email !== user.email) {
+        if (formData.email !== user.email && formData.email.trim() !== '') {
           if (!formData.currentPassword) {
             throw new Error('Forneça sua senha atual para alterar o email');
           }
-          updatePayload.email = formData.email;
+          updatePayload.email = formData.email.trim();
           updatePayload.currentPassword = formData.currentPassword;
         }
 
@@ -165,15 +185,13 @@ export default function ProfilePage() {
             name: updatedUserData.name !== undefined ? updatedUserData.name : user.name,
             email: updatedUserData.email !== undefined ? updatedUserData.email : user.email,
             photoUrl: updatedUserData.photoUrl !== undefined ? updatedUserData.photoUrl : user.photoUrl || user.photoURL,
-            // Only update subscription if backend returns a valid subscription object with id
             ...(updatedUserData.subscription && updatedUserData.subscription.id
               ? { subscription: updatedUserData.subscription }
               : {}),
           };
           updateUserContextProfile(profileForContext);
         } else {
-          // Se o backend não retornar o usuário atualizado, talvez refreshSubscription?
-          // refreshSubscription();
+          console.warn('Backend did not return updated user data.');
         }
         toast.success('Perfil atualizado com sucesso!');
       } else {
@@ -226,7 +244,7 @@ export default function ProfilePage() {
     if (loadingSubscription) return 'Carregando status...';
     if (!subscription) return 'Nenhum plano ativo';
 
-    const statusMap = {
+    const statusMap: Record<string, string> = {
       active: 'Ativo',
       inactive: 'Inativo',
       canceled: 'Cancelado',
@@ -237,7 +255,7 @@ export default function ProfilePage() {
     };
 
     const planName = subscription.plan ? `Plano ${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}` : '';
-    const statusText = `Status: ${statusMap[subscription.status as keyof typeof statusMap] || subscription.status}`;
+    const statusText = `Status: ${statusMap[subscription.status as string] || subscription.status}`;
     const expiresText = subscription?.expiresAt && new Date(subscription.expiresAt).getTime() > Date.now()
       ? ` - Válido até ${new Date(subscription.expiresAt).toLocaleDateString()}`
       : (subscription?.status === 'active' ? ' - Data de expiração não disponível' : '');
@@ -312,7 +330,6 @@ export default function ProfilePage() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-          {/* Seção de cabeçalho com foto de perfil */}
           <div className="relative bg-gradient-to-r from-blue-500 to-purple-600 p-6">
             <div className="flex flex-col items-center">
               <div className="relative group">
@@ -375,7 +392,6 @@ export default function ProfilePage() {
           <div className="p-6">
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
-                {/* Seção de Informações Pessoais */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     Informações Pessoais
@@ -426,7 +442,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Seção de Segurança (campos de senha - visível apenas em edição) */}
                 {isEditing && (
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -511,7 +526,6 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Seção de Assinatura */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                     Assinatura

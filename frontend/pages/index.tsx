@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
 import { motion, useAnimation, useInView } from 'framer-motion';
 import Head from 'next/head';
-import Image from 'next/image'; // Substitui img por Image
+import Image from 'next/image'; 
 import { Tabs, TabList, Tab, TabPanel } from 'react-tabs';
 import { Splide, SplideSlide } from '@splidejs/react-splide';
 import CountUp from 'react-countup';
@@ -88,7 +88,7 @@ export default function HomePage() {
   };
 
   const metrics = [
-    { value: 15, suffix: 'K+', label: 'Usuários ativos' },
+    { value: 1, suffix: 'K+', label: 'Usuários ativos' },
     { value: 89, suffix: '%', label: 'Satisfação' },
     { value: 4.9, suffix: '/5', label: 'Avaliação' },
     { value: 24, suffix: '/7', label: 'Suporte' }
@@ -155,9 +155,9 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Finanext PRO | Revolução Financeira</title>
+        <title>FinNEXTHO | Revolução Financeira</title>
         <meta name="description" content="Plataforma financeira completa com IA integrada" />
-        <meta property="og:image" content="https://finanext.com/social-preview.jpg" />
+        <meta property="og:image" content="https://FinNEXTHO.com/social-preview.jpg" />
       </Head>
 
       {/* Navbar */}
@@ -168,7 +168,7 @@ export default function HomePage() {
               <FiTrendingUp className="text-white w-6 h-6" />
             </div>
             <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-              Finanext<span className="text-blue-300">PRO</span>
+              Fin<span className="text-blue-300">NEXTHO</span>
             </span>
           </Link>
 
@@ -333,7 +333,7 @@ export default function HomePage() {
                 className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-bold hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] group"
                 onClick={() => handleClick('hero_cta')}
               >
-                Comece Grátis por 30 Dias
+                Comece Grátis 
                 <FiArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
 
@@ -566,7 +566,7 @@ export default function HomePage() {
                 className="px-10 py-5 bg-white text-blue-900 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-blue-500/20 flex items-center justify-center"
                 onClick={() => handleClick('final_cta')}
               >
-                Comece Agora - 30 Dias Grátis
+                Comece Agora 
               </Link>
 
               <Link
@@ -596,7 +596,7 @@ export default function HomePage() {
                   <FiTrendingUp className="text-white w-6 h-6" />
                 </div>
                 <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                  Finanext<span className="text-blue-300">PRO</span>
+                  Fin<span className="text-blue-300">NEXTHO</span>
                 </span>
               </Link>
               <p className="mb-6">
@@ -604,7 +604,7 @@ export default function HomePage() {
               </p>
               <div className="flex space-x-4">
                 {[
-                  { icon: <FiTwitter className="w-5 h-5" />, name: 'Twitter', url: 'https://twitter.com' },
+                  { icon: <FiTwitter className="w-5 h-5" />, name: 'X', url: 'https://x.com' },
                   { icon: <FiLinkedin className="w-5 h-5" />, name: 'LinkedIn', url: 'https://linkedin.com' },
                   { icon: <FiFacebook className="w-5 h-5" />, name: 'Facebook', url: 'https://facebook.com' },
                   { icon: <FiInstagram className="w-5 h-5" />, name: 'Instagram', url: 'https://instagram.com' },
@@ -679,7 +679,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-gray-800 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p>© {new Date().getFullYear()} Finanext PRO. Todos os direitos reservados.</p>
+            <p>© {new Date().getFullYear()} FinNEXTHO. Todos os direitos reservados.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link 
                 href="#" 

@@ -16,7 +16,7 @@ interface FormData {
 interface TransactionPayload {
   descricao: string;
   valor: number;
-  data: { $date: string };  // Formato MongoDB
+  data: { $date: string };
   categoria: string;
   tipo: TransactionType;
   conta: string;
@@ -104,14 +104,22 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     if (Object.values(newErrors).some((err) => err)) return;
 
     try {
+      // Validação adicional da data com horário fixo UTC
+      const dataObj = new Date(formData.data + 'T12:00:00Z');
+      if (isNaN(dataObj.getTime())) {
+        toast.error("Por favor, insira uma data válida");
+        return;
+      }
+
       const payload = {
         descricao: formData.descricao,
         valor: parseFloat(formData.valor.replace(',', '.')),
-        data: { $date: new Date(formData.data).toISOString() },
+        data: { $date: dataObj.toISOString() },
         categoria: formData.categoria,
         tipo: formData.tipo,
         conta: formData.conta
       };
+      
       await onSave(payload);
     } catch (error) {
       console.error("Erro ao salvar transação:", error);

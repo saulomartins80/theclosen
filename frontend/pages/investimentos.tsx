@@ -191,55 +191,60 @@ const InvestimentosDashboard = () => {
   }, [investimentosFiltrados]);
 
   const handleFormSubmit = async () => {
-    try {
-      const valorNumerico = Number(form.data.valor);
-      const dataSelecionada = new Date(form.data.data || '');
-
-      if (!form.data.nome?.trim()) {
-        toast.error('Nome é obrigatório');
-        return;
-      }
-      if (!form.data.tipo) {
-        toast.error('Tipo é obrigatório');
-        return;
-      }
-      if (isNaN(valorNumerico) || valorNumerico <= 0) {
-        toast.error('Valor deve ser positivo e um número válido');
-        return;
-      }
-      if (!form.data.data) {
-        toast.error('Data é obrigatória');
-        return;
-      }
-      if (isNaN(dataSelecionada.getTime())) {
-        toast.error('Data inválida');
-        return;
-      }
-
-      const payload = {
-        nome: form.data.nome.trim(),
-        tipo: form.data.tipo,
-        valor: valorNumerico,
-        data: dataSelecionada.toISOString()
-      };
-
-      if (form.mode === 'edit' && form.data._id) {
-        await investimentoAPI.update(form.data._id, payload);
-        toast.success('Investimento atualizado com sucesso!');
-      } else {
-        await investimentoAPI.create(payload);
-        toast.success('Investimento criado com sucesso!');
-      }
-
-      await fetchInvestimentos();
-      setForm({ ...form, open: false });
-
-    } catch (err) {
-      console.error('Erro no formulário:', err);
-      const errorMessage = (err as any)?.response?.data?.message || (err as any).message || 'Ocorreu um erro ao processar a solicitação';
-      toast.error(errorMessage);
+  try {
+    // Validações básicas
+    if (!form.data.nome?.trim()) {
+      toast.error('Nome é obrigatório');
+      return;
     }
-  };
+    if (!form.data.tipo) {
+      toast.error('Tipo é obrigatório');
+      return;
+    }
+    if (form.data.valor === undefined || form.data.valor <= 0) {
+      toast.error('Valor deve ser positivo');
+      return;
+    }
+    if (!form.data.data) {
+      toast.error('Data é obrigatória');
+      return;
+    }
+
+    // Cria objeto Date com horário fixo para evitar problemas de fuso horário
+    const dataSelecionada = new Date(form.data.data + 'T12:00:00');
+    if (isNaN(dataSelecionada.getTime())) {
+      toast.error('Data inválida');
+      return;
+    }
+
+    // Prepara os dados para a API
+    const payload = {
+      nome: form.data.nome.trim(),
+      tipo: form.data.tipo,
+      valor: Number(form.data.valor),
+      data: dataSelecionada.toISOString(), // Converte para ISO string apenas aqui
+      ...(form.data.meta !== undefined && { meta: Number(form.data.meta) })
+    };
+
+    // Chama a API
+    if (form.mode === 'edit' && form.data._id) {
+      await investimentoAPI.update(form.data._id, payload);
+      toast.success('Investimento atualizado com sucesso!');
+    } else {
+      await investimentoAPI.create(payload);
+      toast.success('Investimento criado com sucesso!');
+    }
+
+    // Atualiza a lista e fecha o modal
+    await fetchInvestimentos();
+    setForm({ ...form, open: false });
+
+  } catch (err) {
+    console.error('Erro no formulário:', err);
+    const errorMessage = (err as any)?.response?.data?.message || (err as any).message || 'Erro ao processar';
+    toast.error(errorMessage);
+  }
+};
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este investimento?')) return;
@@ -334,7 +339,7 @@ const InvestimentosDashboard = () => {
               {filters.open ? 'Ocultar Filtros' : 'Mostrar Filtros'}
             </button>
             <button
-              onClick={() => setForm({ open: true, mode: 'add', data: {} })}
+              onClick={() => setForm({ open: true, mode: 'add', data: { data: '' } })}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium text-white ${resolvedTheme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}
             >
               <Plus size={18} />
@@ -595,7 +600,14 @@ const InvestimentosDashboard = () => {
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex justify-start gap-2">
                             <button
-                              onClick={() => setForm({ open: true, mode: 'edit', data: investimento })}
+                              onClick={() => setForm({ 
+                                open: true, 
+                                mode: 'edit', 
+                                data: {
+                                  ...investimento,
+                                  data: new Date(investimento.data).toISOString().split('T')[0]
+                                }
+                              })}
                               className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                               aria-label="Editar"
                             >
@@ -639,7 +651,14 @@ const InvestimentosDashboard = () => {
                       </span>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => setForm({ open: true, mode: 'edit', data: investimento })}
+                          onClick={() => setForm({ 
+                            open: true, 
+                            mode: 'edit', 
+                            data: {
+                              ...investimento,
+                              data: new Date(investimento.data).toISOString().split('T')[0]
+                            }
+                          })}
                           className="text-blue-600 dark:text-blue-400 p-1 rounded-full hover:bg-blue-50 dark:hover:bg-gray-700"
                           aria-label="Editar"
                         >
@@ -677,7 +696,7 @@ const InvestimentosDashboard = () => {
 
         {/* Botão Flutuante para Mobile */}
         <button
-          onClick={() => setForm({ open: true, mode: 'add', data: {} })}
+          onClick={() => setForm({ open: true, mode: 'add', data: { data: '' } })}
           className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
         >
           <Plus size={24} />
@@ -730,17 +749,15 @@ const InvestimentosDashboard = () => {
                     <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Data *</label>
                     <input
                       type="date"
-                      value={form.data.data ? new Date(form.data.data).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
+                      value={form.data.data || ''}
                       min={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => {
-                        setForm({
-                          ...form,
-                          data: {
-                            ...form.data,
-                            data: new Date(e.target.value).toISOString()
-                          }
-                        });
-                      }}
+                      onChange={(e) => setForm({ 
+                        ...form, 
+                        data: { 
+                          ...form.data, 
+                          data: e.target.value 
+                        } 
+                      })}
                       className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
                     />
                   </div>

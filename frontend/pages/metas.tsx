@@ -111,6 +111,22 @@ const MetasDashboard = () => {
     return;
   }
 
+  // Validação da data
+  const rawDateValue = state.form.data.data_conclusao;
+  if (!rawDateValue) {
+    toast.error('Data de conclusão é obrigatória');
+    return;
+  }
+
+  // Cria objeto Date com horário fixo (meio-dia UTC)
+  const dataConclusaoObj = new Date(rawDateValue + 'T12:00:00Z');
+  
+  // Verifica se a data é válida
+  if (isNaN(dataConclusaoObj.getTime())) {
+    toast.error('Data de conclusão inválida');
+    return;
+  }
+
   try {
     // Obter userId do usuário autenticado
     const auth = getAuth();
@@ -121,16 +137,16 @@ const MetasDashboard = () => {
       return;
     }
 
-    // Prepara os dados com userId
+    // Prepara os dados com userId e data formatada corretamente
     const metaPayload = {
       meta: state.form.data.meta,
       descricao: state.form.data.descricao,
       valor_total: state.form.data.valor_total,
       valor_atual: state.form.data.valor_atual || 0,
-      data_conclusao: state.form.data.data_conclusao,
+      data_conclusao: dataConclusaoObj.toISOString(), // Usa a ISO string com horário
       categoria: state.form.data.categoria,
       prioridade: state.form.data.prioridade || 'media',
-      userId: user.uid // Adiciona o userId do usuário logado
+      userId: user.uid
     };
 
     if (state.form.mode === 'add') {

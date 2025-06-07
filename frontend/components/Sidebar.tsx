@@ -9,6 +9,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,6 +22,7 @@ interface SidebarProps {
   onClose: () => void;
   onToggle?: () => void;
   initialCollapsed?: boolean;
+  onCollapseChange?: (collapsed: boolean) => void;
 }
 
 interface MenuItem {
@@ -35,20 +37,23 @@ export default function Sidebar({
   onToggle = () => {},
   isMobile = false,
   initialCollapsed = false,
+  onCollapseChange = () => {},
 }: SidebarProps) {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   const isActive = (path: string) => router.pathname === path;
 
-  // Sincroniza com o estado do layout
   useEffect(() => {
     if (!isMobile) {
       setCollapsed(initialCollapsed);
     }
   }, [initialCollapsed, isMobile]);
 
-  // Fecha com ESC no mobile
+  useEffect(() => {
+    onCollapseChange(collapsed);
+  }, [collapsed, onCollapseChange]);
+
   useEffect(() => {
     if (!isMobile) return;
 
@@ -65,7 +70,6 @@ export default function Sidebar({
     };
   }, [isOpen, onClose, isMobile]);
 
-  // Persiste preferência do usuário
   useEffect(() => {
     if (!isMobile && typeof window !== "undefined") {
       localStorage.setItem("sidebarCollapsed", String(collapsed));
@@ -112,12 +116,26 @@ export default function Sidebar({
           collapsed ? "px-2 justify-center" : "px-4 justify-between"
         }`}
       >
-        {!collapsed && (
+        {!collapsed ? (
           <Link
             href="/dashboard"
-            className="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            className="flex items-center space-x-2"
           >
-            Finanext
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <TrendingUp className="text-white w-5 h-5" />
+            </div>
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+              Fin<span className="text-blue-300">NEXTHO</span>
+            </span>
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard"
+            className="flex items-center justify-center"
+          >
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <TrendingUp className="text-white w-5 h-5" />
+            </div>
           </Link>
         )}
         {isMobile ? (
@@ -196,7 +214,6 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Versão Mobile */}
       {isMobile && (
         <AnimatePresence>
           {isOpen && (
@@ -230,7 +247,6 @@ export default function Sidebar({
         </AnimatePresence>
       )}
 
-      {/* Versão Desktop */}
       {!isMobile && (
         <motion.aside
           initial={false}
@@ -241,7 +257,7 @@ export default function Sidebar({
             damping: 30,
             mass: 0.5,
           }}
-          className={`hidden md:flex flex-col fixed inset-y-0 left-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-30 overflow-x-hidden`}
+          className={`hidden md:flex flex-col fixed inset-y-0 left-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 overflow-x-hidden`}
           aria-label="Barra lateral"
         >
           <div className="p-2 h-full overflow-y-auto">{sidebarContent}</div>

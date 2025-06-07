@@ -96,35 +96,11 @@ export default function Header({
       {/* Logo/Título */}
       <div className="flex items-center ml-1 sm:ml-2 md:ml-4 min-w-0 flex-shrink">
         <Link href="/" className="text-xl font-bold cursor-pointer truncate min-w-0">
-          FinTrack
+          
         </Link>
       </div>
 
-      {/* Barra de pesquisa (desktop) */}
-      <div className="hidden md:flex flex-1 max-w-md mx-2 sm:mx-4 lg:mx-6">
-        <div className={`
-          relative w-full
-          ${resolvedTheme === 'dark'
-            ? 'bg-gray-700 text-white'
-            : 'bg-gray-100 text-gray-900'
-          } rounded-lg transition-colors
-        `}>
-          <input
-            type="text"
-            placeholder="Buscar..."
-            className={`
-              w-full py-2 px-4 pl-10
-              bg-transparent outline-none
-              ${resolvedTheme === 'dark' ? 'placeholder-gray-400' : 'placeholder-gray-500'}
-            `}
-          />
-          <FiSearch className={`
-            absolute left-3 top-1/2 transform -translate-y-1/2
-            ${resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}
-          `} />
-        </div>
-      </div>
-
+      {/* Barra de pesquisa */}
       {/* Ícones de controle */}
       <div className="flex items-center space-x-1 sm:space-x-3 flex-shrink-0">
         {/* Seletor de Tema */}

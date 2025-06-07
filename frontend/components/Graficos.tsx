@@ -13,9 +13,9 @@ import {
   Filler,
 } from "chart.js";
 import { useFinance } from "../context/FinanceContext";
-import { useTheme } from "../context/ThemeContext"; // Import useTheme
+import { useTheme } from "../context/ThemeContext";
 
-// Registro dos componentes (mantido igual)
+// Registro dos componentes
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -130,13 +130,13 @@ const calcularSaldoAcumulado = (transacoes: Transacao[]): SaldoAcumulado[] => {
 };
 
 const Graficos = () => {
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme(); // Alterado para resolvedTheme
   const { transactions } = useFinance();
 
   // Configurações de tema para os gráficos
-  const textColor = theme === 'dark' ? '#f3f4f6' : '#111827';
-  const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
-  const tooltipBgColor = theme === 'dark' ? '#1f2937' : '#ffffff';
+  const textColor = resolvedTheme === 'dark' ? '#f3f4f6' : '#111827';
+  const gridColor = resolvedTheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+  const tooltipBgColor = resolvedTheme === 'dark' ? '#1f2937' : '#ffffff';
 
   // Normaliza os dados das transações de forma segura
   const normalizedTransactions = React.useMemo(() => {
@@ -210,7 +210,7 @@ const Graficos = () => {
     <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Gráfico de Barras - Receitas vs Despesas */}
       <div className={`p-4 rounded-xl shadow-lg ${
-        theme === "dark" ? "bg-gray-800" : "bg-white"
+        resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
       }`}>
         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
           Receitas vs Despesas por Mês
@@ -235,7 +235,7 @@ const Graficos = () => {
                   backgroundColor: tooltipBgColor,
                   titleColor: textColor,
                   bodyColor: textColor,
-                  borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                  borderColor: resolvedTheme === 'dark' ? '#374151' : '#e5e7eb',
                   borderWidth: 1,
                   padding: 12,
                   boxPadding: 8,
@@ -267,7 +267,7 @@ const Graficos = () => {
 
       {/* Gráfico de Linha - Evolução do Saldo */}
       <div className={`p-4 rounded-xl shadow-lg ${
-        theme === "dark" ? "bg-gray-800" : "bg-white"
+        resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"
       }`}>
         <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
           Evolução do Saldo
@@ -292,7 +292,7 @@ const Graficos = () => {
                   backgroundColor: tooltipBgColor,
                   titleColor: textColor,
                   bodyColor: textColor,
-                  borderColor: theme === 'dark' ? '#374151' : '#e5e7eb',
+                  borderColor: resolvedTheme === 'dark' ? '#374151' : '#e5e7eb',
                   borderWidth: 1,
                   padding: 12,
                   boxPadding: 8,
@@ -320,7 +320,7 @@ const Graficos = () => {
                 point: {
                   radius: 4,
                   hoverRadius: 6,
-                  backgroundColor: theme === 'dark' ? '#3b82f6' : '#2563eb',
+                  backgroundColor: resolvedTheme === 'dark' ? '#3b82f6' : '#2563eb',
                 },
                 line: {
                   borderWidth: 3,
