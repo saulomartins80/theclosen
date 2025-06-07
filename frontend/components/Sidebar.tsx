@@ -8,13 +8,13 @@ import {
   Sliders,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  Menu, // Adicionei o ícone Menu (três linhas)
+  Menu,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
+import Image from "next/image";
 
 interface SidebarProps {
   isMobile: boolean;
@@ -121,8 +121,15 @@ export default function Sidebar({
             href="/dashboard"
             className="flex items-center space-x-2"
           >
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <TrendingUp className="text-white w-5 h-5" />
+            <div className="w-8 h-8 flex items-center justify-center relative">
+              <Image
+                src="/finnextho.png"
+                alt="Logo FinNEXTHO"
+                width={32}
+                height={32}
+                priority
+                className="object-contain"
+              />
             </div>
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
               Fin<span className="text-blue-300">NEXTHO</span>
@@ -133,8 +140,15 @@ export default function Sidebar({
             href="/dashboard"
             className="flex items-center justify-center"
           >
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <TrendingUp className="text-white w-5 h-5" />
+            <div className="w-8 h-8 flex items-center justify-center relative">
+              <Image
+                src="/finnextho.png"
+                alt="Logo FinNEXTHO"
+                width={32}
+                height={32}
+                priority
+                className="object-contain"
+              />
             </div>
           </Link>
         )}
@@ -145,7 +159,7 @@ export default function Sidebar({
             aria-label="Fechar menu"
             aria-expanded={isOpen}
           >
-            <Menu size={24} className="text-blue-500 dark:text-blue-400" /> {/* Substitui X por Menu */}
+            <Menu size={24} className="text-blue-500 dark:text-blue-400" />
           </button>
         ) : (
           <button
@@ -257,7 +271,7 @@ export default function Sidebar({
             damping: 30,
             mass: 0.5,
           }}
-          className={`hidden md:flex flex-col fixed inset-y-0 left-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 overflow-x-hidden`}
+          className="hidden md:flex flex-col fixed inset-y-0 left-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 overflow-x-hidden"
           aria-label="Barra lateral"
         >
           <div className="p-2 h-full overflow-y-auto">{sidebarContent}</div>

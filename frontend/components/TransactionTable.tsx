@@ -224,7 +224,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         {formatDate(transacao.data)}
                       </div>
                       <div className={`text-xs ${resolvedTheme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {formatTime(transacao.data)}
+                        {/* Linha removida */}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
