@@ -6,10 +6,10 @@ import {
   DollarSign,
   BookOpen,
   Sliders,
-  X,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
+  Menu, // Adicionei o ícone Menu (três linhas)
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
@@ -145,7 +145,7 @@ export default function Sidebar({
             aria-label="Fechar menu"
             aria-expanded={isOpen}
           >
-            <X size={24} className="text-rose-500 dark:text-rose-400" />
+            <Menu size={24} className="text-blue-500 dark:text-blue-400" /> {/* Substitui X por Menu */}
           </button>
         ) : (
           <button
