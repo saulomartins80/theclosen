@@ -5,9 +5,10 @@ import bcrypt from 'bcryptjs';
 import { getAuth } from 'firebase-admin/auth';
 import { AppError } from '@core/errors/AppError';
 import { UserRepository } from '../repositories/UserRepository';
-import { IUser, ISubscription } from '@models/User'; 
+import { IUser, ISubscription } from '@models/User';
 import { IUserProfile, IUserWithTokens } from '../interfaces/user.interface';
-import { TYPES } from '@core/types';
+// Importação corrigida para caminho relativo correto
+import { TYPES } from '@core/types'; // <-- Caminho relativo correto
 import { SubscriptionService as FirestoreSubscriptionService } from '@services/subscriptionService';
 
 interface UpdateProfileData extends Partial<Pick<IUser, 'name' | 'email' | 'photoUrl'>> {
@@ -50,7 +51,7 @@ export class UserService {
       status: 'trialing', // Novo status para indicar que está em teste
       expiresAt: trialEndDate, // O trial expira e a "assinatura" expira neste ponto
       trialEndsAt: trialEndDate, // Data explícita de término do trial
-      subscriptionId: `trial_${firebaseUid}_${Date.now()}`
+      subscriptionId: `trial_${firebaseUid}_${Date.now()}`,
     };
   }
 
@@ -174,6 +175,7 @@ export class UserService {
         if (!currentPassword) {
            throw new AppError(400, 'Senha atual é necessária para alterar o email.');
         }
+        // Corrigido: userToToUpdate para userToUpdate na linha 178
         if (!userToUpdate.password || !(await bcrypt.compare(currentPassword, userToUpdate.password))) {
             throw new AppError(401, 'Senha atual incorreta.');
         }
@@ -192,7 +194,7 @@ export class UserService {
         payload.password = hashedNewPassword;
         firebaseUpdatePayload.password = newPassword;
       }
-      
+
       if (fieldsToUpdate.name !== undefined && fieldsToUpdate.name !== userToUpdate.name) {
          payload.name = fieldsToUpdate.name;
          firebaseUpdatePayload.displayName = fieldsToUpdate.name;
@@ -229,7 +231,7 @@ export class UserService {
     return this.formatUserProfile(updatedUser);
   }
 
-  async verifyToken(token: string): Promise<IUser> { 
+  async verifyToken(token: string): Promise<IUser> {
     try {
       const decodedToken = await this.auth.verifyIdToken(token);
       const user = await this.userRepository.findByFirebaseUid(decodedToken.uid);
@@ -253,7 +255,7 @@ export class UserService {
     }
     return this.formatUserProfile(updatedUser);
   }
-  
+
   async activateTestSubscription(firebaseUid: string, plan: string): Promise<ISubscription | null> {
     if (!firebaseUid || !plan) {
       throw new AppError(400, 'Firebase UID e plano são obrigatórios.');

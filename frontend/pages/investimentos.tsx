@@ -131,6 +131,24 @@ const InvestimentosDashboard = () => {
       });
   }, [investimentos, filters]);
 
+    // Função auxiliar para formatar a data de YYYY-MM-DDTHH:mm:ss.sssZ ou YYYY-MM-DD para DD/MM/YYYY
+  const formatDateForDisplay = (dateString: string | undefined): string => {
+    if (!dateString) return '';
+    try {
+      // Tenta extrair a parte YYYY-MM-DD
+      const datePart = dateString.split('T')[0];
+      const [year, month, day] = datePart.split('-');
+      // Verifica se as partes da data são válidas antes de formatar
+      if (year && month && day) {
+         return `${day}/${month}/${year}`;
+      }
+    } catch (e) {
+      console.error("Erro ao formatar data para exibição:", e, "String original:", dateString);
+    }
+    // Retorna a string original ou uma mensagem de erro se a formatação falhar
+    return dateString || 'Data inválida';
+  };
+
   const chartData = useMemo(() => {
     const tiposValidos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'];
     const tiposPresentes = Array.from(
@@ -190,7 +208,7 @@ const InvestimentosDashboard = () => {
     };
   }, [investimentosFiltrados]);
 
-  const handleFormSubmit = async () => {
+    const handleFormSubmit = async () => {
   try {
     // Validações básicas
     if (!form.data.nome?.trim()) {
@@ -205,15 +223,8 @@ const InvestimentosDashboard = () => {
       toast.error('Valor deve ser positivo');
       return;
     }
-    if (!form.data.data) {
+    if (!form.data.data) { // Manter a validação se a data foi preenchida
       toast.error('Data é obrigatória');
-      return;
-    }
-
-    // Cria objeto Date com horário fixo para evitar problemas de fuso horário
-    const dataSelecionada = new Date(form.data.data + 'T12:00:00');
-    if (isNaN(dataSelecionada.getTime())) {
-      toast.error('Data inválida');
       return;
     }
 
@@ -222,7 +233,7 @@ const InvestimentosDashboard = () => {
       nome: form.data.nome.trim(),
       tipo: form.data.tipo,
       valor: Number(form.data.valor),
-      data: dataSelecionada.toISOString(), // Converte para ISO string apenas aqui
+      data: form.data.data, // <--- Envia a string YYYY-MM-DD diretamente
       ...(form.data.meta !== undefined && { meta: Number(form.data.meta) })
     };
 
@@ -245,6 +256,7 @@ const InvestimentosDashboard = () => {
     toast.error(errorMessage);
   }
 };
+
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este investimento?')) return;
@@ -330,6 +342,7 @@ const InvestimentosDashboard = () => {
               </p>
             </div>
           </div>
+          {/* Botões visíveis apenas no desktop */}
           <div className="hidden md:flex gap-3">
             <button
               onClick={() => setFilters({ ...filters, open: !filters.open })}
@@ -346,7 +359,20 @@ const InvestimentosDashboard = () => {
               Novo Investimento
             </button>
           </div>
-        </div>
+
+          {/* Botão de filtro visível apenas no mobile (NOVO TRECHO) */}
+          <div className="md:hidden flex gap-3 w-full justify-end"> {/* Este div só aparece em mobile */}
+             <button
+               onClick={() => setFilters({ ...filters, open: !filters.open })}
+               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${resolvedTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
+             >
+               {filters.open ? <X size={18} /> : <Filter size={18} />} {/* Ícone muda conforme o filtro está aberto/fechado */}
+               Filtro
+             </button>
+             {/* O botão flutuante de "Novo Investimento" para mobile já existe mais abaixo no código */}
+          </div>
+
+        </div> {/* <-- Fim do div do header */}
 
         {/* Cards de resumo */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -595,7 +621,7 @@ const InvestimentosDashboard = () => {
                           }).format(investimento.valor)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(investimento.data).toLocaleDateString('pt-BR')}
+                           {formatDateForDisplay(investimento.data)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex justify-start gap-2">
@@ -647,7 +673,7 @@ const InvestimentosDashboard = () => {
                     </div>
                     <div className="mt-3 flex justify-between items-center">
                       <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(investimento.data).toLocaleDateString('pt-BR')}
+                        {formatDateForDisplay(investimento.data)}
                       </span>
                       <div className="flex gap-3">
                         <button

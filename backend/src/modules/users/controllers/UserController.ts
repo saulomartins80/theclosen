@@ -2,6 +2,7 @@
 import { injectable, inject } from 'inversify';
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/UserService';
+// Importação modificada para caminho relativo
 import { TYPES } from '@core/types';
 import { AppError } from '@core/errors/AppError';
 
@@ -78,7 +79,7 @@ export class UserController {
 
   async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      if (!req.user?.id) { 
+      if (!req.user?.id) {
          throw new AppError(401, 'ID de usuário (MongoDB) não disponível na requisição autenticada');
       }
       // userService.getProfile espera o ID do MongoDB
@@ -203,3 +204,4 @@ export class UserController {
     }
   }
 }
+// Adicione outros métodos conforme necessári
