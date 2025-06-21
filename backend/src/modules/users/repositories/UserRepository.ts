@@ -1,6 +1,5 @@
 // backend/src/modules/users/repositories/UserRepository.ts
 import { injectable } from 'inversify';
-// CORRIGIDA A IMPORTAÇÃO: Usar importação nomeada para User e importar ISubscription
 import { User as UserModel, IUser, ISubscription } from '../../../models/User'; 
 
 @injectable()
@@ -21,6 +20,10 @@ export class UserRepository {
     if (!this.model) throw new Error('UserRepository: model not initialized');
     return this.model.findById(id).exec();
   }
+  
+  async findByStripeSubscriptionId(stripeSubscriptionId: string): Promise<IUser | null> {
+    return this.model.findOne({ 'subscription.stripeSubscriptionId': stripeSubscriptionId }).exec();
+  }
 
   async create(userData: Partial<IUser>): Promise<IUser> {
     if (!this.model) throw new Error('UserRepository: model not initialized');
@@ -28,12 +31,16 @@ export class UserRepository {
     return newUser.save();
   }
 
-  async updateById(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
+  async update(id: string, userData: Partial<IUser>): Promise<IUser | null> {
     if (!this.model) throw new Error('UserRepository: model not initialized');
-    return this.model.findByIdAndUpdate(id, { $set: updateData, updatedAt: new Date() }, { new: true, runValidators: true }).exec();
+    return this.model.findByIdAndUpdate(id, userData, { new: true }).exec();
   }
 
-  // CORRIGIDA A ASSINATURA DO MÉTODO: aceitar Partial<ISubscription>
+  async delete(id: string): Promise<void> {
+    if (!this.model) throw new Error('UserRepository: model not initialized');
+    await this.model.findByIdAndDelete(id).exec();
+  }
+
   async updateUserSubscriptionByFirebaseUid(firebaseUid: string, subscriptionData: Partial<ISubscription>): Promise<IUser | null> {
     if (!this.model) throw new Error('UserRepository: model not initialized');
     if (!firebaseUid || !subscriptionData) {
@@ -43,7 +50,6 @@ export class UserRepository {
     try {
       const setUpdate: { [key: string]: any } = {};
       if (subscriptionData) {
-        // Iterar sobre as chaves de subscriptionData para construir o objeto de atualização $set
         (Object.keys(subscriptionData) as Array<keyof ISubscription>).forEach(key => {
             if (subscriptionData[key] !== undefined) { 
                 setUpdate[`subscription.${key}`] = subscriptionData[key];
@@ -73,5 +79,28 @@ export class UserRepository {
       console.error(`[UserRepository] Erro ao atualizar assinatura para firebaseUid ${firebaseUid}:`, error);
       throw error; 
     }
+  }
+
+  async updateUserSubscription(userId: string, subscriptionData: Partial<ISubscription>): Promise<IUser | null> {
+    const updateQuery: { [key: string]: any } = {};
+    for (const key in subscriptionData) {
+      if (Object.prototype.hasOwnProperty.call(subscriptionData, key)) {
+        updateQuery[`subscription.${key}`] = (subscriptionData as any)[key];
+      }
+    }
+    
+    return this.model.findOneAndUpdate(
+      { firebaseUid: userId },
+      { $set: updateQuery },
+      { new: true, runValidators: true }
+    ).exec();
+  }
+
+  async updateSubscription(userId: string, subscription: Partial<ISubscription>): Promise<IUser | null> {
+    return this.model.findByIdAndUpdate(
+      userId,
+      { $set: { subscription } },
+      { new: true }
+    ).exec();
   }
 }

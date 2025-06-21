@@ -9,6 +9,7 @@ import Graficos from "../components/Graficos";
 import LoadingSpinner from "../components/LoadingSpinner";
 import FinanceMarket from '../components/FinanceMarket';
 import { ArrowUp, ArrowDown, Wallet, TrendingUp, TrendingDown, DollarSign, User } from 'lucide-react'; // Added User icon for header
+import { useRouter } from "next/router";
 
 type TransacaoAdaptada = {
   _id: string | { $oid: string };
@@ -44,9 +45,10 @@ const formatCurrency = (value: number | undefined, currency: string = 'BRL'): st
 };
 
 const DashboardContent: React.FC = () => {
-  const { resolvedTheme } = useTheme(); // Usar resolvedTheme
-  const { user } = useAuth();
-  const { transactions, investimentos, loading, error, fetchData } = useFinance();
+  const { resolvedTheme } = useTheme();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const { transactions, investimentos, loading: financeLoading, error, fetchData } = useFinance();
   const {
     marketData,
     loadingMarketData,
@@ -66,6 +68,23 @@ const DashboardContent: React.FC = () => {
     setCustomIndices: (indices: string[]) => void;
   };
 
+  // Combinar todos os useEffects em um único
+  useEffect(() => {
+    // Verificar autenticação
+    if (!loading && !user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    // Inicializar dados do mercado
+    if (refreshMarketData) {
+      refreshMarketData();
+      const marketInterval = setInterval(() => refreshMarketData({ silent: true }), 300000);
+      return () => clearInterval(marketInterval);
+    }
+  }, [user, loading, router, refreshMarketData]);
+
+  // Funções auxiliares
   const getSafeId = (idObj: string | { $oid: string }): string => {
     return typeof idObj === 'string' ? idObj : idObj.$oid;
   };
@@ -97,38 +116,25 @@ const DashboardContent: React.FC = () => {
   const saldoAtual = totalReceitas - totalDespesas;
   const totalInvestimentos = mappedInvestments.reduce((acc, inv) => acc + inv.valor, 0);
 
-  // Cálculo de variação (simulado para exemplo)
-  // Cálculo de variação ajustado para evitar divisão por zero e valores negativos no denominador
   const variacaoSaldo = (saldoAtual / (Math.abs(totalReceitas) + Math.abs(totalDespesas) || 1)) * 100 || 0;
-  const variacaoReceitas = 15; // Exemplo
-  const variacaoDespesas = -10; // Exemplo
-  const variacaoInvestimentos = 8; // Exemplo
+  const variacaoReceitas = 15;
+  const variacaoDespesas = -10;
+  const variacaoInvestimentos = 8;
 
-  useEffect(() => {
-    // Ajustado para usar fetchData diretamente do contexto e não um intervalo fixo aqui,
-    // pois o FinanceContext já lida com o polling.
-    // Removido o setInterval daqui.
-    // O fetchData inicial é chamado no useEffect do FinanceContext.
-  }, [fetchData]); // Dependência de fetchData (agora estável no FinanceContext)
+  // Renderização condicional
+  if (loading) {
+    return (
+      <div className={`flex items-center justify-center h-screen ${resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
-  // Efeito para chamar refreshMarketData na montagem e em intervalos
-  useEffect(() => {
-    if (refreshMarketData) {
-      refreshMarketData(); // Initial fetch
+  if (!user) {
+    return null;
+  }
 
-      // Fetch every 5 minutes (300000 ms)
-      const marketInterval = setInterval(() => refreshMarketData({ silent: true }), 300000);
-
-      return () => {
-        clearInterval(marketInterval);
-        // Assumindo que refreshMarketData tem lógica de abortar chamadas pendentes
-        // se um novo fetch iniciar ou o componente desmontar.
-        // Se não tiver, você precisaria adicionar essa lógica no useDashboard ou aqui.
-      };
-    }
-  }, [refreshMarketData]); // Dependência de refreshMarketData (agora no useDashboard)
-
-  if (loading || loadingMarketData) {
+  if (financeLoading || loadingMarketData) {
     return (
       <div className={`flex items-center justify-center h-screen ${resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <LoadingSpinner />
@@ -142,7 +148,6 @@ const DashboardContent: React.FC = () => {
         <div className={`p-4 rounded-lg max-w-md text-center ${resolvedTheme === 'dark' ? 'bg-red-900/20 text-red-300 border border-red-700' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           <h3 className="font-bold mb-2">Erro ao carregar dados</h3>
           <p>{(error as any)?.message || marketError || "Erro desconhecido"}</p>
-          {/* Botão de tentar novamente pode ser adicionado se fetchData e refreshMarketData forem expostos */}
            {fetchData && (
              <button
                onClick={() => {fetchData(); refreshMarketData();}}

@@ -12,10 +12,8 @@ import { loginWithGoogle as firebaseLoginWithGoogle } from '../lib/firebase/clie
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase/client';
-import api from '../services/api'; // Adicione esta linha no topo do arquivo
-import Cookies from 'js-cookie';    // Adicione esta linha se ainda não estiver importado
-// Ensure that 'auth' is exported as a properly initialized Firebase Auth instance from your firebase/client file.
-import { subscriptionAPI } from '../services/api/subscriptionAPI';
+import api from '../services/api';
+import Cookies from 'js-cookie';
 
 // Tipos
 export type SubscriptionPlan = 'free' | 'premium' | 'enterprise' | 'trial';
@@ -29,6 +27,8 @@ export interface Subscription {
   trialEndsAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 }
 
 export interface SessionUser {
@@ -48,58 +48,52 @@ export interface AuthUser extends FirebaseUser {
 export type AuthContextType = {
   user: AuthUser | null;
   loading: boolean;
-  setUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
   subscription: Subscription | null;
   authChecked: boolean;
   loadingSubscription: boolean;
   error: string | null;
   subscriptionError: string | null;
   refreshSubscription: () => Promise<void>;
-  checkSubscriptionQuick: (userId: string) => Promise<boolean>;
-  createTestSubscription: (plan: string) => Promise<Subscription | void>;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   clearErrors: () => void;
-  verifyToken: (token: string) => Promise<boolean>;
   updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void;
+  setUser: (user: AuthUser | null) => void;
   isAuthReady: boolean;
-  syncSessionWithBackend?: (firebaseUser: FirebaseUser | null) => Promise<AuthUser | null>;
 };
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  setUser: () => {},
   subscription: null,
   authChecked: false,
   loadingSubscription: false,
   error: null,
   subscriptionError: null,
   refreshSubscription: async () => {},
-  checkSubscriptionQuick: async () => false,
-  createTestSubscription: async () => {},
   login: async () => {},
   loginWithGoogle: async () => {},
   logout: async () => {},
   clearErrors: () => {},
-  verifyToken: async () => false,
   updateUserContextProfile: () => {},
+  setUser: () => {},
   isAuthReady: false,
-  syncSessionWithBackend: async () => null,
 });
 
 const normalizeSubscription = (subscription: any): Subscription | null => {
   if (!subscription) return null;
   
   return {
-    id: subscription.id,
+    id: subscription.id || subscription.subscriptionId || subscription.stripeSubscriptionId,
     plan: subscription.plan as SubscriptionPlan,
     status: subscription.status as SubscriptionStatus,
     expiresAt: subscription.expiresAt,
     trialEndsAt: subscription.trialEndsAt,
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
+    stripeCustomerId: subscription.stripeCustomerId,
+    stripeSubscriptionId: subscription.stripeSubscriptionId,
   };
 };
 
@@ -148,6 +142,8 @@ const normalizeUser = (userFromBackend: SessionUser | null, firebaseUserInstance
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
+  console.log('[AuthProvider] Inicializando AuthProvider');
+  
   const [state, setState] = useState<{
     user: AuthUser | null;
     subscription: Subscription | null;
@@ -157,10 +153,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     error: string | null;
     subscriptionError: string | null;
     isAuthReady: boolean;
-  }>( {
+  }>({
     user: null,
     subscription: null,
-    loading: false,
+    loading: true,
     authChecked: false,
     loadingSubscription: false,
     error: null,
@@ -172,20 +168,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setState(prev => ({ ...prev, error: null, subscriptionError: null }));
   }, []);
 
-  const verifyToken = useCallback(async (token: string): Promise<boolean> => {
-    // Implementação vazia - pode ser preenchida conforme necessidade
-    return false;
-  }, []);
-
   const syncSessionWithBackend = useCallback(async (firebaseUser: FirebaseUser | null) => {
-    setState(prev => ({ 
-      ...prev, 
-      authChecked: false,
-      isAuthReady: false
-    }));
-
     if (!firebaseUser) {
-      console.log("syncSessionWithBackend: No firebaseUser. Setting state to unauthenticated.");
       setState(prev => ({
         ...prev,
         user: null,
@@ -194,19 +178,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loading: false,
         isAuthReady: true,
       }));
-      // Limpa cookies se não há firebaseUser
       Cookies.remove('token', { path: '/' });
       Cookies.remove('user', { path: '/' });
       return null;
     }
 
     try {
-      console.log("syncSessionWithBackend: Found firebaseUser.");
       const token = await firebaseUser.getIdToken(true);
-      console.log("syncSessionWithBackend: Obtained fresh token.");
-
-      // Substitua fetch por api.post (Axios)
-      const response = await api.post('/api/auth/session', {}, { // <-- Adicione /api aqui
+      
+      const response = await api.post('/api/auth/session', {}, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -214,14 +194,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       const sessionData = response.data;
-      console.log('syncSessionWithBackend: Received sessionData:', sessionData);
-      console.log('syncSessionWithBackend: sessionData.user:', sessionData.user);
 
       if (sessionData.user) {
         const authUser = normalizeUser(sessionData.user as SessionUser, firebaseUser);
-        console.log("syncSessionWithBackend: Result of normalizeUser:", authUser);
-        console.log("syncSessionWithBackend: Session synced. User:", authUser);
-
+        
         setState(prev => ({
           ...prev,
           user: authUser,
@@ -234,8 +210,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         return authUser;
       } else {
-        // Backend retornou sucesso mas user está ausente
-        console.warn('syncSessionWithBackend: Backend sync successful, but user data is missing.');
         setState(prev => ({
           ...prev,
           user: null,
@@ -247,8 +221,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }));
         Cookies.remove('token', { path: '/' });
         Cookies.remove('user', { path: '/' });
-        // Redireciona para login se necessário
-        // router.push('/auth/login');
         return null;
       }
     } catch (error) {
@@ -264,7 +236,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }));
       Cookies.remove('token', { path: '/' });
       Cookies.remove('user', { path: '/' });
-      // router.push('/auth/login');
       return null;
     }
   }, []);
@@ -293,26 +264,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setState(prev => ({ ...prev, loading: true }));
       
-      // Primeiro tenta o logout do Firebase
       await firebaseSignOut(auth);
-      console.log("Firebase signed out.");
       
-      // Depois informa o backend para limpar a sessão do lado dele (se aplicável)
       try {
-        // Usa a URL correta para o endpoint de logout do backend
         await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, { 
           method: 'POST',
           credentials: 'include' 
-          // Não precisa enviar token aqui se o backend usa cookies de sessão httpOnly com credentials: 'include'
-          // Se usar header Auth, precisaria do token aqui, mas o Firebase sign out já invalidaria ele logo.
         });
-        console.log("Backend logout endpoint called.");
       } catch (apiError) {
-        // Loga erro do backend logout mas não impede o frontend de prosseguir
         console.error('API logout error:', apiError);
       }
       
-      // Limpa o estado do frontend imediatamente após o logout do Firebase
       setState({
         user: null,
         subscription: null,
@@ -321,288 +283,179 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loadingSubscription: false,
         error: null,
         subscriptionError: null,
-        isAuthReady: true, // O estado de não autenticado foi determinado
+        isAuthReady: true,
       });
       
-      // Redireciona após limpar o estado
       router.push('/auth/login');
-      console.log("Redirecting to login.");
 
     } catch (error) {
       console.error('Logout error:', error);
-      // Em caso de erro no logout do Firebase, atualiza o estado mas não força o redirect
       setState(prev => ({ 
         ...prev, 
         error: error instanceof Error ? error.message : 'Erro ao sair', 
         loading: false,
-        // Mantém o estado de autenticação como estava ou tenta re-sincronizar?
-        // Melhor manter o estado como estava antes do erro de logout, ou talvez isAuthReady: true com user: null
         isAuthReady: true,
-        user: null, // Assumimos que se tentou sair, a intenção é não estar mais logado
+        user: null,
         subscription: null,
       }));
     }
   }, [router]);
 
-  const fetchSubscription = useCallback(async (userId: string) => {
-    if (!userId) {
-      console.warn("fetchSubscription called without userId");
-      setState(prev => ({ ...prev, subscription: null, loadingSubscription: false }));
-       return; // Sai da função se não houver userId
-    }
-    
-    setState(prev => ({ ...prev, loadingSubscription: true, subscriptionError: null }));
-    
-    try {
-      // Certifique-se de que subscriptionAPI.get usa o token de autenticação se necessário
-      // E que a URL construída é correta (sem o 'undefined')
-      const subscriptionData = await subscriptionAPI.get(userId);
-      const normalizedSubscription = normalizeSubscription(subscriptionData);
-      
-      setState(prev => ({
-        ...prev,
-        user: prev.user ? { 
-          ...prev.user, 
-          subscription: normalizedSubscription 
-        } : null,
-        subscription: normalizedSubscription,
-        loadingSubscription: false,
-        subscriptionError: null, // Limpa erros anteriores de subscription
-      }));
-    } catch (error) {
-      console.error('fetchSubscription error:', error);
-      setState(prev => ({
-        ...prev,
-        subscription: null, // Limpa a subscription em caso de erro
-        subscriptionError: error instanceof Error ? error.message : 'Failed to load subscription',
-        loadingSubscription: false,
-      }));
-    }
-  }, []); // Depende de subscriptionAPI (se ela mudar, mas geralmente não acontece)
-
-  const checkSubscriptionQuick = useCallback(async (userId: string): Promise<boolean> => {
-     if (!userId) {
-       console.warn("checkSubscriptionQuick called without userId");
-       return false;
-     }
-    try {
-      // Certifique-se de que subscriptionAPI.quickCheck usa o token de autenticação se necessário
-      // E que a URL construída é correta (sem o 'undefined')
-      return await subscriptionAPI.quickCheck(userId);
-    } catch (error) {
-      console.error('Quick check subscription error:', error);
-       // Em caso de erro na checagem rápida, assume que não há subscription ativa
-      return false;
-    }
-  }, []); // Depende de subscriptionAPI
-
-  const createTestSubscription = useCallback(async (plan: string): Promise<Subscription | void> => {
+  const refreshSubscription = useCallback(async () => {
     if (!state.user?.uid) {
-      console.warn("createTestSubscription called without authenticated user");
-      setState(prev => ({ ...prev, subscriptionError: 'Usuário não autenticado', loadingSubscription: false }));
+      console.warn("refreshSubscription called without authenticated user");
+      setState(prev => ({ ...prev, subscription: null }));
       return;
     }
     
     setState(prev => ({ ...prev, loadingSubscription: true, subscriptionError: null }));
     
     try {
-      // Certifique-se de que subscriptionAPI.createTest usa o token de autenticação se necessário
-      // E que a URL construída é correta
-      const subscriptionData = await subscriptionAPI.createTest(state.user.uid, plan);    
-      const normalizedSubscription = normalizeSubscription(subscriptionData);
+      const response = await api.get(`/api/user/profile`);
+      const userData = response.data;
       
-      setState(prev => ({ 
-        ...prev, 
-        subscription: normalizedSubscription,
-        user: prev.user ? { 
-          ...prev.user, 
-          subscription: normalizedSubscription 
-        } : null,
-        subscriptionError: null,
-        loadingSubscription: false
-      }));
-      
-      return normalizedSubscription as Subscription;
+      if (userData.subscription) {
+        const normalizedSubscription = normalizeSubscription(userData.subscription);
+        
+        setState(prev => ({
+          ...prev,
+          user: prev.user ? { 
+            ...prev.user, 
+            subscription: normalizedSubscription 
+          } : null,
+          subscription: normalizedSubscription,
+          loadingSubscription: false,
+          subscriptionError: null,
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          subscription: null,
+          loadingSubscription: false,
+        }));
+      }
     } catch (error) {
-       console.error('createTestSubscription error:', error);
-      setState(prev => ({ 
-        ...prev, 
-        subscription: null, // Limpa a subscription em caso de erro na criação
-        subscriptionError: error instanceof Error ? error.message : 'Failed to create subscription',
-        loadingSubscription: false
+      console.error('refreshSubscription error:', error);
+      setState(prev => ({
+        ...prev,
+        subscription: null,
+        subscriptionError: error instanceof Error ? error.message : 'Failed to load subscription',
+        loadingSubscription: false,
       }));
-      throw error; // Re-throw para que o componente que chamou possa tratar
     }
-  }, [state.user?.uid]); // Depende de state.user?.uid e subscriptionAPI
-
-  const refreshSubscription = useCallback(async () => {
-    if (state.user?.uid) {
-      await fetchSubscription(state.user.uid);
-    } else {
-       console.warn("refreshSubscription called without authenticated user");
-       // Se não há usuário logado, garante que o estado de subscription está limpo
-       setState(prev => ({ ...prev, subscription: null }));
-    }
-  }, [state.user?.uid, fetchSubscription]);
+  }, [state.user?.uid]);
 
   const login = useCallback(async (email: string, password: string) => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      const authUser = await syncSessionWithBackend(user);
+      if (authUser) {
+        router.push('/dashboard');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setState(prev => ({
+        ...prev,
+        error: error.message || 'Erro ao fazer login',
+        loading: false
+      }));
+      throw error;
+    } finally {
+      setState(prev => ({ ...prev, loading: false }));
+    }
+  }, [router, syncSessionWithBackend]);
+
+  const loginWithGoogle = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
-      // Ensure 'auth' is a valid Firebase Auth instance and email/password are strings
-      const userCredential = await signInWithEmailAndPassword(auth, String(email), String(password));
-      console.log("Firebase email/password login successful.", userCredential.user.uid);
-
-      // Sincroniza com o backend após login bem-sucedido no Firebase
+      
+      const userCredential = await firebaseLoginWithGoogle();
+      
+      if (!userCredential?.user) {
+        setState(prev => ({ ...prev, loading: false }));
+        return;
+      }
+      
       await syncSessionWithBackend(userCredential.user);
-       console.log("Backend session synced after login.");
 
-      // Redireciona para a página desejada ou dashboard
       const { redirect } = router.query;
       const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
-      console.log("Redirecting to:", redirectTo);
       router.push(redirectTo);
-
+      
     } catch (error) {
-       console.error('Email/Password login error:', error);
-      let errorMessage = 'Login failed';
-
+      console.error('Google login error:', error);
+      
+      let errorMessage = 'Falha no login com Google';
       if (error instanceof Error) {
-        if (error.message.includes('auth/invalid-email')) {
-          errorMessage = 'Email inválido';
-        } else if (error.message.includes('auth/user-not-found') || error.message.includes('auth/wrong-password')) {
-          errorMessage = 'Email ou senha incorretos';
+        if (error.message.includes('auth/popup-closed-by-user')) {
+          errorMessage = 'Login cancelado';
+        } else if (error.message.includes('auth/account-exists-with-different-credential')) {
+          errorMessage = 'Este email já está cadastrado com outro método de login';
         } else {
-          // Assume outros erros do Firebase auth
           errorMessage = error.message;
         }
       }
-
+      
       setState(prev => ({
         ...prev,
         error: errorMessage,
         loading: false,
-        // No login error, user should be null, isAuthReady should be true (state determined)
         user: null,
         subscription: null,
         authChecked: true,
         isAuthReady: true,
       }));
-      throw error; // Re-throw para que a UI possa lidar com o erro
     }
   }, [router, syncSessionWithBackend]);
 
-  const loginWithGoogle = useCallback(async () => {
-  try {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    console.log("Starting Google login popup.");
+  // Verificar autenticação do Firebase na inicialização
+  useEffect(() => {
+    console.log('[AuthContext] Verificando autenticação do Firebase...');
     
-    // Usando a função renomeada para login com Google popup
-    const userCredential = await firebaseLoginWithGoogle();
-    
-    if (!userCredential?.user) {
-       console.warn("Google login popup closed or no user returned.");
-      // Se o popup for fechado ou não retornar usuário, apenas limpa o loading e não atualiza o estado de user/authChecked
-      setState(prev => ({ ...prev, loading: false }));
-      return; // Sai da função
-      // throw new Error('No user returned from Google login'); // Melhor não jogar erro se for apenas popup fechado
-    }
-    
-    console.log("Firebase Google login successful.", userCredential.user.uid);
-
-    // Sincroniza com o backend após login bem-sucedido no Firebase
-    await syncSessionWithBackend(userCredential.user);
-    console.log("Backend session synced after Google login.");
-
-    // Redireciona para a página desejada ou dashboard
-    const { redirect } = router.query;
-    const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
-    console.log("Redirecting to:", redirectTo);
-    router.push(redirectTo);
-    
-  } catch (error) {
-    console.error('Google login error:', error);
-    
-    let errorMessage = 'Falha no login com Google';
-    if (error instanceof Error) {
-      if (error.message.includes('auth/popup-closed-by-user')) {
-        errorMessage = 'Login cancelado';
-      } else if (error.message.includes('auth/account-exists-with-different-credential')) {
-        errorMessage = 'Este email já está cadastrado com outro método de login';
-      } else if (error.message.includes('auth/argument-error')) {
-        errorMessage = 'Erro de configuração no login com Google';
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('[AuthContext] Firebase auth state changed:', !!firebaseUser);
+      
+      if (firebaseUser) {
+        console.log('[AuthContext] Usuário Firebase encontrado, sincronizando com backend...');
+        await syncSessionWithBackend(firebaseUser);
+      } else {
+        console.log('[AuthContext] Nenhum usuário Firebase, finalizando verificação...');
+        setState(prev => ({
+          ...prev,
+          user: null,
+          subscription: null,
+          authChecked: true,
+          loading: false,
+          isAuthReady: true,
+        }));
       }
-       else {
-          // Assume outros erros do Firebase auth
-          errorMessage = error.message;
-        }
-    }
-    
-    setState(prev => ({
-      ...prev,
-      error: errorMessage,
-      loading: false,
-       // No login error, user should be null, isAuthReady should be true (state determined)
-      user: null,
-      subscription: null,
-      authChecked: true,
-      isAuthReady: true,
-    }));
-     // Não re-throw para não quebrar o popup flow, o erro é mostrado no estado
-  }
-}, [router, syncSessionWithBackend]);
+    });
 
+    return () => unsubscribe();
+  }, [syncSessionWithBackend]);
 
   const value: AuthContextType = useMemo(() => ({
     ...state,
-    setUser: (updater) => {
-      setState(prev => {
-        const newUser = typeof updater === 'function' ? updater(prev.user) : updater;
-        return { 
-          ...prev, 
-          user: newUser,
-          subscription: newUser?.subscription || null 
-        };
-      });
-    },
     refreshSubscription,
-    checkSubscriptionQuick,
-    createTestSubscription,
     login,
     loginWithGoogle,
     logout,
     clearErrors,
-    verifyToken,
     updateUserContextProfile,
-    syncSessionWithBackend,
+    setUser: (user: AuthUser | null) => {
+      setState(prev => ({ ...prev, user }));
+    },
   }), [
     state,
     refreshSubscription,
-    checkSubscriptionQuick,
-    createTestSubscription,
     login,
     loginWithGoogle,
     logout,
     clearErrors,
-    verifyToken,
     updateUserContextProfile,
-    syncSessionWithBackend,
   ]);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("onAuthStateChanged triggered with:", firebaseUser);
-
-      // Chamar syncSessionWithBackend para processar o usuário do Firebase e backend sync
-      await syncSessionWithBackend(firebaseUser);
-
-      // Garante que isAuthReady se torna true após a checagem inicial, mesmo que syncSessionWithBackend falhe
-      setState(prev => ({ ...prev, isAuthReady: true }));
-      console.log("onAuthStateChanged finished. isAuthReady set to true.");
-    });
-
-    // Limpar o listener ao desmontar
-    return () => unsubscribe();
-  }, [syncSessionWithBackend]);
 
   return (
     <AuthContext.Provider value={value}>

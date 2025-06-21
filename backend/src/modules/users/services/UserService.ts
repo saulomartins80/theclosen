@@ -7,9 +7,14 @@ import { AppError } from '@core/errors/AppError';
 import { UserRepository } from '../repositories/UserRepository';
 import { IUser, ISubscription } from '@models/User';
 import { IUserProfile, IUserWithTokens } from '../interfaces/user.interface';
-// Importação corrigida para caminho relativo correto
-import { TYPES } from '@core/types'; // <-- Caminho relativo correto
-import { SubscriptionService as FirestoreSubscriptionService } from '@services/subscriptionService';
+import { TYPES } from '@core/types';
+import { User } from '../types/User';
+import { admin } from '../../../config/firebase';
+import logger, { logError } from '../../../services/loggerService';
+import { SubscriptionStatus } from '../types/User';
+import { adminAuth } from '@config/firebaseAdmin';
+
+const db = admin.firestore();
 
 interface UpdateProfileData extends Partial<Pick<IUser, 'name' | 'email' | 'photoUrl'>> {
   currentPassword?: string;
@@ -19,11 +24,13 @@ interface UpdateProfileData extends Partial<Pick<IUser, 'name' | 'email' | 'phot
 @injectable()
 export class UserService {
   private readonly auth = getAuth();
+  private userRepository: UserRepository;
 
   constructor(
-    @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
-    @inject(TYPES.SubscriptionService) private readonly firestoreSubscriptionService: FirestoreSubscriptionService
-  ) {}
+    @inject(TYPES.UserRepository) userRepository: UserRepository
+  ) {
+    this.userRepository = userRepository;
+  }
 
   public formatUserProfile(user: IUser): IUserProfile {
     if (!user) {
@@ -47,12 +54,16 @@ export class UserService {
     trialEndDate.setDate(trialEndDate.getDate() + 3); // 3 dias de trial
 
     return {
-      plan: 'trial', // Novo plano para indicar o período de teste
-      status: 'trialing', // Novo status para indicar que está em teste
-      expiresAt: trialEndDate, // O trial expira e a "assinatura" expira neste ponto
-      trialEndsAt: trialEndDate, // Data explícita de término do trial
-      subscriptionId: `trial_${firebaseUid}_${Date.now()}`,
-    };
+        plan: 'trial',
+        status: 'trialing',
+        stripeCustomerId: `trial_${firebaseUid}`,
+        stripeSubscriptionId: `trial_${firebaseUid}_${Date.now()}`,
+        cancelAtPeriodEnd: false,
+        expiresAt: trialEndDate,
+        currentPeriodEnd: trialEndDate,
+        trialEndsAt: trialEndDate,
+        subscriptionId: `trial_${firebaseUid}_${Date.now()}`
+    } as ISubscription;
   }
 
   async register(userData: {
@@ -119,9 +130,9 @@ export class UserService {
       if (!user) {
         const initialMongoSubscription = this.createTrialSubscription(uid);
         user = await this.userRepository.create({
-          firebaseUid: uid,
-          email,
           name: name || email.split('@')[0],
+          email,
+          firebaseUid: uid,
           photoUrl: picture,
           settings: { theme: 'light', notifications: true },
           subscription: initialMongoSubscription
@@ -150,10 +161,14 @@ export class UserService {
   }
 
   async getUserByFirebaseUid(firebaseUid: string): Promise<IUser | null> {
+    return await this.userRepository.findByFirebaseUid(firebaseUid);
+  }
+  
+  async getUserByStripeSubscriptionId(stripeSubscriptionId: string): Promise<IUser | null> {
     try {
-      return await this.userRepository.findByFirebaseUid(firebaseUid);
+      return await this.userRepository.findByStripeSubscriptionId(stripeSubscriptionId);
     } catch (error) {
-      console.error(`Erro ao buscar usuário por Firebase UID ${firebaseUid}:`, this.getErrorMessage(error));
+      console.error(`Erro ao buscar usuário por ID de assinatura Stripe ${stripeSubscriptionId}:`, this.getErrorMessage(error));
       return null;
     }
   }
@@ -175,7 +190,6 @@ export class UserService {
         if (!currentPassword) {
            throw new AppError(400, 'Senha atual é necessária para alterar o email.');
         }
-        // Corrigido: userToToUpdate para userToUpdate na linha 178
         if (!userToUpdate.password || !(await bcrypt.compare(currentPassword, userToUpdate.password))) {
             throw new AppError(401, 'Senha atual incorreta.');
         }
@@ -206,7 +220,13 @@ export class UserService {
       }
 
       if (Object.keys(payload).length > 0) {
-         const updatedUser = await this.userRepository.updateById(mongoUserId, payload);
+         const updatedUser = await this.userRepository.update(mongoUserId, {
+           ...payload,
+           settings: payload.settings ? {
+             theme: payload.settings.theme || 'light',
+             notifications: payload.settings.notifications ?? true
+           } : undefined
+         } as Partial<IUser>);
          if (!updatedUser) throw new AppError(404, 'Falha ao atualizar o usuário no MongoDB.');
          if (updatedUser.firebaseUid && Object.keys(firebaseUpdatePayload).length > 0) {
              await this.auth.updateUser(updatedUser.firebaseUid, firebaseUpdatePayload);
@@ -226,7 +246,16 @@ export class UserService {
   }
 
   async updateSettings(mongoUserId: string, settings: Partial<IUser['settings']>): Promise<IUserProfile> {
-    const updatedUser = await this.userRepository.updateById(mongoUserId, { settings });
+    if (!settings) {
+      throw new AppError(400, 'Configurações inválidas');
+    }
+    
+    const updatedUser = await this.userRepository.update(mongoUserId, {
+      settings: {
+        theme: settings.theme || 'light',
+        notifications: settings.notifications ?? true
+      }
+    });
     if (!updatedUser) throw new AppError(404, 'Usuário não encontrado para atualizar configurações.');
     return this.formatUserProfile(updatedUser);
   }
@@ -244,16 +273,36 @@ export class UserService {
   }
 
   async updateSubscription(firebaseUid: string, subscriptionData: Partial<ISubscription>): Promise<IUserProfile> {
-    const subDataToUpdate: Partial<ISubscription> = { ...subscriptionData };
-    // Adicionar validação para os novos campos de trial se necessário ao atualizar diretamente
-    if (subscriptionData.status && !['active', 'canceled', 'expired', 'pending', 'trialing'].includes(subscriptionData.status)) {
-        throw new AppError(400, `Status de assinatura inválido: ${subscriptionData.status}`);
-    }
-    const updatedUser = await this.userRepository.updateUserSubscriptionByFirebaseUid(firebaseUid, subDataToUpdate);
+    try {
+        const user = await this.userRepository.findByFirebaseUid(firebaseUid);
+        if (!user) {
+            throw new AppError(404, 'Usuário não encontrado');
+        }
+
+        const updatedUser = await this.userRepository.update(user.id!, {
+            subscription: {
+                plan: subscriptionData?.plan ?? user.subscription?.plan ?? 'free',
+                status: subscriptionData?.status ?? user.subscription?.status ?? 'inactive',
+                stripeCustomerId: subscriptionData?.stripeCustomerId ?? user.subscription?.stripeCustomerId ?? `free_${user.id}`,
+                stripeSubscriptionId: subscriptionData?.stripeSubscriptionId ?? user.subscription?.stripeSubscriptionId ?? `free_${user.id}_${Date.now()}`,
+                cancelAtPeriodEnd: subscriptionData?.cancelAtPeriodEnd ?? user.subscription?.cancelAtPeriodEnd ?? false,
+                expiresAt: subscriptionData?.expiresAt ?? user.subscription?.expiresAt ?? new Date(),
+                currentPeriodEnd: subscriptionData?.currentPeriodEnd ?? user.subscription?.currentPeriodEnd ?? new Date(),
+                trialEndsAt: subscriptionData?.trialEndsAt ?? user.subscription?.trialEndsAt,
+                subscriptionId: subscriptionData?.subscriptionId ?? user.subscription?.subscriptionId,
+                updatedAt: new Date()
+            } satisfies ISubscription
+        });
+
     if (!updatedUser) {
-      throw new AppError(404, 'Usuário não encontrado para atualizar assinatura.');
+            throw new AppError(500, 'Erro ao atualizar assinatura');
+        }
+
+        return this.formatUserProfile(updatedUser);
+    } catch (error) {
+        if (error instanceof AppError) throw error;
+        throw new AppError(500, 'Erro ao atualizar assinatura', this.getErrorMessage(error));
     }
-    return this.formatUserProfile(updatedUser);
   }
 
   async activateTestSubscription(firebaseUid: string, plan: string): Promise<ISubscription | null> {
@@ -261,14 +310,18 @@ export class UserService {
       throw new AppError(400, 'Firebase UID e plano são obrigatórios.');
     }
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // Mantido como 30 dias para este método específico, pode ajustar se necessário
+    expiresAt.setDate(expiresAt.getDate() + 30);
 
     const subscriptionDetails: ISubscription = {
-      plan: plan, // O plano que será testado
-      status: 'trialing', // Pode ser 'trialing' ou 'active' dependendo da lógica de negócio
+      plan: plan,
+      status: 'trialing',
       expiresAt: expiresAt,
-      trialEndsAt: expiresAt, // Se for um teste, trialEndsAt é crucial
+      trialEndsAt: expiresAt,
       subscriptionId: `test_${plan}_${firebaseUid}_${Date.now()}`,
+      stripeCustomerId: `test_${firebaseUid}`,
+      stripeSubscriptionId: `test_${plan}_${firebaseUid}_${Date.now()}`,
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: expiresAt
     };
 
     const updatedUser = await this.userRepository.updateUserSubscriptionByFirebaseUid(firebaseUid, subscriptionDetails);
@@ -279,10 +332,9 @@ export class UserService {
   }
 
   private async generateTokens(user: IUser): Promise<{ token: string; firebaseToken: string }> {
-    console.log(`[UserService/generateTokens] Tentando ler process.env.APP_JWT_SECRET: "${process.env.APP_JWT_SECRET}"`);
     const jwtSecret = process.env.APP_JWT_SECRET;
     if (!jwtSecret) {
-        console.error('CRÍTICO: APP_JWT_SECRET não definido (dentro do if).');
+        console.error('CRÍTICO: APP_JWT_SECRET não definido.');
         throw new AppError(500, 'Configuração interna do servidor ausente (JWT Secret).');
     }
     const tokenPayload = { id: user.id, email: user.email, uid: user.firebaseUid };
@@ -299,5 +351,152 @@ export class UserService {
     if (error instanceof AppError) return error.message;
     if (error instanceof Error) return error.message;
     return 'Ocorreu um erro desconhecido no serviço.';
+  }
+
+  async createUser(userData: Partial<IUser>): Promise<IUser> {
+    if (!userData.firebaseUid) {
+      throw new AppError(400, 'firebaseUid é obrigatório');
+    }
+
+    const existingUser = await this.userRepository.findByFirebaseUid(userData.firebaseUid);
+    if (existingUser) {
+      throw new AppError(400, 'Usuário já existe com este firebaseUid');
+    }
+
+    return await this.userRepository.create(userData);
+  }
+
+  async updateUser(userId: string, userData: Partial<IUser>): Promise<IUser | null> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError(404, 'Usuário não encontrado');
+    }
+
+    return await this.userRepository.update(userId, userData);
+  }
+
+  async getUserById(id: string): Promise<IUser | null> {
+    return await this.userRepository.findById(id);
+  }
+
+  async updateUserSubscription(userId: string, subscriptionData: Partial<ISubscription>): Promise<IUser | null> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError(404, 'Usuário não encontrado');
+    }
+
+    const updatedSubscription: ISubscription = {
+      plan: subscriptionData.plan || user.subscription?.plan || 'free',
+      status: (subscriptionData.status || user.subscription?.status || 'inactive') as SubscriptionStatus,
+      stripeCustomerId: subscriptionData.stripeCustomerId || user.subscription?.stripeCustomerId || `free_${userId}`,
+      stripeSubscriptionId: subscriptionData.stripeSubscriptionId || user.subscription?.stripeSubscriptionId || `free_${userId}_${Date.now()}`,
+      cancelAtPeriodEnd: subscriptionData.cancelAtPeriodEnd || false,
+      expiresAt: subscriptionData.expiresAt || user.subscription?.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      currentPeriodEnd: subscriptionData.currentPeriodEnd || user.subscription?.currentPeriodEnd || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    };
+
+    return await this.userRepository.update(userId, {
+      subscription: updatedSubscription
+    });
+  }
+
+  async updateUserSettings(userId: string, settings: Partial<IUser['settings']>): Promise<IUser | null> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError(404, 'Usuário não encontrado');
+    }
+
+    return await this.userRepository.update(userId, {
+      settings: {
+        ...user.settings,
+        ...settings
+      }
+    });
+  }
+
+  async findByFirebaseUid(firebaseUid: string): Promise<IUser | null> {
+    return this.userRepository.findByFirebaseUid(firebaseUid);
+  }
+
+  async getUserByEmail(email: string): Promise<IUser | null> {
+    return await this.userRepository.findByEmail(email);
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError(404, 'Usuário não encontrado');
+    }
+
+    if (user.firebaseUid) {
+      try {
+        await adminAuth.deleteUser(user.firebaseUid);
+      } catch (error) {
+        console.error('Erro ao deletar usuário no Firebase:', error);
+      }
+    }
+
+    await this.userRepository.delete(userId);
+  }
+
+  async updateUserProfile(userId: string, profileData: Partial<IUser>): Promise<IUser | null> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new AppError(404, 'Usuário não encontrado');
+    }
+
+    return await this.userRepository.update(userId, profileData);
+  }
+
+  async updateUserSubscriptionByFirebaseUid(firebaseUid: string, subscriptionData: Partial<IUser['subscription']>): Promise<IUser | null> {
+    const user = await this.userRepository.findByFirebaseUid(firebaseUid);
+    if (!user) {
+      throw new AppError(404, 'Usuário não encontrado');
+    }
+
+    return await this.userRepository.update(user.id!, {
+      subscription: {
+        plan: subscriptionData?.plan ?? user.subscription?.plan ?? 'free',
+        status: subscriptionData?.status ?? user.subscription?.status ?? 'inactive',
+        stripeCustomerId: subscriptionData?.stripeCustomerId ?? user.subscription?.stripeCustomerId ?? `free_${user.id}`,
+        stripeSubscriptionId: subscriptionData?.stripeSubscriptionId ?? user.subscription?.stripeSubscriptionId ?? `free_${user.id}_${Date.now()}`,
+        cancelAtPeriodEnd: subscriptionData?.cancelAtPeriodEnd ?? user.subscription?.cancelAtPeriodEnd ?? false,
+        expiresAt: subscriptionData?.expiresAt ?? user.subscription?.expiresAt ?? new Date(),
+        currentPeriodEnd: subscriptionData?.currentPeriodEnd ?? user.subscription?.currentPeriodEnd ?? new Date(),
+        trialEndsAt: subscriptionData?.trialEndsAt ?? user.subscription?.trialEndsAt,
+        subscriptionId: subscriptionData?.subscriptionId ?? user.subscription?.subscriptionId,
+        updatedAt: new Date()
+      } satisfies ISubscription
+    });
+  }
+
+  async updatePaymentStatus(firebaseUid: string, paymentData: {
+    lastPaymentDate: Date;
+    lastPaymentAmount: number;
+    lastPaymentStatus: string;
+  }): Promise<IUserProfile> {
+    try {
+      const user = await this.userRepository.findByFirebaseUid(firebaseUid);
+      if (!user) {
+        throw new AppError(404, 'Usuário não encontrado');
+      }
+
+      const updatedUser = await this.userRepository.update(user.id!, {
+        lastPayment: {
+          date: paymentData.lastPaymentDate,
+          amount: paymentData.lastPaymentAmount,
+          status: paymentData.lastPaymentStatus
+        }
+      });
+
+      if (!updatedUser) {
+        throw new AppError(500, 'Erro ao atualizar status do pagamento');
+      }
+
+      return this.formatUserProfile(updatedUser);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError(500, 'Erro ao atualizar status do pagamento', this.getErrorMessage(error));
+    }
   }
 }

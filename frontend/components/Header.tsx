@@ -228,7 +228,7 @@ export default function Header({
                 <p className="text-sm text-gray-400 truncate">{user.email}</p>
               </div>
               <Link
-                href="/perfil"
+                href="/profile"
                 className={`
                   w-full px-4 py-3 text-left flex items-center
                   ${resolvedTheme === 'dark'

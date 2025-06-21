@@ -93,7 +93,7 @@ export default function ProfileMenu() {
       icon: User,
       label: 'Meu Perfil',
       disabled: false,
-      action: () => handleNavigation('/perfil')
+      action: () => handleNavigation('/profile')
     },
     {
       icon: Settings,

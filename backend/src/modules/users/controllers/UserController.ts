@@ -5,6 +5,13 @@ import { UserService } from '../services/UserService';
 // Importação modificada para caminho relativo
 import { TYPES } from '@core/types';
 import { AppError } from '@core/errors/AppError';
+import { User } from '../../../models/User';
+import { stripe } from '../../../config/stripe';
+
+interface SubscriptionInfo {
+  status: string;
+  planName: string;
+}
 
 @injectable()
 export class UserController {
@@ -77,16 +84,58 @@ export class UserController {
     }
   }
 
-  async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async getProfile(req: Request, res: Response): Promise<void> {
     try {
-      if (!req.user?.id) {
-         throw new AppError(401, 'ID de usuário (MongoDB) não disponível na requisição autenticada');
+      const userId = req.user?.uid;
+      if (!userId) {
+        res.status(401).json({ error: 'Usuário não autenticado' });
+        return;
       }
-      // userService.getProfile espera o ID do MongoDB
-      const userProfile = await this.userService.getProfile(req.user.id); 
-      res.status(200).json({ success: true, data: userProfile });
+
+      const user = await User.findOne({ firebaseUid: userId });
+      if (!user) {
+        res.status(404).json({ error: 'Usuário não encontrado' });
+        return;
+      }
+
+      // Buscar informações da assinatura no Stripe
+      let subscriptionInfo: SubscriptionInfo | null = null;
+      if (user.subscription?.stripeCustomerId && !user.subscription.stripeCustomerId.startsWith('trial_')) {
+        try {
+          const subscriptions = await stripe.subscriptions.list({
+            customer: user.subscription.stripeCustomerId,
+            status: 'active',
+            limit: 1
+          });
+
+          if (subscriptions.data.length > 0) {
+            const subscription = subscriptions.data[0];
+            subscriptionInfo = {
+              status: subscription.status,
+              planName: subscription.metadata.planName || 'Plano Ativo'
+            };
+          }
+        } catch (stripeError) {
+          console.error('Erro ao buscar assinatura no Stripe:', stripeError);
+        }
+      }
+
+      // Se não encontrou no Stripe, usar dados do banco
+      if (!subscriptionInfo && user.subscription) {
+        subscriptionInfo = {
+          status: user.subscription.status || 'trialing',
+          planName: user.subscription.plan || 'Trial'
+        };
+      }
+
+      res.json({
+        name: user.name,
+        email: user.email,
+        subscription: subscriptionInfo
+      });
     } catch (error) {
-      next(error);
+      console.error('Erro ao buscar perfil:', error);
+      res.status(500).json({ error: 'Erro ao buscar perfil do usuário' });
     }
   }
 
