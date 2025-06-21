@@ -3,8 +3,8 @@ import { ISubscription } from '@models/User'; // Importar ISubscription do model
 
 export interface IUserProfile {
   id: string; 
-  name: string;
-  email: string;
+  name?: string;  // Tornando opcional
+  email?: string; // Tornando opcional
   photoUrl?: string;
   firebaseUid: string; 
   settings?: {

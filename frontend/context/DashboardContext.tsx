@@ -1,4 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { marketDataAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+
+interface ManualAsset {
+  symbol: string;
+  price: number;
+  change: number;
+}
 
 export interface StockData {
   symbol: string;
@@ -38,7 +46,7 @@ export interface DashboardContextType {
   selectedFiis: string[];
   selectedEtfs: string[];
   selectedCurrencies: string[];
-  manualAssets: string[];
+  manualAssets: ManualAsset[];
   customIndices: CustomIndex[]; // Único estado para índices
   setCustomIndices: (indices: CustomIndex[]) => void; // Substitui setSelectedIndices
   refreshMarketData: (options?: { silent?: boolean }) => Promise<void>;
@@ -51,7 +59,7 @@ export interface DashboardContextType {
   removeFii: (symbol: string) => void;
   removeEtf: (symbol: string) => void;
   removeCurrency: (symbol: string) => void;
-  setManualAssets: (assets: string[]) => void;
+  setManualAssets: (assets: ManualAsset[]) => void;
   setSelectedStocks: (stocks: string[]) => void;
   setSelectedCryptos: (cryptos: string[]) => void;
   setSelectedCommodities: (commodities: string[]) => void;
@@ -136,8 +144,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [selectedFiis, setSelectedFiis] = useState<string[]>(DEFAULT_FIIS);
   const [selectedEtfs, setSelectedEtfs] = useState<string[]>(DEFAULT_ETFS);
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>(DEFAULT_CURRENCIES);
-  const [manualAssets, setManualAssets] = useState<string[]>([]);
-  const [customIndices, setCustomIndices] = useState<CustomIndex[]>(DEFAULT_CUSTOM_INDICES); // Mantenha esta
+  const [manualAssets, setManualAssets] = useState<ManualAsset[]>([]);
+  const [customIndices, setCustomIndices] = useState<CustomIndex[]>(DEFAULT_CUSTOM_INDICES);
 
   // Estados para ativos disponíveis
   const [availableStocks, setAvailableStocks] = useState<string[]>(EXAMPLE_AVAILABLE_STOCKS);
@@ -150,7 +158,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const { isAuthReady, user } = useAuth();
+
   const refreshMarketData = useCallback(async ({ silent = false } = {}) => {
+    if (!user) {
+      console.log('[DashboardContext] No authenticated user, skipping market data refresh');
+      return;
+    }
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -163,7 +178,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     try {
-      // Garante que customIndicesList é sempre um array de string (símbolos)
       const requestBody = {
         symbols: selectedStocks,
         cryptos: selectedCryptos,
@@ -176,28 +190,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
       console.log('[DashboardContext] requestBody:', requestBody);
 
-      const response = await fetch('/api/market-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-        credentials: 'include'
-      });
-
-      if (controller.signal.aborted) return;
-
-      if (!response.ok) {
-        let errorData: any = {};
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          errorData = await response.json().catch(() => ({}));
-        } else {
-          errorData = { error: await response.text() };
-        }
-        throw new Error(errorData.error || `Failed to fetch market data with status ${response.status}`);
-      }
-
-      const data: MarketData = await response.json();
+      const data = await marketDataAPI.getMarketData(requestBody);
       setMarketData(data);
       console.log('[DashboardContext] Market data after setMarketData:', data);
 
@@ -218,10 +211,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     selectedEtfs,
     selectedCurrencies,
     manualAssets,
-    customIndices
+    customIndices,
+    user
   ]);
 
   useEffect(() => {
+    if (!isAuthReady || !user) {
+      console.log('[DashboardContext] Auth not ready or no user, skipping market data refresh');
+      return;
+    }
+
     console.log('[DashboardContext] useEffect: refreshing market data...');
     refreshMarketData();
     // Fetch every 5 minutes (300000 ms)
@@ -230,7 +229,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       clearInterval(intervalId);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [refreshMarketData]);
+  }, [refreshMarketData, isAuthReady, user]);
 
   const addCustomIndex = (index: { symbol: string; name: string }) => {
     const symbolToAdd = index.symbol;
@@ -242,7 +241,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                               selectedFiis.includes(symbolToAdd) ||
                               selectedEtfs.includes(symbolToAdd) ||
                               selectedCurrencies.includes(symbolToAdd) ||
-                              manualAssets.includes(symbolToAdd);
+                              manualAssets.some(asset => asset.symbol === symbolToAdd);
 
     if (!isAlreadySelected) {
       setCustomIndices(prevIndices => [...prevIndices, { symbol: symbolToAdd, name: index.name.trim() || symbolToAdd }]);
@@ -267,7 +266,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
                                selectedFiis.includes(newSymbol) ||
                                selectedEtfs.includes(newSymbol) ||
                                selectedCurrencies.includes(newSymbol) ||
-                               manualAssets.includes(newSymbol);
+                               manualAssets.some(asset => asset.symbol === newSymbol);
 
     if (!isAlreadySelected) {
         setCustomIndices(prevIndices =>

@@ -14,6 +14,6 @@ export const validate = (validations: any[]) => {
       message: err.msg
     }));
 
-    throw new AppError(422, 'Erro de validação', formattedErrors);
+    throw new AppError(422, 'Erro de validação', JSON.stringify(formattedErrors));
   };
 };

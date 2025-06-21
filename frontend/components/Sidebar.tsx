@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  Gem, // Ícone para Planos/Assinaturas
+  HelpCircle, // Ícone para Suporte
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
@@ -78,7 +80,7 @@ export default function Sidebar({
 
   const menuItems: MenuItem[] = [
     {
-      path: "/",
+      path: "/dashboard",
       icon: PieChart,
       label: "Visão geral",
     },
@@ -98,9 +100,19 @@ export default function Sidebar({
       label: "Investimentos",
     },
     {
+      path: "/assinaturas",
+      icon: Gem,
+      label: "Planos",
+    },
+    {
       path: "/ebook",
       icon: BookOpen,
       label: "E-book",
+    },
+    {
+      path: "/suporte",
+      icon: HelpCircle,
+      label: "Suporte",
     },
     {
       path: "/configuracoes",

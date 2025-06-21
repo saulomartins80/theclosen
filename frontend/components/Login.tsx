@@ -11,8 +11,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const pathname = usePathname();
 
-  // Verifique se o path atual é /perfil
-  const isProfilePage = pathname === '/perfil';
+  // Verifique se o path atual é /profile
+  const isProfilePage = pathname === '/profile';
 
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen(prev => !prev);
