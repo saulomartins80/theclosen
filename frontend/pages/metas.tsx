@@ -324,16 +324,14 @@ const MetasDashboard = () => {
             </div>
           </div>
           
-          {/* Botão de teste temporário */}
-            <button
-            onClick={() => {
-              toast.success('Teste de toast funcionando!');
-              toast.error('Teste de erro funcionando!');
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+          {/* Botão Add Meta */}
+          <button
+            onClick={() => openForm()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
           >
-            Testar Toast
-            </button>
+            <Plus size={16} />
+            Add Meta
+          </button>
         </div>
 
         {/* Cards de resumo - Ajustado para 2 colunas em telas médias e maiores */}
