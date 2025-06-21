@@ -1,0 +1,154 @@
+{
+  "navigation": {
+    "resources": "Recursos",
+    "solutions": "Soluciones",
+    "pricing": "Precios",
+    "clients": "Clientes",
+    "contact": "Contacto",
+    "login": "Iniciar Sesión",
+    "startNow": "Comenzar Ahora",
+    "startFree": "Comenzar Gratis"
+  },
+  "hero": {
+    "badge": "Versión PRO Lanzada",
+    "title": "Tu futuro financiero comienza aquí",
+    "highlight": "Tu futuro",
+    "subtitle": "La primera plataforma que combina gestión financiera personal con inteligencia artificial predictiva.",
+    "demoButton": "Ver Demostración"
+  },
+  "metrics": {
+    "activeUsers": "Usuarios Activos",
+    "satisfaction": "Satisfacción",
+    "rating": "Calificación",
+    "support": "Soporte"
+  },
+  "features": {
+    "title": "Tecnología Exclusiva",
+    "subtitle": "Características avanzadas que no encontrarás en ningún otro lugar",
+    "tabs": {
+      "dashboard": "Panel",
+      "investments": "Inversiones",
+      "savings": "Ahorros",
+      "security": "Seguridad"
+    },
+    "sections": {
+      "dashboard": {
+        "title": "Panel Inteligente",
+        "description": "Vista unificada de todos tus activos con recomendaciones en tiempo real.",
+        "features": [
+          "Análisis Predictivo",
+          "Reportes Personalizados",
+          "Alertas Inteligentes"
+        ]
+      },
+      "investments": {
+        "title": "Cartera Global",
+        "description": "Gestiona acciones, criptomonedas y fondos en una única interfaz integrada.",
+        "features": [
+          "+10.000 activos",
+          "Tarifas competitivas",
+          "Estrategias automáticas"
+        ]
+      },
+      "savings": {
+        "title": "Automatización",
+        "description": "Sistema automático que identifica y ejecuta oportunidades de ahorro.",
+        "features": [
+          "Identificación de gastos",
+          "Optimización tributaria",
+          "Cashback inteligente"
+        ]
+      },
+      "security": {
+        "title": "Protección",
+        "description": "Tecnología bancaria militar con verificación en múltiples factores.",
+        "features": [
+          "Cifrado AES-256",
+          "Biometría",
+          "Asegurado hasta $1M"
+        ]
+      }
+    }
+  },
+  "testimonials": {
+    "title": "Lo que dicen nuestros clientes",
+    "highlight": "clientes",
+    "subtitle": "Ve cómo estamos transformando vidas financieras",
+    "clients": [
+      {
+        "name": "Carlos Silva",
+        "role": "CEO, TechStart",
+        "content": "La IA predictiva de Finanext PRO identificó oportunidades que aumentaron mis inversiones en 32% el último trimestre."
+      },
+      {
+        "name": "Ana Beatriz",
+        "role": "Directora Financiera",
+        "content": "Finalmente una plataforma que unifica mis inversiones globales con análisis realmente útiles y accionables."
+      },
+      {
+        "name": "Roberto Costa",
+        "role": "Inversor",
+        "content": "El sistema de ahorro automático ya me ahorró más de $15.000 en gastos innecesarios este año."
+      },
+      {
+        "name": "Juliana Martins",
+        "role": "Emprendedora",
+        "content": "Migré de otra plataforma y la diferencia es absurda. El soporte 24/7 resolvió un problema crítico para mí en minutos."
+      }
+    ]
+  },
+  "cta": {
+    "title": "¿Listo para la revolución financiera?",
+    "highlight": "revolución",
+    "subtitle": "Únete a más de 15.000 usuarios que ya transformaron su relación con el dinero.",
+    "scheduleDemo": "Agendar Demostración",
+    "disclaimer": "Sin compromiso • Cancelación en cualquier momento • Cifrado bancario"
+  },
+  "footer": {
+    "description": "La plataforma financiera más avanzada del mercado, con tecnología de punta para transformar tu relación con el dinero.",
+    "sections": {
+      "product": "Producto",
+      "company": "Empresa",
+      "legal": "Jurídico"
+    },
+    "company": {
+      "about": "Sobre Nosotros",
+      "careers": "Carreras",
+      "blog": "Blog",
+      "partners": "Socios",
+      "press": "Prensa"
+    },
+    "legal": {
+      "privacy": "Privacidad",
+      "terms": "Términos",
+      "security": "Seguridad",
+      "cookies": "Cookies",
+      "licenses": "Licencias"
+    },
+    "copyright": "© {{year}} FinNEXTHO. Todos los derechos reservados.",
+    "termsOfService": "Términos de Servicio",
+    "privacyPolicy": "Política de Privacidad"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "close": "Cerrar",
+    "open": "Abrir",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "sort": "Ordenar",
+    "view": "Ver",
+    "download": "Descargar",
+    "upload": "Subir",
+    "share": "Compartir",
+    "copy": "Copiar",
+    "paste": "Pegar",
+    "undo": "Deshacer",
+    "redo": "Rehacer"
+  }
+} 

@@ -1,53 +1,71 @@
 // src/hooks/useAuthSubscriptionCheck.ts
-import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 
-interface SubscriptionCheckReturn {
-  quickCheck: (userId: string) => Promise<boolean>;
-  loading: boolean;
-  error: string | null;
+interface UseSubscriptionCheckOptions {
+  requireActive?: boolean;
+  allowedPlans?: string[];
+  redirectTo?: string;
 }
 
-export const useSubscriptionCheck = (): SubscriptionCheckReturn => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+export function useSubscriptionCheck(options: UseSubscriptionCheckOptions = {}) {
+  const { user, subscription, loadingSubscription } = useAuth();
+  const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
 
-  const quickCheck = async (userId: string): Promise<boolean> => {
-    if (!userId) return false;
+  const {
+    requireActive = false,
+    allowedPlans = [],
+    redirectTo = '/assinaturas'
+  } = options;
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Verifica se user é do tipo FirebaseUser
-      if (!user || typeof user.getIdToken !== 'function') {
-        throw new Error('User authentication required');
-      }
-
-      const token = await user.getIdToken();
-      const response = await fetch(
-        `/api/subscription/quick-check/${userId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to check subscription');
-      }
-
-      const { data } = await response.json();
-      return data?.hasSubscription || false;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return false;
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!user) {
+      setHasAccess(false);
+      setIsChecking(false);
+      return;
     }
-  };
 
-  return { quickCheck, loading, error };
-};
+    // Se não requer assinatura ativa, permitir acesso
+    if (!requireActive) {
+      setHasAccess(true);
+      setIsChecking(false);
+      return;
+    }
+
+    // Verificar se há assinatura ativa
+    const hasActiveSubscription = subscription && 
+      ['active', 'trialing'].includes(subscription.status) &&
+      (!subscription.expiresAt || new Date(subscription.expiresAt) > new Date());
+
+    if (!hasActiveSubscription) {
+      setHasAccess(false);
+      setIsChecking(false);
+      router.push(redirectTo);
+      return;
+    }
+
+    // Verificar se o plano é permitido
+    if (allowedPlans.length > 0 && subscription) {
+      const isPlanAllowed = allowedPlans.includes(subscription.plan);
+      if (!isPlanAllowed) {
+        setHasAccess(false);
+        setIsChecking(false);
+        router.push(redirectTo);
+        return;
+      }
+    }
+
+    setHasAccess(true);
+    setIsChecking(false);
+  }, [user, subscription, loadingSubscription, requireActive, allowedPlans, redirectTo, router]);
+
+  return {
+    hasAccess,
+    isChecking: isChecking || loadingSubscription,
+    subscription,
+    user
+  };
+}

@@ -1,0 +1,154 @@
+{
+  "navigation": {
+    "resources": "Resources",
+    "solutions": "Solutions",
+    "pricing": "Pricing",
+    "clients": "Clients",
+    "contact": "Contact",
+    "login": "Login",
+    "startNow": "Start Now",
+    "startFree": "Start Free"
+  },
+  "hero": {
+    "badge": "PRO Version Launched",
+    "title": "Your financial future starts here",
+    "highlight": "Your future",
+    "subtitle": "The first platform that combines personal financial management with predictive artificial intelligence.",
+    "demoButton": "View Demo"
+  },
+  "metrics": {
+    "activeUsers": "Active users",
+    "satisfaction": "Satisfaction",
+    "rating": "Rating",
+    "support": "Support"
+  },
+  "features": {
+    "title": "Exclusive Technology",
+    "subtitle": "Advanced features you won't find anywhere else",
+    "tabs": {
+      "dashboard": "Dashboard",
+      "investments": "Investments",
+      "savings": "Savings",
+      "security": "Security"
+    },
+    "sections": {
+      "dashboard": {
+        "title": "Smart Dashboard",
+        "description": "Unified visualization of all your assets with real-time recommendations.",
+        "features": [
+          "Predictive analysis",
+          "Custom reports",
+          "Smart alerts"
+        ]
+      },
+      "investments": {
+        "title": "Global Portfolio",
+        "description": "Manage stocks, cryptocurrencies and funds in a single integrated interface.",
+        "features": [
+          "+10,000 assets",
+          "Competitive rates",
+          "Automatic strategies"
+        ]
+      },
+      "savings": {
+        "title": "Automation",
+        "description": "Automatic system that identifies and executes savings opportunities.",
+        "features": [
+          "Expense identification",
+          "Tax optimization",
+          "Smart cashback"
+        ]
+      },
+      "security": {
+        "title": "Protection",
+        "description": "Military banking technology with multi-factor verification.",
+        "features": [
+          "AES-256 encryption",
+          "Biometrics",
+          "Insurance up to $1M"
+        ]
+      }
+    }
+  },
+  "testimonials": {
+    "title": "What our clients say",
+    "highlight": "clients",
+    "subtitle": "See how we're transforming financial lives",
+    "clients": [
+      {
+        "name": "Carlos Silva",
+        "role": "CEO, TechStart",
+        "content": "Finanext PRO's predictive AI identified opportunities that increased my investments by 32% last quarter."
+      },
+      {
+        "name": "Ana Beatriz",
+        "role": "Financial Director",
+        "content": "Finally a platform that unifies my global investments with truly useful and actionable analysis."
+      },
+      {
+        "name": "Roberto Costa",
+        "role": "Investor",
+        "content": "The automatic savings system has already saved me more than $15,000 in unnecessary expenses this year."
+      },
+      {
+        "name": "Juliana Martins",
+        "role": "Entrepreneur",
+        "content": "I migrated from another platform and the difference is absurd. 24/7 support solved a critical problem for me in minutes."
+      }
+    ]
+  },
+  "cta": {
+    "title": "Ready for the financial revolution?",
+    "highlight": "revolution",
+    "subtitle": "Join more than 15,000 users who have already transformed their relationship with money.",
+    "scheduleDemo": "Schedule Demo",
+    "disclaimer": "No commitment • Cancel anytime • Banking encryption"
+  },
+  "footer": {
+    "description": "The most advanced financial platform on the market, with cutting-edge technology to transform your relationship with money.",
+    "sections": {
+      "product": "Product",
+      "company": "Company",
+      "legal": "Legal"
+    },
+    "company": {
+      "about": "About",
+      "careers": "Careers",
+      "blog": "Blog",
+      "partners": "Partners",
+      "press": "Press"
+    },
+    "legal": {
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "security": "Security",
+      "cookies": "Cookies",
+      "licenses": "Licenses"
+    },
+    "copyright": "© {{year}} FinNEXTHO. All rights reserved.",
+    "termsOfService": "Terms of Service",
+    "privacyPolicy": "Privacy Policy"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "close": "Close",
+    "open": "Open",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "view": "View",
+    "download": "Download",
+    "upload": "Upload",
+    "share": "Share",
+    "copy": "Copy",
+    "paste": "Paste",
+    "undo": "Undo",
+    "redo": "Redo"
+  }
+} 
