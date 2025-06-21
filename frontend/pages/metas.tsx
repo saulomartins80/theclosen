@@ -151,13 +151,16 @@ const MetasDashboard = () => {
 
     if (state.form.mode === 'add') {
       await metaAPI.create(metaPayload);
+      console.log('🎉 Toast de sucesso será chamado para meta criada');
       toast.success(`Meta adicionada com sucesso!`);
     } else {
       if (!state.form.data._id) {
+        console.log('❌ Toast de erro será chamado - ID não encontrado');
         toast.error('ID da meta não encontrado para atualização.');
         return;
       }
       await metaAPI.update(state.form.data._id, metaPayload);
+      console.log('🎉 Toast de sucesso será chamado para meta atualizada');
       toast.success(`Meta atualizada com sucesso!`);
     }
 
@@ -320,14 +323,17 @@ const MetasDashboard = () => {
               </p>
             </div>
           </div>
-           {/* Botão desktop para nova meta - Posicionado ao lado no desktop */}
-            <button
-              onClick={() => openForm()}
-              className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium text-white ${resolvedTheme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}
-            >
-              <Plus size={18} />
-              Nova Meta
-            </button>
+          
+          {/* Botão de teste temporário */}
+          <button
+            onClick={() => {
+              toast.success('Teste de toast funcionando!');
+              toast.error('Teste de erro funcionando!');
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+          >
+            Testar Toast
+          </button>
         </div>
 
         {/* Cards de resumo - Ajustado para 2 colunas em telas médias e maiores */}
@@ -873,11 +879,24 @@ const MetasDashboard = () => {
         {/* Botão Flutuante para Mobile */}
         <button
           onClick={() => openForm()}
-          className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
+          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
           aria-label="Adicionar nova meta"
         >
           <Plus size={24} />
         </button>
+
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          toastClassName={`text-sm rounded-xl shadow-lg ${resolvedTheme === "dark" ? "bg-gray-700 text-gray-100" : "bg-white text-gray-800"}`}
+        />
       </div>
     </div>
   );

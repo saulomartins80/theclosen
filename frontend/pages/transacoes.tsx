@@ -277,7 +277,7 @@ const Transacoes = () => {
       </div>
 
       {/* Botão Flutuante para Mobile */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-3 md:hidden z-40">
+      <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex flex-row gap-3 md:hidden z-40">
         <button
           onClick={handleExportPDF}
           className={`p-3.5 rounded-full shadow-xl transition-all hover:scale-105 ${resolvedTheme === 'dark' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600'} text-white flex items-center justify-center`}

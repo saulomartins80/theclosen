@@ -6,6 +6,7 @@ import { investimentoAPI } from '../services/api';
 import { motion } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
 import { useTheme } from "../context/ThemeContext"; // Import useTheme
+import { ToastContainer } from 'react-toastify';
 
 // Tipagem melhorada
 type Investimento = {
@@ -723,10 +724,24 @@ const InvestimentosDashboard = () => {
         {/* Botão Flutuante para Mobile */}
         <button
           onClick={() => setForm({ open: true, mode: 'add', data: { data: '' } })}
-          className="fixed bottom-6 right-6 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
+          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 p-4 rounded-full shadow-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors md:hidden z-40"
         >
           <Plus size={24} />
         </button>
+
+        {/* ToastContainer para notificações */}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          toastClassName={`text-sm rounded-xl shadow-lg ${resolvedTheme === "dark" ? "bg-gray-700 text-gray-100" : "bg-white text-gray-800"}`}
+        />
 
         {/* Modal do Formulário */}
         {form.open && (

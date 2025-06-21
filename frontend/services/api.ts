@@ -8,9 +8,20 @@ import {
   Meta
 } from "../types";
 
+export interface MarketDataRequest {
+  symbols: string[];
+  cryptos: string[];
+  commodities: string[];
+  fiis: string[];
+  etfs: string[];
+  currencies: string[];
+  manualAssets: { symbol: string; price: number; change: number; }[];
+  customIndicesList: string[];
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000',
-  timeout: 10000,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,14 +37,8 @@ api.interceptors.request.use(async (config) => {
   if (user) {
     console.log(`[api.ts] User found (UID: ${user.uid}). Getting ID token for request to: ${config.url}`);
     try {
-      // Força a atualização do token para garantir que está fresco
       const token = await getIdToken(user, true);
       console.log(`[api.ts] Successfully obtained token for request to: ${config.url}`);
-      console.debug(`[api.ts] Token details:`, {
-        length: token.length,
-        first10: token.substring(0, 10) + '...'
-      });
-      
       config.headers.Authorization = `Bearer ${token}`;
       console.log(`[api.ts] Authorization header set for request to: ${config.url}`);
     } catch (error) {
@@ -44,12 +49,6 @@ api.interceptors.request.use(async (config) => {
     console.warn(`[api.ts] No authenticated user found. Request to ${config.url} will be unauthenticated.`);
   }
 
-  console.log(`[api.ts] Final request config for ${config.url}:`, {
-    method: config.method,
-    headers: config.headers,
-    data: config.data
-  });
-  
   return config;
 }, (error) => {
   console.error('[api.ts] Request interceptor error:', error);
@@ -95,13 +94,128 @@ api.interceptors.response.use(
       return Promise.reject(new Error('Server error. Please try again later.'));
     }
 
-    // Para outros erros, rejeita com a mensagem original ou uma padrão
     const errorMessage = error.response?.data?.message || 
                        error.message || 
                        'An unexpected error occurred';
     return Promise.reject(new Error(errorMessage));
   }
 );
+
+// --- MARKET DATA API ---
+export const marketDataAPI = {
+  getMarketData: async (requestBody: MarketDataRequest) => {
+    try {
+      console.log('[marketDataAPI] Buscando dados do mercado:', requestBody);
+      const response = await api.post('/api/market-data', requestBody, {
+        timeout: 30000 // Aumentando timeout para 30 segundos
+      });
+      console.log('[marketDataAPI] Dados do mercado obtidos com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[marketDataAPI] Erro ao buscar dados do mercado:', error);
+      throw error;
+    }
+  }
+};
+
+// --- CHATBOT API ---
+export const chatbotAPI = {
+  sendQuery: async (query: { message: string; chatId: string }) => {
+    console.log('[chatbotAPI] Enviando consulta:', query);
+    try {
+      const response = await api.post('/api/chatbot/query', query);
+      console.log('[chatbotAPI] Resposta recebida com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[chatbotAPI] Erro ao enviar consulta:', error);
+      throw error;
+    }
+  },
+  getSessions: async () => {
+    console.log('[chatbotAPI] Buscando sessões');
+    try {
+      const response = await api.get('/api/chatbot/sessions');
+      console.log('[chatbotAPI] Sessões obtidas com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[chatbotAPI] Erro ao buscar sessões:', error);
+      throw error;
+    }
+  },
+  startNewSession: async () => {
+    console.log('[chatbotAPI] Iniciando nova sessão');
+    try {
+      const response = await api.post('/api/chatbot/sessions');
+      console.log('[chatbotAPI] Nova sessão iniciada com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[chatbotAPI] Erro ao iniciar nova sessão:', error);
+      throw error;
+    }
+  },
+  getSession: async (chatId: string) => {
+    console.log('[chatbotAPI] Buscando sessão:', chatId);
+    try {
+      const response = await api.get(`/api/chatbot/sessions/${chatId}`);
+      console.log('[chatbotAPI] Sessão obtida com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[chatbotAPI] Erro ao buscar sessão:', error);
+      throw error;
+    }
+  }
+};
+
+// --- SUBSCRIPTION API ---
+export const subscriptionAPI = {
+  getPlans: async () => {
+    const response = await api.get('/api/subscriptions/plans');
+    return response.data;
+  },
+  createCheckoutSession: async (priceId: string, planName: string) => {
+    try {
+      console.log('[subscriptionAPI] Criando sessão de checkout:', { priceId, planName });
+      const response = await api.post('/api/subscriptions/create-checkout-session', {
+        priceId,
+        planName
+      });
+      console.log('[subscriptionAPI] Sessão criada com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[subscriptionAPI] Erro ao criar sessão de checkout:', error);
+      throw error;
+    }
+  },
+  verifySession: async (sessionId: string) => {
+    try {
+      const response = await api.post('/api/subscriptions/verify-session', { sessionId });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao verificar sessão:', error);
+      throw error;
+    }
+  },
+  cancelSubscription: async (subscriptionId: string) => {
+    try {
+      const response = await api.post('/api/subscriptions/cancel', {
+        subscriptionId,
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao cancelar assinatura:', error);
+      throw error;
+    }
+  },
+  getSubscriptionStatus: async () => {
+    try {
+      const response = await api.get('/api/subscriptions/status');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao obter status da assinatura:', error);
+      throw error;
+    }
+  },
+};
 
 // API para Investimentos com logs
 export const investimentoAPI = {
@@ -262,6 +376,21 @@ export const metaAPI = {
       console.log(`[metaAPI] Goal ${id} deleted successfully`);
     } catch (error) {
       console.error(`[metaAPI] Error deleting goal ${id}:`, error);
+      throw error;
+    }
+  }
+};
+
+// API para Dashboard com logs
+export const dashboardAPI = {
+  getMarketData: async (payload: any): Promise<any> => {
+    console.log('[dashboardAPI] Buscando dados do mercado:', payload);
+    try {
+      const response = await api.post('/api/market-data', payload);
+      console.log('[dashboardAPI] Dados do mercado obtidos com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[dashboardAPI] Erro ao buscar dados do mercado:', error);
       throw error;
     }
   }

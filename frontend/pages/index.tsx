@@ -10,11 +10,13 @@ import CountUp from 'react-countup';
 import { 
   FiArrowRight, FiCheck, FiPlay, FiStar, FiTrendingUp, 
   FiTwitter, FiLinkedin, FiFacebook, FiInstagram, FiYoutube,
-  FiMenu, FiX
+  FiMenu, FiX, FiSun, FiMoon, FiGlobe
 } from 'react-icons/fi';
 import { FaBitcoin, FaPiggyBank, FaChartLine, FaShieldAlt } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
+import { useTheme } from '../context/ThemeContext';
+import { translations } from '../contexts/translations';
 
 // Estilos
 import 'react-tabs/style/react-tabs.css';
@@ -22,6 +24,7 @@ import '@splidejs/splide/css/core';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
@@ -30,20 +33,23 @@ export default function HomePage() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
-  const handleClick = (buttonName: string) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'click', {
-      event_category: 'engagement',
-      event_label: buttonName
-    });
-  }
-};
-
+  // Redirecionar usuários logados para o dashboard
   useEffect(() => {
+    console.log('[HomePage] useEffect - loading:', loading, 'user:', !!user);
     if (!loading && user) {
-      router.push('/dashboard');
+      console.log('[HomePage] User is logged in, redirecting to dashboard');
+      router.replace('/dashboard');
     }
   }, [user, loading, router]);
+
+  const handleClick = (buttonName: string) => {
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'click', {
+        event_category: 'engagement',
+        event_label: buttonName
+      });
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -67,9 +73,12 @@ export default function HomePage() {
     }
   }, [isInView, controls]);
 
-  if (loading || user) {
+  // Mostrar loading apenas quando está carregando
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className={`min-h-screen flex items-center justify-center ${
+        resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -125,6 +134,12 @@ export default function HomePage() {
     { name: 'Contato', path: '/contato' }
   ];
 
+  // Detecta a página atual
+  const currentPath = router.pathname;
+
+  // Filtra o menu removendo a página atual
+  const filteredMenuItems = menuItems.filter(item => item.path !== currentPath);
+
   const testimonials = [
     {
       name: "Carlos Silva",
@@ -153,7 +168,7 @@ export default function HomePage() {
   ];
 
   return (
-    <>
+    <div className={`min-h-screen ${resolvedTheme === 'dark' ? 'dark' : ''}`}>
       <Head>
         <title>FinNEXTHO | Revolução Financeira</title>
         <meta name="description" content="Plataforma financeira completa com IA integrada" />
@@ -161,24 +176,34 @@ export default function HomePage() {
       </Head>
 
       {/* Navbar */}
-      <header className={`fixed w-full z-50 transition-all duration-500 ${isScrolled ? 'bg-gray-900/95 backdrop-blur-md py-3 shadow-xl' : 'bg-transparent py-5'}`}>
+      <header className={`fixed w-full z-50 transition-all duration-500 ${
+        isScrolled 
+          ? resolvedTheme === 'dark' 
+            ? 'bg-gray-900/95 backdrop-blur-md py-3 shadow-xl' 
+            : 'bg-white/95 backdrop-blur-md py-3 shadow-xl'
+          : 'bg-transparent py-5'
+      }`}>
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
           <Link href="/" className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <FiTrendingUp className="text-white w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+            <span className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 ${
+              resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
               Fin<span className="text-blue-300">NEXTHO</span>
             </span>
           </Link>
 
           <div className="hidden md:flex items-center space-x-8">
             <nav className="flex space-x-8">
-              {menuItems.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <Link 
                   key={item.path}
                   href={item.path}
-                  className="text-gray-300 hover:text-white transition-colors font-medium text-sm uppercase tracking-wider"
+                  className={`${
+                    resolvedTheme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  } transition-colors font-medium text-sm uppercase tracking-wider`}
                   onClick={() => handleClick(`nav_${item.name.toLowerCase()}`)}
                 >
                   {item.name}
@@ -186,10 +211,26 @@ export default function HomePage() {
               ))}
             </nav>
 
-            <div className="flex space-x-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-lg transition-colors ${
+                  resolvedTheme === 'dark' 
+                    ? 'text-gray-300 hover:text-white hover:bg-gray-800' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+                aria-label={resolvedTheme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+              >
+                {resolvedTheme === 'dark' ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
+              </button>
+
               <Link 
                 href="/auth/login"  
-                className="px-5 py-2.5 text-sm font-medium text-white hover:text-blue-100 transition"
+                className={`px-5 py-2.5 text-sm font-medium transition-colors ${
+                  resolvedTheme === 'dark' 
+                    ? 'text-white hover:text-blue-100' 
+                    : 'text-gray-900 hover:text-gray-700'
+                }`}
                 onClick={() => handleClick('login_button')}
               >
                 Entrar
@@ -205,7 +246,11 @@ export default function HomePage() {
           </div>
 
           <button 
-            className="md:hidden text-gray-300 hover:text-white focus:outline-none"
+            className={`md:hidden focus:outline-none transition-colors ${
+              resolvedTheme === 'dark' 
+                ? 'text-gray-300 hover:text-white' 
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Abrir menu"
           >
@@ -222,15 +267,21 @@ export default function HomePage() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden absolute top-full left-0 right-0 bg-gray-900/95 backdrop-blur-md border-t border-gray-800 shadow-xl"
+            className={`md:hidden absolute top-full left-0 right-0 ${
+              resolvedTheme === 'dark' 
+                ? 'bg-gray-900/95 backdrop-blur-md border-t border-gray-800' 
+                : 'bg-white/95 backdrop-blur-md border-t border-gray-200'
+            } shadow-xl`}
           >
             <div className="container mx-auto px-6 py-4">
               <nav className="flex flex-col space-y-4">
-                {menuItems.map((item) => (
+                {filteredMenuItems.map((item) => (
                   <Link 
                     key={item.path}
                     href={item.path}
-                    className="text-gray-300 hover:text-white transition-colors font-medium text-sm uppercase tracking-wider py-2"
+                    className={`${
+                      resolvedTheme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                    } transition-colors font-medium text-sm uppercase tracking-wider py-2`}
                     onClick={() => {
                       handleClick(`mobile_nav_${item.name.toLowerCase()}`);
                       setMobileMenuOpen(false);
@@ -242,9 +293,27 @@ export default function HomePage() {
               </nav>
 
               <div className="mt-6 pt-6 border-t border-gray-800 flex flex-col space-y-4">
+                <div className="flex items-center justify-center space-x-4">
+                  <button
+                    onClick={toggleTheme}
+                    className={`p-2 rounded-lg transition-colors ${
+                      resolvedTheme === 'dark' 
+                        ? 'text-gray-300 hover:text-white hover:bg-gray-800' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                    aria-label={resolvedTheme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+                  >
+                    {resolvedTheme === 'dark' ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
+                  </button>
+                </div>
+
                 <Link 
                   href="/auth/login"  
-                  className="px-5 py-3 text-center font-medium text-white hover:bg-gray-800 rounded-lg transition"
+                  className={`px-5 py-3 text-center font-medium rounded-lg transition ${
+                    resolvedTheme === 'dark' 
+                      ? 'text-white hover:bg-gray-800' 
+                      : 'text-gray-900 hover:bg-gray-100'
+                  }`}
                   onClick={() => {
                     handleClick('mobile_login_button');
                     setMobileMenuOpen(false);
@@ -275,7 +344,9 @@ export default function HomePage() {
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition"
+                    className={`${
+                      resolvedTheme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                    } transition`}
                     aria-label={social.name}
                     onClick={() => handleClick(`mobile_social_${social.name.toLowerCase()}`)}
                   >
@@ -290,7 +361,9 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen overflow-hidden">
+      <section className={`relative min-h-screen overflow-hidden ${
+        resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="absolute inset-0 z-0">
           <video 
             autoPlay 
@@ -301,7 +374,11 @@ export default function HomePage() {
           >
             <source src="/hero/background.mp4.mp4" type="video/mp4" />
           </video>
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900/60 to-gray-900/90"></div>
+          <div className={`absolute inset-0 ${
+            resolvedTheme === 'dark' 
+              ? 'bg-gradient-to-b from-gray-900/60 to-gray-900/90' 
+              : 'bg-gradient-to-b from-white/60 to-white/90'
+          }`}></div>
         </div>
 
         <div className="relative z-10 container mx-auto px-6 h-screen flex flex-col justify-center">
@@ -311,19 +388,27 @@ export default function HomePage() {
             transition={{ duration: 0.8 }}
             className="max-w-4xl"
           >
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-gray-800/50 border border-gray-700 mb-6">
-              <span className="text-xs font-semibold tracking-wider text-blue-300 uppercase">
+            <div className={`inline-flex items-center px-3 py-1 rounded-full ${
+              resolvedTheme === 'dark' 
+                ? 'bg-gray-800/50 border border-gray-700' 
+                : 'bg-blue-50 border border-blue-200'
+            } mb-6`}>
+              <span className="text-xs font-semibold tracking-wider text-blue-600 uppercase">
                 Versão PRO Lançada
               </span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight mb-6">
+            <h1 className={`text-5xl md:text-7xl font-bold leading-tight mb-6 ${
+              resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
                 Seu futuro
               </span> financeiro começa aqui 
             </h1>
 
-            <p className="text-xl md:text-2xl text-gray-300 max-w-2xl mb-10">
+            <p className={`text-xl md:text-2xl max-w-2xl mb-10 ${
+              resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               A primeira plataforma que combina gestão financeira pessoal com inteligência artificial preditiva.
             </p>
 
@@ -338,7 +423,11 @@ export default function HomePage() {
               </Link>
 
               <button 
-                className="flex items-center justify-center px-8 py-4 bg-white/10 text-white rounded-lg font-bold hover:bg-white/20 transition border border-white/20 group"
+                className={`flex items-center justify-center px-8 py-4 rounded-lg font-bold transition border group ${
+                  resolvedTheme === 'dark' 
+                    ? 'bg-white/10 text-white hover:bg-white/20 border-white/20' 
+                    : 'bg-gray-900/10 text-gray-900 hover:bg-gray-900/20 border-gray-900/20'
+                }`}
                 onClick={() => {
                   handleClick('demo_button');
                   router.push('/demo');
@@ -356,14 +445,20 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10"
         >
-          <div className="animate-bounce w-8 h-14 rounded-full border-2 border-gray-400 flex justify-center p-1">
-            <div className="w-1 h-2 bg-gray-400 rounded-full"></div>
+          <div className={`animate-bounce w-8 h-14 rounded-full border-2 flex justify-center p-1 ${
+            resolvedTheme === 'dark' ? 'border-gray-400' : 'border-gray-600'
+          }`}>
+            <div className={`w-1 h-2 rounded-full ${
+              resolvedTheme === 'dark' ? 'bg-gray-400' : 'bg-gray-600'
+            }`}></div>
           </div>
         </motion.div>
       </section>
 
       {/* Seção de Métricas */}
-      <section id="recursos" className="py-20 bg-gray-900">
+      <section id="recursos" className={`py-20 ${
+        resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {metrics.map((metric, index) => (
@@ -373,9 +468,13 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-gray-800/50 border border-gray-700 rounded-xl p-8 text-center hover:bg-gray-800 transition"
+                className={`${
+                  resolvedTheme === 'dark' 
+                    ? 'bg-gray-800/50 border border-gray-700' 
+                    : 'bg-white border border-gray-200 shadow-lg hover:shadow-xl'
+                } rounded-xl p-8 text-center hover:shadow-lg transition-all duration-300`}
               >
-                <div className="text-4xl md:text-5xl font-bold text-white mb-2">
+                <div className="text-4xl md:text-5xl font-bold mb-2">
                   <CountUp 
                     end={metric.value} 
                     suffix={metric.suffix}
@@ -384,7 +483,9 @@ export default function HomePage() {
                     className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400"
                   />
                 </div>
-                <p className="text-gray-400 text-sm uppercase tracking-wider">
+                <p className={`text-sm uppercase tracking-wider ${
+                  resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                   {metric.label}
                 </p>
               </motion.div>
@@ -394,7 +495,9 @@ export default function HomePage() {
       </section>
 
       {/* Seção de Recursos */}
-      <section id="solucoes" className="py-20 bg-black">
+      <section id="solucoes" className={`py-20 ${
+        resolvedTheme === 'dark' ? 'bg-black' : 'bg-white'
+      }`}>
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0 }}
@@ -402,10 +505,14 @@ export default function HomePage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+            <h2 className={`text-3xl md:text-5xl font-bold mb-6 ${
+              resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
               Tecnologia <span className="text-blue-400">Exclusiva</span>
             </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+            <p className={`text-xl max-w-3xl mx-auto ${
+              resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Recursos avançados que você não encontra em nenhum outro lugar
             </p>
           </motion.div>
@@ -418,7 +525,9 @@ export default function HomePage() {
                   className={`px-6 py-3 rounded-full cursor-pointer font-medium transition-colors ${
                     activeTab === index
                       ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      : resolvedTheme === 'dark'
+                        ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                   onClick={() => handleClick(`tab_${tab.toLowerCase()}`)}
                 >
@@ -437,10 +546,14 @@ export default function HomePage() {
                     className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center"
                   >
                     <div>
-                      <h3 className="text-3xl font-bold text-white mb-6">
+                      <h3 className={`text-3xl font-bold mb-6 ${
+                        resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {['Painel Inteligente', 'Carteira Global', 'Automatização', 'Proteção'][index]}
                       </h3>
-                      <p className="text-gray-400 mb-8 text-lg">
+                      <p className={`mb-8 text-lg ${
+                        resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                         {[
                           'Visualização unificada de todos seus ativos com recomendações em tempo real.',
                           'Gerencie ações, criptomoedas e fundos em uma única interface integrada.',
@@ -457,15 +570,19 @@ export default function HomePage() {
                         ][index].map((item, i) => (
                           <li key={i} className="flex items-start">
                             <FiCheck className="text-green-500 mt-1 mr-3 flex-shrink-0" />
-                            <span className="text-gray-300">{item}</span>
+                            <span className={resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
+                              {item}
+                            </span>
                           </li>
                         ))}
                       </ul>
                     </div>
                     <div className="relative">
-                      <div className="relative rounded-2xl overflow-hidden border border-gray-700/50 shadow-2xl">
+                      <div className={`relative rounded-2xl overflow-hidden border shadow-2xl ${
+                        resolvedTheme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
                         <Image
-                          src={`/features/${['dashboard', 'investments', 'savings', 'security'][index]}.jpg`}
+                          src={`/features/${['dashboard', 'investiments', 'savings', 'security'][index]}.jpg`}
                           alt={['Painel Financeiro', 'Investimentos', 'Economia', 'Segurança'][index]}
                           width={800}
                           height={600}
@@ -484,13 +601,19 @@ export default function HomePage() {
       </section>
 
       {/* Seção de Depoimentos */}
-      <section id="clientes" className="py-20 bg-gray-900">
+      <section id="clientes" className={`py-20 ${
+        resolvedTheme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+            <h2 className={`text-3xl md:text-5xl font-bold mb-6 ${
+              resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
               O que dizem nossos <span className="text-purple-400">clientes</span>
             </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+            <p className={`text-xl max-w-3xl mx-auto ${
+              resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               Veja como estamos transformando vidas financeiras
             </p>
           </div>
@@ -507,7 +630,11 @@ export default function HomePage() {
                     initial="hidden"
                     animate={controls}
                     transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="bg-gray-800 rounded-2xl p-8 h-full border border-gray-700/50 hover:border-purple-500/30 transition-all"
+                    className={`${
+                      resolvedTheme === 'dark' 
+                        ? 'bg-gray-800 border-gray-700/50 hover:border-purple-500/30' 
+                        : 'bg-white border-gray-200/50 hover:border-purple-500/30 shadow-lg'
+                    } rounded-2xl p-8 h-full border transition-all`}
                   >
                     <div className="flex mb-4">
                       {[...Array(5)].map((_, i) => (
@@ -517,7 +644,9 @@ export default function HomePage() {
                         />
                       ))}
                     </div>
-                    <p className="text-gray-300 mb-8 italic text-lg">&quot;{testimonial.content}&quot;</p>
+                    <p className={`mb-8 italic text-lg ${
+                      resolvedTheme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                    }`}>&quot;{testimonial.content}&quot;</p>
                     <div className="flex items-center">
                       <Image
                         src={`/testimonials/client${index + 1}.jpg`}
@@ -528,8 +657,12 @@ export default function HomePage() {
                         loading="lazy"
                       />
                       <div>
-                        <h4 className="font-bold text-white">{testimonial.name}</h4>
-                        <p className="text-gray-400 text-sm">{testimonial.role}</p>
+                        <h4 className={`font-bold ${
+                          resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+                        }`}>{testimonial.name}</h4>
+                        <p className={`text-sm ${
+                          resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>{testimonial.role}</p>
                       </div>
                     </div>
                   </motion.div>
@@ -541,10 +674,16 @@ export default function HomePage() {
       </section>
 
       {/* Seção CTA Final */}
-      <section id="contato" className="relative py-32 overflow-hidden bg-gradient-to-br from-blue-900 to-purple-900">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-transparent to-black"></div>
-        </div>
+      <section id="contato" className={`relative py-32 overflow-hidden ${
+        resolvedTheme === 'dark' 
+          ? 'bg-gradient-to-br from-blue-900 to-purple-900' 
+          : 'bg-gradient-to-br from-blue-50 to-purple-50'
+      }`}>
+        <div className={`absolute inset-0 opacity-20 ${
+          resolvedTheme === 'dark' 
+            ? 'bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-transparent to-black'
+            : 'bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-transparent via-transparent to-gray-900'
+        }`}></div>
 
         <div className="relative container mx-auto px-6 text-center">
           <motion.div
@@ -553,17 +692,25 @@ export default function HomePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl md:text-6xl font-bold text-white mb-8">
-              Pronto para a <span className="text-blue-300">revolução</span> financeira?
+            <h2 className={`text-4xl md:text-6xl font-bold mb-8 ${
+              resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+            }`}>
+              Pronto para a <span className={resolvedTheme === 'dark' ? 'text-blue-300' : 'text-blue-700'}>revolução</span> financeira?
             </h2>
-            <p className="text-xl text-blue-200 max-w-3xl mx-auto mb-12">
+            <p className={`text-xl max-w-3xl mx-auto mb-12 ${
+              resolvedTheme === 'dark' ? 'text-blue-200' : 'text-blue-900'
+            }`}>
               Junte-se a mais de 15.000 usuários que já transformaram sua relação com o dinheiro.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-6">
               <Link
                 href="/auth/register"
-                className="px-10 py-5 bg-white text-blue-900 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-blue-500/20 flex items-center justify-center"
+                className={`px-10 py-5 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-2xl flex items-center justify-center ${
+                  resolvedTheme === 'dark'
+                    ? 'bg-white text-blue-900 hover:bg-gray-100 hover:shadow-blue-500/20'
+                    : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:shadow-blue-500/20'
+                }`}
                 onClick={() => handleClick('final_cta')}
               >
                 Comece Agora 
@@ -571,7 +718,11 @@ export default function HomePage() {
 
               <Link
                 href="/demo"
-                className="px-10 py-5 bg-transparent border-2 border-white text-white rounded-xl font-bold text-lg hover:bg-white/10 transition-all duration-300 flex items-center justify-center"
+                className={`px-10 py-5 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center border-2 ${
+                  resolvedTheme === 'dark'
+                    ? 'bg-transparent border-white text-white hover:bg-white/10'
+                    : 'bg-transparent border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white'
+                }`}
                 onClick={() => handleClick('demo_cta')}
               >
                 <FiPlay className="mr-2" />
@@ -579,7 +730,9 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <p className="mt-8 text-blue-300/80 text-sm">
+            <p className={`mt-8 text-sm ${
+              resolvedTheme === 'dark' ? 'text-blue-300/80' : 'text-blue-800/80'
+            }`}>
               Sem compromisso • Cancelamento a qualquer momento • Criptografia bancária
             </p>
           </motion.div>
@@ -587,7 +740,11 @@ export default function HomePage() {
       </section>
 
       {/* Rodapé */}
-      <footer className="bg-gray-950 text-gray-400 py-16">
+      <footer className={`py-16 ${
+        resolvedTheme === 'dark'
+          ? 'bg-gray-950 text-gray-400'
+          : 'bg-gray-100 text-gray-700'
+      }`}>
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
             <div className="lg:col-span-2">
@@ -595,11 +752,15 @@ export default function HomePage() {
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                   <FiTrendingUp className="text-white w-6 h-6" />
                 </div>
-                <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                  Fin<span className="text-blue-300">NEXTHO</span>
+                <span className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 ${
+                  resolvedTheme === 'dark' ? '' : 'text-gray-900'
+                }`}>
+                  Fin<span className={resolvedTheme === 'dark' ? 'text-blue-300' : 'text-blue-700'}>NEXTHO</span>
                 </span>
               </Link>
-              <p className="mb-6">
+              <p className={`mb-6 ${
+                resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+              }`}>
                 A plataforma financeira mais avançada do mercado, com tecnologia de ponta para transformar sua relação com o dinheiro.
               </p>
               <div className="flex space-x-4">
@@ -615,7 +776,11 @@ export default function HomePage() {
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition hover:text-white"
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition ${
+                      resolvedTheme === 'dark' 
+                        ? 'bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-600 hover:text-gray-900'
+                    }`}
                     aria-label={social.name}
                     onClick={() => handleClick(`social_${social.name.toLowerCase()}`)}
                   >
@@ -627,13 +792,17 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-white font-bold text-lg mb-6">Produto</h3>
+              <h3 className={`font-bold text-lg mb-6 ${
+                resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>Produto</h3>
               <ul className="space-y-3">
-                {menuItems.map((item) => (
+                {filteredMenuItems.map((item) => (
                   <li key={item.path}>
                     <Link 
                       href={item.path}
-                      className="hover:text-white transition"
+                      className={`hover:transition-colors ${
+                        resolvedTheme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+                      }`}
                       onClick={() => handleClick(`footer_${item.name.toLowerCase()}`)}
                     >
                       {item.name}
@@ -644,16 +813,26 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-white font-bold text-lg mb-6">Empresa</h3>
+              <h3 className={`font-bold text-lg mb-6 ${
+                resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>Empresa</h3>
               <ul className="space-y-3">
-                {['Sobre', 'Carreiras', 'Blog', 'Parceiros', 'Imprensa'].map((item) => (
-                  <li key={item}>
+                {[
+                  { name: 'Sobre', path: '/sobre' },
+                  { name: 'Carreiras', path: '/carreiras' },
+                  { name: 'Blog', path: '/blog' },
+                  { name: 'Parceiros', path: '/parceiros' },
+                  { name: 'Imprensa', path: '/imprensa' }
+                ].map((item) => (
+                  <li key={item.name}>
                     <Link 
-                      href="#" 
-                      className="hover:text-white transition"
-                      onClick={() => handleClick(`footer_${item.toLowerCase()}`)}
+                      href={item.path}
+                      className={`hover:transition-colors ${
+                        resolvedTheme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+                      }`}
+                      onClick={() => handleClick(`footer_${item.name.toLowerCase()}`)}
                     >
-                      {item}
+                      {item.name}
                     </Link>
                   </li>
                 ))}
@@ -661,16 +840,26 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-white font-bold text-lg mb-6">Jurídico</h3>
+              <h3 className={`font-bold text-lg mb-6 ${
+                resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'
+              }`}>Jurídico</h3>
               <ul className="space-y-3">
-                {['Privacidade', 'Termos', 'Segurança', 'Cookies', 'Licenças'].map((item) => (
-                  <li key={item}>
+                {[
+                  { name: 'Privacidade', path: '/privacidade' },
+                  { name: 'Termos', path: '/termos' },
+                  { name: 'Segurança', path: '/seguranca' },
+                  { name: 'Cookies', path: '/cookies' },
+                  { name: 'Licenças', path: '/licencas' }
+                ].map((item) => (
+                  <li key={item.name}>
                     <Link 
-                      href="#" 
-                      className="hover:text-white transition"
-                      onClick={() => handleClick(`footer_${item.toLowerCase()}`)}
+                      href={item.path}
+                      className={`hover:transition-colors ${
+                        resolvedTheme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+                      }`}
+                      onClick={() => handleClick(`footer_${item.name.toLowerCase()}`)}
                     >
-                      {item}
+                      {item.name}
                     </Link>
                   </li>
                 ))}
@@ -678,19 +867,27 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="border-t border-gray-800 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p>© {new Date().getFullYear()} FinNEXTHO. Todos os direitos reservados.</p>
+          <div className={`border-t mt-16 pt-8 flex flex-col md:flex-row justify-between items-center ${
+            resolvedTheme === 'dark' ? 'border-gray-800' : 'border-gray-300'
+          }`}>
+            <p className={resolvedTheme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+              © {new Date().getFullYear()} FinNEXTHO. Todos os direitos reservados.
+            </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link 
-                href="#" 
-                className="hover:text-white transition"
+                href="/termos" 
+                className={`hover:transition-colors ${
+                  resolvedTheme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+                }`}
                 onClick={() => handleClick('footer_terms')}
               >
                 Termos de Serviço
               </Link>
               <Link 
-                href="#" 
-                className="hover:text-white transition"
+                href="/privacidade" 
+                className={`hover:transition-colors ${
+                  resolvedTheme === 'dark' ? 'hover:text-white' : 'hover:text-gray-900'
+                }`}
                 onClick={() => handleClick('footer_privacy')}
               >
                 Política de Privacidade
@@ -699,6 +896,6 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 }
