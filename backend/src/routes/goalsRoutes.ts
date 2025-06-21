@@ -11,19 +11,19 @@ import { asyncHandler } from "../utils/asyncHandler"; // Importar o asyncHandler
 
 const router = express.Router();
 
+// Rota para listar metas
+router.get("/", authenticate, asyncHandler(getGoals));
 
-router.get("/goals", authenticate, asyncHandler(getGoals));
+// Rota para obter progresso das metas por categoria
+router.get("/progress-by-category", authenticate, asyncHandler(getGoalsProgressByCategory));
 
-// Rota para obter progresso das metas por categoria (protegida)
-router.get("/goals/progress-by-category", authenticate, asyncHandler(getGoalsProgressByCategory));
+// Rota para criar meta
+router.post("/", authenticate, asyncHandler(saveGoal));
 
-// Rota para criar meta (protegida)
-router.post("/goals", authenticate, asyncHandler(saveGoal));
+// Rota para atualizar meta
+router.put("/:id", authenticate, asyncHandler(updateGoal));
 
-// Rota para atualizar meta (protegida)
-router.put("/goals/:id", authenticate, asyncHandler(updateGoal));
-
-// Rota para deletar meta (protegida)
-router.delete("/goals/:id", authenticate, asyncHandler(deleteGoal));
+// Rota para deletar meta
+router.delete("/:id", authenticate, asyncHandler(deleteGoal));
 
 export default router;

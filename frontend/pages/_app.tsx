@@ -13,6 +13,10 @@ import '../styles/globals.css'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { GoogleAnalytics } from '../components/GoogleAnalytics'
 import AuthInitializer from '../components/AuthInitializer'
+import { Elements } from '@stripe/react-stripe-js'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUB_KEY!);
 
 function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,28 +54,34 @@ function AppContent({ Component, pageProps }: AppProps) {
   )
 }
 
-export default function MyApp(props: AppProps) {
+function MyApp(props: AppProps) {
   return (
     <ThemeProvider>
       <AuthProvider>
         <DashboardProvider>
           <FinanceProvider>
-            <GoogleAnalytics />
-            <ToastContainer
-              position="top-right"
-              autoClose={5000}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-            />
-            <AppContent {...props} />
+            <Elements stripe={stripePromise}>
+              <GoogleAnalytics />
+              <ToastContainer
+                position="top-right"
+                autoClose={5000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                style={{ zIndex: 9999 }}
+                toastStyle={{ zIndex: 9999 }}
+              />
+              <AppContent {...props} />
+            </Elements>
           </FinanceProvider>
         </DashboardProvider>
       </AuthProvider>
     </ThemeProvider>
   )
 }
+
+export default MyApp

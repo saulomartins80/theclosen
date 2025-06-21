@@ -1,5 +1,5 @@
-import './config/env'; 
 import 'reflect-metadata';
+import './config/env'; 
 import express from 'express';
 import 'module-alias/register';
 import cors from 'cors';
@@ -17,14 +17,15 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 
 // Rotas
+import chatbotRoutes from './routes/chatbotRoutes';
 import transacoesRouter from './routes/transacoesRoutes';
 import goalsRouter from './routes/goalsRoutes';
 import investimentoRouter from './routes/investimentoRoutes';
-import userRouter from './routes/userRoutes';
-import subscriptionRouter from './routes/subscriptionRoutes';
+import subscriptionRoutes from './modules/subscriptions/routes/subscriptionRoutes';
 import authRoutes from './routes/authRoutes'; 
 import marketDataRoutes from './routes/marketDataRoutes'; 
-//import weatherRoutes from './routes/weatherRoutes';
+import protectedRoutes from './routes/protectedRoutes';
+import userRoutes from './modules/users/routes/userRoutes';
 
 interface HealthCheckResponse {
   status: 'OK' | 'PARTIAL' | 'FAIL';
@@ -75,17 +76,10 @@ interface CpuUsage {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.set('trust proxy', 1); // Necessário para express-rate-limit funcionar corretamente atrás de proxy/reverse proxy
+app.set('trust proxy', 1);
 
-// A validação de variáveis de ambiente agora é primariamente feita em config/env.ts
-// Você pode remover ou ajustar esta seção se desejar.
-// const requiredEnvVars = ['MONGO_URI', 'JWT_SECRET', 'FIREBASE_ADMIN_PROJECT_ID']; 
-// requiredEnvVars.forEach(env => {
-//   if (!process.env[env]) {
-//     console.error(`❌ Variável de ambiente necessária faltando: ${env}`);
-//     process.exit(1);
-//   }
-// });
+// Configuração do webhook do Stripe deve vir antes de outras configurações
+app.use('/api/subscriptions/webhook', express.raw({ type: 'application/json' }));
 
 app.use(helmet());
 app.use(morgan('dev'));
@@ -107,8 +101,10 @@ app.use(cors({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Muitas requisições deste IP, tente novamente mais tarde.'
+  max: 1000,
+  message: 'Muitas requisições deste IP, tente novamente mais tarde.',
+  skipSuccessfulRequests: true,
+  skipFailedRequests: false
 });
 app.use('/api/', apiLimiter);
 
@@ -236,14 +232,22 @@ app.get('/health', (async (req: express.Request, res: express.Response): Promise
   }
 }) as express.RequestHandler);
 
-app.use("/api/transacoes", transacoesRouter);
-app.use('/api', goalsRouter)
-app.use("/api/investimentos", investimentoRouter);
-app.use("/api/users", userRouter);
-app.use("/api/subscriptions", subscriptionRouter);
+// Configuração do middleware para webhooks do Stripe
+app.use('/api/subscriptions/webhook', express.raw({ type: 'application/json' }));
+
+// Configuração do body-parser para outras rotas
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/transacoes', transacoesRouter);
+app.use('/api/goals', goalsRouter);
+app.use('/api/investimentos', investimentoRouter);
+app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/market-data', marketDataRoutes);
-//app.use('/api/weather', weatherRoutes);
+app.use('/api/protected', protectedRoutes);
+app.use('/api/users', userRoutes);
 
 app.use(errorHandler as express.ErrorRequestHandler);
 
@@ -265,12 +269,7 @@ let server: Server;
 
 const startServer = async () => {
   try {
-    // A verificação do MONGO_URI já acontece em config/env.ts se estiver na requiredVars
-    // if (!process.env.MONGO_URI) {
-    //   throw new AppError(500, "MONGO_URI não definida no .env");
-    // }
-
-    await mongoose.connect(process.env.MONGO_URI!, { // Adicionado ! pois config/env garante que existe
+    await mongoose.connect(process.env.MONGO_URI!, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 30000,
       maxPoolSize: 50,
