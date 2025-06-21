@@ -42,7 +42,7 @@ interface Settings {
 }
 
 export default function ConfiguracoesPage() {
-  const { user, setUser } = useAuth();
+  const { user, updateUserContextProfile } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('account');
@@ -112,9 +112,6 @@ export default function ConfiguracoesPage() {
       }
       const userRef = doc(db, 'users', user.uid);
       await setDoc(userRef, { settings }, { merge: true });
-      if (setUser && user) {
-        setUser(prev => prev ? { ...prev, settings } : null);
-      }
       toast.success('Configurações salvas com sucesso!');
     } catch (error) {
       toast.error('Erro ao salvar configurações.');
@@ -692,7 +689,7 @@ export default function ConfiguracoesPage() {
                   <DangerZone
                     userId={user?.uid || ''}
                     onAccountDeleted={() => {
-                      if (setUser) setUser(null);
+                      if (updateUserContextProfile) updateUserContextProfile({});
                       router.push('/');
                     }}
                   />

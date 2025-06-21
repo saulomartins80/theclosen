@@ -16,25 +16,6 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, authChecked } = useAuth();
 
-  // Efeito para redirecionamento seguro
-  useEffect(() => {
-    if (!authChecked || loading) return;
-    
-    const redirectTimer = setTimeout(() => {
-      if (!user) {
-        const currentPath = router.asPath;
-        router.replace({
-          pathname: '/auth/login',
-          query: { 
-            redirect: currentPath !== '/' ? currentPath : '/dashboard' 
-          }
-        });
-      }
-    }, 150);
-
-    return () => clearTimeout(redirectTimer);
-  }, [user, loading, authChecked, router]);
-
   // Estados de carregamento
   if (loading || !authChecked) {
     return (
@@ -44,8 +25,26 @@ export default function DashboardPage() {
     );
   }
 
+  // Se não há usuário, mostra uma mensagem em vez de redirecionar
   if (!user) {
-    return <div className={styles.hiddenContainer} aria-hidden="true" />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Acesso Restrito
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Você precisa estar logado para acessar o dashboard.
+          </p>
+          <button
+            onClick={() => router.push('/auth/login')}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Fazer Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

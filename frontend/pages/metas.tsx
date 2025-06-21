@@ -325,7 +325,7 @@ const MetasDashboard = () => {
           </div>
           
           {/* Botão de teste temporário */}
-          <button
+            <button
             onClick={() => {
               toast.success('Teste de toast funcionando!');
               toast.error('Teste de erro funcionando!');
@@ -333,7 +333,7 @@ const MetasDashboard = () => {
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
           >
             Testar Toast
-          </button>
+            </button>
         </div>
 
         {/* Cards de resumo - Ajustado para 2 colunas em telas médias e maiores */}

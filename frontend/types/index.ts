@@ -36,3 +36,8 @@ export interface ApiResponse<T = any> {
   error?: string;
 // Removed duplicate Subscription interface userId?: string;
 }
+
+export interface MarketDataRequest {
+  indices: string[];
+  period?: string;
+}

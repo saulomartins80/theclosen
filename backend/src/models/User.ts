@@ -1,70 +1,77 @@
-// backend/src/models/User.ts
 import mongoose, { Schema, Document, models } from 'mongoose';
+import Stripe from 'stripe';
+import { SubscriptionStatus } from '../modules/users/types/User';
 
-// Defina um tipo/interface para o subdocumento subscription
 export interface ISubscription {
-    plan: string;
-    status: 'active' | 'canceled' | 'expired' | 'pending' | 'trialing';
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    stripePriceId?: string;
+    status?: string;
+    plan?: string;
+    cancelAtPeriodEnd?: boolean;
     expiresAt?: Date;
-    trialEndsAt?: Date; // Adicionado para data de término do trial
+    currentPeriodEnd?: Date;
+    trialEndsAt?: Date;
     subscriptionId?: string;
-    // Outros campos opcionais
-    // currentPeriodStart?: Date;
-    // currentPeriodEnd?: Date;
-    // paymentGateway?: 'stripe' | 'paypal' | 'internal_test';
+    updatedAt?: Date;
 }
 
 export interface IUser extends Document {
-    id?: string; // Adicionado pelo Mongoose como getter para _id
-    name: string;
-    email: string;
-    password?: string;
+    _id: mongoose.Types.ObjectId;
+    email?: string;
+    name?: string;
     firebaseUid: string;
     photoUrl?: string;
+    password?: string;
     settings?: {
         theme?: string;
         notifications?: boolean;
     };
     subscription?: ISubscription;
-    transacoes?: any[]; // Adicionado para transações
-    metas?: any[];      // Adicionado para metas
-    investimentos?: any[];// Adicionado para investimentos
+    transacoes?: any[];
+    investimentos?: any[];
+    metas?: any[];
+    lastPayment?: {
+        date: Date;
+        amount: number;
+        status: string;
+    };
     createdAt?: Date;
     updatedAt?: Date;
 }
 
 const userSchema = new Schema<IUser>(
     {
-        name: { type: String, required: true },
-        email: {
-            type: String,
-            required: true,
-            unique: true,
-            lowercase: true,
-            trim: true,
-        },
-        password: { type: String, required: false },
-        firebaseUid: { type: String, required: true, unique: true },
-        photoUrl: { type: String, required: false },
+        firebaseUid: { type: String, required: true, unique: true, index: true },
+        email: { type: String, required: true },
+        name: { type: String },
+        password: { type: String },
+        photoUrl: { type: String },
         settings: {
             theme: { type: String, default: 'light' },
-            notifications: { type: Boolean, default: true },
+            notifications: { type: Boolean, default: true }
         },
         subscription: {
-            plan: { type: String, required: false },
-            status: {
-                type: String,
-                enum: ['active', 'canceled', 'expired', 'pending', 'trialing'],
-                default: 'pending',
-                required: false
-            },
-            expiresAt: { type: Date, required: false },
-            trialEndsAt: { type: Date, required: false }, // Adicionado para data de término do trial
-            subscriptionId: { type: String, required: false },
+            stripeCustomerId: { type: String, index: true },
+            stripeSubscriptionId: { type: String },
+            stripePriceId: String,
+            status: String,
+            plan: String,
+            cancelAtPeriodEnd: Boolean,
+            expiresAt: Date,
+            currentPeriodEnd: Date,
+            trialEndsAt: Date,
+            subscriptionId: String,
+            updatedAt: Date
         },
-        transacoes: { type: Array, default: [] }, // Adicionado para transações
-        metas: { type: Array, default: [] },      // Adicionado para metas
-        investimentos: { type: Array, default: [] },// Adicionado para investimentos
+        transacoes: { type: Array, default: [] },
+        investimentos: { type: Array, default: [] },
+        metas: { type: Array, default: [] },
+        lastPayment: {
+            date: Date,
+            amount: Number,
+            status: String
+        }
     },
     {
         timestamps: true,
@@ -77,6 +84,6 @@ userSchema.virtual('id').get(function(this: IUser) {
     return (this._id as mongoose.Types.ObjectId).toHexString();
 });
 
-const User = (mongoose.models.User || mongoose.model<IUser>('User', userSchema));
+userSchema.index({ 'subscription.stripeSubscriptionId': 1 }, { unique: true, sparse: true });
 
-export { User };
+export const User = (models.User as mongoose.Model<IUser>) || mongoose.model<IUser>('User', userSchema);

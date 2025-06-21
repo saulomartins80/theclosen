@@ -6,8 +6,9 @@ export const TYPES = {
   UserService: Symbol.for('UserService'),
   UserController: Symbol.for('UserController'),
   
-  // Subscription Module (Firestore)
+  // Subscription Module
   SubscriptionService: Symbol.for('SubscriptionService'),
+  SubscriptionController: Symbol.for('SubscriptionController'),
   
   // Adicione outros módulos abaixo seguindo o mesmo padrão:
   // Exemplo:
@@ -17,5 +18,6 @@ export const TYPES = {
   
   // Serviços compartilhados
   // Logger: Symbol.for('Logger'),
-  // Config: Symbol.for('Config')
+  // Config: Symbol.for('Config'),
+  StripeService: Symbol.for('StripeService'),
 };

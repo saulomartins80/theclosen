@@ -2,11 +2,11 @@
 export class AppError extends Error {
   constructor(
     public statusCode: number,
-    message: string,
-    public details?: any
+    public message: string,
+    public details?: string
   ) {
     super(message);
-    this.name = this.constructor.name;
+    this.name = 'AppError';
     Error.captureStackTrace(this, this.constructor);
   }
 }

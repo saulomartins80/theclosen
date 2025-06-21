@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/router';
-import { useSearchParams } from 'next/navigation'; // Importado useSearchParams
 import { FiMail, FiLock, FiLoader, FiAlertCircle, FiArrowRight, FiCheck } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import { motion } from 'framer-motion';
@@ -14,12 +13,11 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isValidEmail, setIsValidEmail] = useState(false);
-  const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false); // Novo estado para mensagem de sucesso
+  const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false);
 
   const { user, loading, login, loginWithGoogle } = useAuth();
   const router = useRouter();
-  const { redirect } = router.query;
-  const searchParams = useSearchParams(); // Usando useSearchParams
+  const { redirect, registration } = router.query;
   const isPreloading = usePreloadCheck();
 
   // Efeitos para validação em tempo real
@@ -30,27 +28,31 @@ export default function LoginPage() {
 
   // Efeito para verificar o parâmetro de sucesso de registro
   useEffect(() => {
-    if (searchParams.get('registration') === 'success') {
-      setShowRegistrationSuccess(true);
-      // Remover o parâmetro da URL para não mostrar novamente ao recarregar
-      router.replace('/auth/login', undefined, { shallow: true });
+    if (router.isReady) {
+      const registrationParam = router.query.registration;
+      if (registrationParam === 'success') {
+        setShowRegistrationSuccess(true);
+        // Remover o parâmetro da URL para não mostrar novamente ao recarregar
+        router.replace('/auth/login', undefined, { shallow: true });
+      }
     }
-  }, [searchParams, router]);
-
+  }, [router.isReady, router.query, router]);
 
   // Redirecionamento se já estiver logado
   useEffect(() => {
-    // Adicionado verificação para não redirecionar imediatamente se vier do registro bem-sucedido e a mensagem estiver sendo exibida
-    if (isPreloading || showRegistrationSuccess) return;
-    if (user && !loading) {
-      router.push(typeof redirect === 'string' ? redirect : '/dashboard');
+    if (user && !loading && router.isReady) {
+      const redirectPath = router.query.redirect as string || '/dashboard';
+      // Evitar redirecionamento se já estiver na página de destino
+      if (router.pathname !== redirectPath) {
+        router.replace(redirectPath);
+      }
     }
-  }, [user, loading, router, redirect, isPreloading, showRegistrationSuccess]); // Adicionado showRegistrationSuccess
+  }, [user, loading, router.isReady, router.query.redirect, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setShowRegistrationSuccess(false); // Limpa mensagem de sucesso ao tentar logar
+    setShowRegistrationSuccess(false);
     setIsLoading(true);
 
     try {
@@ -75,7 +77,7 @@ export default function LoginPage() {
     }
   };
 
-  if (isPreloading || loading || (user && !showRegistrationSuccess)) { // Ajuste na condição para exibir a mensagem de sucesso mesmo se o usuário estiver carregando/autenticado brevemente após o registro
+  if (isPreloading || loading || (user && !showRegistrationSuccess)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <motion.div

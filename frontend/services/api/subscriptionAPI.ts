@@ -7,21 +7,12 @@ import api from '../api';
 export const subscriptionAPI = {
   get: async (userId: string): Promise<Subscription> => {
     const response = await api.get(`/api/subscriptions/${userId}`);
-
-    // Retorna os dados no formato esperado
-    return {
-      id: response.data.id,
-      plan: response.data.plan,
-      status: response.data.status,
-      expiresAt: response.data.expiresAt,
-      createdAt: response.data.createdAt,
-      updatedAt: response.data.updatedAt,
-    };
+    return response.data.data;
   },
 
   quickCheck: async (userId: string): Promise<boolean> => {
     const response = await api.get<ApiResponse<{ hasSubscription: boolean }>>(
-      `/api/subscriptions/quick-check/${userId}`
+      `/api/subscriptions/${userId}/quick-check`
     );
     return response.data.data?.hasSubscription || false;
   },
@@ -38,4 +29,29 @@ export const subscriptionAPI = {
 
     return response.data.data;
   },
+
+  createCheckoutSession: async (priceId: string): Promise<{ sessionId: string; url: string }> => {
+    const response = await api.post<ApiResponse<{ sessionId: string; url: string }>>(
+      '/api/subscriptions/create-checkout-session',
+      { priceId }
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || "Failed to create checkout session");
+    }
+
+    return response.data.data;
+  },
+
+  createCustomerPortalSession: async (): Promise<{ redirectUrl: string }> => {
+    const response = await api.post<ApiResponse<{ redirectUrl: string }>>(
+      '/api/subscriptions/create-portal-session'
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || "Failed to create customer portal session");
+    }
+
+    return response.data.data;
+  }
 };
