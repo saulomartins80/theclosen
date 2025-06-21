@@ -24,8 +24,7 @@
       "@errors/*": ["core/errors/*"],
       "@types/*": ["@types/*"],
       "@jobs/*": ["jobs/*"],
-      "@interfaces/*": ["interfaces/*"], 
-      "@pages/*": ["pages/*"] 
+      "@interfaces/*": ["interfaces/*"]
     },
     "types": ["node"],
     "sourceMap": true,
@@ -33,17 +32,17 @@
     "allowSyntheticDefaultImports": true,
     "typeRoots": [
       "./node_modules/@types",
-      "./src/@types" 
+      "./src/@types"
     ],
     "strictPropertyInitialization": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "noImplicitAny": false  
+    "noImplicitAny": false
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/pages/**/*" 
+    "src/types/global.d.ts",
+    "src/types/express.d.ts"
   ],
   "exclude": [
     "node_modules",
