@@ -1,3 +1,4 @@
+// frontend/lib/firebase/client.ts
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
@@ -11,7 +12,7 @@ import {
   onAuthStateChanged,
   getIdToken,
   browserPopupRedirectResolver,
-  browserLocalPersistence
+  browserSessionPersistence
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 // IMPORTAR getStorage do Firebase Storage
@@ -38,7 +39,7 @@ const initializeFirebase = () => {
     if (!getApps().length) {
       app = initializeApp(firebaseConfig);
       auth = initializeAuth(app, {
-        persistence: browserLocalPersistence
+        persistence: browserSessionPersistence
       });
       db = getFirestore(app);
       storage = getStorage(app); // <-- Inicializar Storage

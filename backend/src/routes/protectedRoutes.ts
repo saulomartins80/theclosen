@@ -16,4 +16,9 @@ router.get('/profile', authenticate, asyncHandler(async (req, res, next) => {
   res.status(200).json(profile);
 }));
 
+router.get('/dashboard', authenticate, asyncHandler(async (req, res) => {
+  if (!req.user?.uid) throw new AppError(401, 'Não autenticado');
+  res.status(200).json({ message: 'Dashboard acessível', user: req.user });
+}));
+
 export default router;

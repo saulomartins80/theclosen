@@ -7,6 +7,7 @@ export interface Subscription {
   plan: SubscriptionPlan;
   status: SubscriptionStatus;
   expiresAt: string;
+  currentPeriodEnd?: string;
   createdAt?: string;
   updatedAt?: string;
   userId?: string;

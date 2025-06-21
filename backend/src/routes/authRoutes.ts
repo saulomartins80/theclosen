@@ -4,36 +4,25 @@ import { container } from '@core/container';
 import { TYPES } from '@core/types';
 import { UserController } from '@modules/users/controllers/UserController';
 import { UserService } from '@modules/users/services/UserService'; // Import UserService
-import { SubscriptionService } from '../services/subscriptionService'; // Caminho ajustado
 import { authenticate } from '@middlewares/authMiddleware';
-import admin from 'firebase-admin';
 import { AppError } from '@core/errors/AppError';
 import { validate } from '@modules/users/middlewares/validate';
 import { userValidators } from '@modules/users/validators/userValidators';
-import jwt from 'jsonwebtoken';
 import { getAuth } from 'firebase-admin/auth';
 // Imports corrigidos para usar aliases do tsconfig para firebase/admin e types/Subscription
-import { adminFirestore, adminAuth } from '@config/firebaseAdmin'; 
-import { Subscription } from '../types/Subscription'; 
-
-const JWT_SECRET = process.env.JWT_SECRET || 'c601';
-const firebaseAdminAuth = getAuth(); // auth do firebase-admin/auth // Renomeado para evitar conflito de nome
+import { adminAuth } from '@config/firebaseAdmin'; 
 
 const router = express.Router();
 const userController = container.get<UserController>(TYPES.UserController);
-const subscriptionService = container.get<SubscriptionService>(TYPES.SubscriptionService);
+// A instância do subscriptionService não é mais necessária aqui, pois a lógica de usuário está no userService.
 const userService = container.get<UserService>(TYPES.UserService); // Get UserService instance
 
 // Handler assíncrono (verifique se este asyncHandler é necessário ou se você tem um global)
 const asyncHandler = <T = any>(
-  fn: (req: Request<T>, res: Response, next: NextFunction) => Promise<void>
+  fn: (req: Request<T>, res: Response, next: NextFunction) => Promise<any>
 ) => {
-  return async (req: Request<T>, res: Response, next: NextFunction) => {
-    try {
-      await fn(req, res, next);
-    } catch (error) {
-      next(error);
-    }
+  return (req: Request<T>, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
@@ -200,7 +189,7 @@ router.get('/session',
 
 router.get('/profile',
   authenticate,
-  asyncHandler((req, res, next) => userController.getProfile(req, res, next))
+  asyncHandler((req, res, next) => userController.getProfile(req, res))
 );
 
 router.put('/profile',

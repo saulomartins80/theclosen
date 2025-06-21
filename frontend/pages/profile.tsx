@@ -1,12 +1,18 @@
-import { useAuth, SessionUser } from '../context/AuthContext';
+'use client';
+
+import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useMemo } from 'react';
 import { FiUser, FiMail, FiLock, FiCreditCard, FiEdit, FiCamera, FiCheck, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { toast } from 'react-toastify';
 import Image from 'next/image';
-import DeepSeekChat from '../components/DeepSeekChat';
 import api from '../services/api';
-import { FirebaseApp, getApp } from 'firebase/app';
+import { getApp } from 'firebase/app';
+import { useRouter } from 'next/navigation';
+import { useTheme } from '../context/ThemeContext';
+import { motion } from 'framer-motion';
+import { User, Shield, CreditCard, Settings, LogOut, CheckCircle } from 'lucide-react';
+import { getAuth, signOut } from 'firebase/auth';
 
 interface AuthUserData {
   uid: string;
@@ -22,10 +28,19 @@ interface ProfileAuthContextType {
   subscription: { plan?: string; status?: string; expiresAt?: string } | null;
   loadingSubscription: boolean;
   refreshSubscription: () => Promise<void>;
-  updateUserContextProfile: (updatedProfileData: Partial<SessionUser>) => void;
+  updateUserContextProfile: (updatedProfileData: Partial<AuthUserData>) => void;
 }
 
-export default function ProfilePage() {
+interface UserData {
+  name: string;
+  email: string;
+  subscription?: {
+    status: string | undefined;
+    planName: string;
+  };
+}
+
+export default function Profile() {
   const {
     user,
     subscription,
@@ -33,6 +48,10 @@ export default function ProfilePage() {
     refreshSubscription,
     updateUserContextProfile
   } = useAuth() as ProfileAuthContextType;
+  const { resolvedTheme } = useTheme();
+  const router = useRouter();
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +65,6 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -74,6 +92,36 @@ export default function ProfilePage() {
       setAvatarPreview(user.photoUrl || user.photoURL || '/default-avatar.png');
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        if (!user) {
+          router.replace('/auth/login');
+          return;
+        }
+
+        // Usar dados do contexto de autenticação em vez de fazer chamada separada
+        if (user) {
+          setUserData({
+            name: user.name || '',
+            email: user.email || '',
+            subscription: user.subscription ? {
+              status: user.subscription.status || 'unknown',
+              planName: user.subscription.plan || 'Trial'
+            } : undefined
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao carregar perfil:', error);
+        toast.error('Erro ao carregar dados do perfil');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -118,7 +166,6 @@ export default function ProfilePage() {
       if (avatarFile) {
         setIsUploading(true);
         try {
-          // Add robust checks before upload
           if (!storage) {
             throw new Error('Serviço de armazenamento não disponível');
           }
@@ -172,7 +219,7 @@ export default function ProfilePage() {
           updatePayload.currentPassword = formData.currentPassword;
         }
 
-        const response = await api.put('/api/users/profile', updatePayload);
+        const response = await api.put('/api/user/profile', updatePayload);
 
         if (!response.data.success) {
           throw new Error(response.data.message || 'Falha ao atualizar perfil no backend');
@@ -180,7 +227,7 @@ export default function ProfilePage() {
 
         const updatedUserData = response.data.data;
         if (updatedUserData) {
-          const profileForContext: Partial<SessionUser> = {
+          const profileForContext: Partial<AuthUserData> = {
             ...user,
             name: updatedUserData.name !== undefined ? updatedUserData.name : user.name,
             email: updatedUserData.email !== undefined ? updatedUserData.email : user.email,
@@ -212,31 +259,21 @@ export default function ProfilePage() {
 
   const handleManageSubscription = async () => {
     try {
-      if (!user?.uid) throw new Error('Usuário não autenticado');
-      const response = await api.post('/api/manage-subscription', { userId: user.uid });
-      if (response.data && response.data.redirectUrl) {
-        window.location.href = response.data.redirectUrl;
+      console.log('[Profile] Iniciando criação de sessão do portal...');
+      const response = await api.post('/api/subscriptions/create-portal-session');
+      console.log('[Profile] Resposta do portal:', response.data);
+      
+      // O backend retorna { url: session.url }
+      if (response.data.url) {
+        console.log('[Profile] Redirecionando para:', response.data.url);
+        window.location.href = response.data.url;
       } else {
-        throw new Error(response.data.message || 'Não foi possível iniciar o gerenciamento da assinatura.');
+        console.error('[Profile] URL não encontrada na resposta:', response.data);
+        throw new Error('URL do portal não encontrada na resposta');
       }
-    } catch (error: any) {
-      console.error('Error managing subscription:', error);
-      toast.error(error.message || 'Erro ao gerenciar assinatura');
-    }
-  };
-
-  const handleUpgrade = async () => {
-    try {
-      if (!user?.uid) throw new Error('Usuário não autenticado');
-      const response = await api.post('/api/subscription/upgrade', { userId: user.uid, plan: 'premium' });
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Falha ao solicitar upgrade');
-      }
-      await refreshSubscription();
-      toast.success('Solicitação de upgrade enviada! Sua assinatura será atualizada em breve.');
-    } catch (error: any) {
-      console.error('Erro ao solicitar upgrade:', error);
-      toast.error(error.message || 'Erro ao solicitar upgrade. Tente novamente.');
+    } catch (error) {
+      console.error('[Profile] Erro ao gerenciar assinatura:', error);
+      toast.error('Não foi possível acessar o portal de assinatura');
     }
   };
 
@@ -265,8 +302,37 @@ export default function ProfilePage() {
 
   const currentAvatarSrc = avatarPreview || user?.photoUrl || user?.photoURL || '/default-avatar.png';
 
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+      router.replace('/auth/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      toast.error('Erro ao fazer logout');
+    }
+  };
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+      </motion.div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-gray-50 dark:bg-gray-900"
+    >
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -531,45 +597,108 @@ export default function ProfilePage() {
                     Assinatura
                   </h3>
                   <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-700/50 dark:to-gray-800/60 p-6 rounded-lg border border-blue-100 dark:border-gray-700">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                      <div>
-                        <h4 className="font-bold text-lg text-gray-900 dark:text-white">
-                          {subscriptionStatus}
-                        </h4>
-                        {subscription?.status === 'trialing' && (
-                          <p className="text-green-600 dark:text-green-400 text-sm mt-1">Aproveite seu período de teste gratuito!</p>
-                        )}
-                        {subscription?.status === 'past_due' && (
-                          <p className="text-red-600 dark:text-red-400 text-sm mt-1">Pagamento pendente. Atualize suas informações de pagamento.</p>
-                        )}
+                    {loadingSubscription ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                       </div>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          type="button"
-                          onClick={handleManageSubscription}
-                          disabled={loadingSubscription}
-                          className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors text-sm"
-                        >
-                          {loadingSubscription ? 'Carregando...' : 'Gerenciar Assinatura'}
-                        </button>
-                        {subscription?.plan !== 'premium' && (
+                    ) : subscription ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Plano Atual</p>
+                            <p className="text-lg font-medium text-gray-900 dark:text-white capitalize">
+                              {subscription.plan || 'Gratuito'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                            <p className={`text-lg font-medium capitalize ${
+                              subscription.status === 'active' ? 'text-green-600' : 'text-yellow-600'
+                            }`}>
+                              {subscription.status === 'active' ? 'Ativo' : 'Inativo'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {subscription.expiresAt && (
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Próxima Renovação</p>
+                            <p className="text-lg font-medium text-gray-900 dark:text-white">
+                              {new Date(subscription.expiresAt).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-3">
                           <button
                             type="button"
-                            onClick={handleUpgrade}
-                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors text-sm"
+                            onClick={handleManageSubscription}
+                            disabled={loadingSubscription || isLoading}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 transition-colors"
                           >
-                            Upgrade para Premium
+                            {loadingSubscription || isLoading ? 'Carregando...' : 'Gerenciar Assinatura'}
                           </button>
-                        )}
+                          {subscription?.plan !== 'premium' && (
+                            <button
+                              type="button"
+                              onClick={() => router.push('/assinaturas')}
+                              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 transition-colors"
+                            >
+                              Upgrade para Premium
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">Você ainda não tem uma assinatura ativa</p>
+                        <button
+                          onClick={() => router.push('/assinaturas')}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          Ver Planos
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </form>
           </div>
         </div>
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Ações
+          </h2>
+
+          <div className="space-y-4">
+            <button
+              onClick={() => router.push('/assinaturas')}
+              className="w-full flex items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <CreditCard className="w-5 h-5 text-purple-500 mr-3" />
+              <span className="text-gray-700 dark:text-gray-300">Gerenciar Assinatura</span>
+            </button>
+
+            <button
+              onClick={() => router.push('/configuracoes')}
+              className="w-full flex items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Settings className="w-5 h-5 text-purple-500 mr-3" />
+              <span className="text-gray-700 dark:text-gray-300">Configurações</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-red-500"
+            >
+              <LogOut className="w-5 h-5 mr-3" />
+              <span>Sair</span>
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
-}
+} 
