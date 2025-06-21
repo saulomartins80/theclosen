@@ -91,6 +91,7 @@ app.use(cookieParser());
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:3000',
+    'https://theclosen-frontend.vercel.app',
     'https://accounts.google.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
