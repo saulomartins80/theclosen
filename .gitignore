@@ -93,3 +93,8 @@ backend/dist/
 backend/tsconfig.tsbuildinfo
 frontend/cors.json
 frontend/types/index.ts.backup
+backend/CORRECAO_*.md
+frontend/CORRECAO_*.md
+code/
+frontend/test-fix.md
+frontend/tsconfig.tsbuildinfo
