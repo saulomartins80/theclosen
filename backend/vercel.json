@@ -2,16 +2,21 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/index.js",
+      "src": "index.js",
       "use": "@vercel/node"
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/dist/index.js"
+      "src": "/(.*)",
+      "dest": "/index.js"
     }
   ],
+  "functions": {
+    "index.js": {
+      "maxDuration": 30
+    }
+  },
   "headers": [
     {
       "source": "/api/(.*)",

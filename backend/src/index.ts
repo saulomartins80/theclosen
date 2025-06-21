@@ -7,7 +7,7 @@ import helmet from 'helmet';
 import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
 import { container } from '@core/container';
-import { errorHandler } from '@middlewares/errorHandler';
+import { errorHandler } from './middlewares/errorHandler';
 import { AppError } from '@core/errors/AppError';
 
 import { adminAuth } from '@config/firebaseAdmin';
