@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
 import { useTheme } from "../context/ThemeContext"; // Import useTheme
 import { ToastContainer } from 'react-toastify';
+import { useRouter } from 'next/router';
 
 // Tipagem melhorada
 type Investimento = {
@@ -36,6 +37,7 @@ const Chart = dynamic(() => import('react-apexcharts'), {
 
 const InvestimentosDashboard = () => {
   const { resolvedTheme } = useTheme();
+  const router = useRouter();
   const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,15 @@ const InvestimentosDashboard = () => {
   useEffect(() => {
     fetchInvestimentos();
   }, []);
+
+  // Monitora parâmetros da URL para abrir formulário automaticamente
+  useEffect(() => {
+    if (router.query.action === 'new') {
+      setForm({ open: true, mode: 'add', data: { data: '' } });
+      // Remove o parâmetro da URL para não abrir novamente ao recarregar
+      router.replace('/investimentos', undefined, { shallow: true });
+    }
+  }, [router.query.action, router]);
 
   const investimentosFiltrados = useMemo(() => {
     if (!Array.isArray(investimentos)) return [];

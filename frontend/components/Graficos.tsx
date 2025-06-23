@@ -396,16 +396,16 @@ const Graficos = () => {
 
   return (
     <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Gráfico de Barras - Estilo Cinema Neon */}
-      <div className={`p-6 rounded-xl border-2 ${
+      {/* Gráfico de Barras - Sem borda colorida */}
+      <div className={`p-3 rounded-lg shadow-sm ${
         resolvedTheme === "dark" 
-          ? "bg-gray-800 border-purple-900 shadow-lg shadow-purple-900/30" 
-          : "bg-white border-gray-200 shadow-lg"
+          ? "bg-gray-800" 
+          : "bg-white"
       }`}>
-        <h2 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">
+        <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
           Receitas vs Despesas
         </h2>
-        <div className="w-full h-[300px] lg:h-[400px]">
+        <div className="w-full h-[380px]">
           <Bar
             data={barChartData}
             options={barChartOptions}
@@ -413,16 +413,16 @@ const Graficos = () => {
         </div>
       </div>
 
-      {/* Gráfico de Linha - Estilo Futurista */}
-      <div className={`p-6 rounded-xl border-2 ${
+      {/* Gráfico de Linha - Sem borda colorida */}
+      <div className={`p-3 rounded-lg shadow-sm ${
         resolvedTheme === "dark" 
-          ? "bg-gray-800 border-blue-900 shadow-lg shadow-blue-900/30" 
-          : "bg-white border-gray-200 shadow-lg"
+          ? "bg-gray-800" 
+          : "bg-white"
       }`}>
-        <h2 className="text-xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-600">
+        <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
           Evolução do Saldo
         </h2>
-        <div className="w-full h-[300px] lg:h-[400px]">
+        <div className="w-full h-[380px]">
           <Line
             data={lineChartData}
             options={lineChartOptions}

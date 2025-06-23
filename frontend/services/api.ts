@@ -123,11 +123,22 @@ export const chatbotAPI = {
   sendQuery: async (query: { message: string; chatId: string }) => {
     console.log('[chatbotAPI] Enviando consulta:', query);
     try {
-      const response = await api.post('/api/chatbot/query', query);
+      // Timeout de 60 segundos para respostas premium que podem demorar
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const response = await api.post('/api/chatbot/query', query, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       console.log('[chatbotAPI] Resposta recebida com sucesso:', response.data);
       return response.data;
     } catch (error) {
       console.error('[chatbotAPI] Erro ao enviar consulta:', error);
+      if ((error as any).name === 'AbortError') {
+        throw new Error('Timeout: A resposta está demorando mais que o esperado');
+      }
       throw error;
     }
   },

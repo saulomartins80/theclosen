@@ -10,6 +10,10 @@ export const TYPES = {
   SubscriptionService: Symbol.for('SubscriptionService'),
   SubscriptionController: Symbol.for('SubscriptionController'),
   
+  // Enterprise Module
+  EnterpriseService: Symbol.for('EnterpriseService'),
+  EnterpriseController: Symbol.for('EnterpriseController'),
+  
   // Adicione outros módulos abaixo seguindo o mesmo padrão:
   // Exemplo:
   // AuthRepository: Symbol.for('AuthRepository'),

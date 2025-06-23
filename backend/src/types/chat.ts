@@ -3,6 +3,11 @@ export interface ChatMessageMetadata {
   processingTime?: number;
   error?: boolean;
   errorMessage?: string;
+  expertise?: string;
+  confidence?: number;
+  isImportant?: boolean;
+  messageType?: 'basic' | 'premium' | 'analysis' | 'guidance';
+  messageId?: string;
 }
 
 export interface ChatMessage {
@@ -11,11 +16,41 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   metadata?: ChatMessageMetadata;
+  expiresAt?: Date;
+  isImportant?: boolean;
+  userId?: string;
 }
 
 export interface Conversation {
   chatId: string;
   messages: ChatMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+  userId?: string;
+  isActive?: boolean;
+  lastActivity?: Date;
+}
+
+// Tipo para listagem de sessões (sem mensagens completas)
+export interface ChatSession {
+  chatId: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  userId?: string;
+  isActive?: boolean;
+  lastActivity?: Date;
+  messageCount?: number;
+}
+
+// Tipos para agregação de dados (permanentes)
+export interface ChatAnalytics {
+  userId: string;
+  totalMessages: number;
+  premiumMessages: number;
+  averageResponseTime: number;
+  commonTopics: string[];
+  lastActivity: Date;
   createdAt: Date;
   updatedAt: Date;
 } 

@@ -12,6 +12,7 @@ import { Transacao, NovaTransacaoPayload, AtualizarTransacaoPayload } from '../t
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from "next/router";
 
 
 const Transacoes = () => {
@@ -29,6 +30,7 @@ const Transacoes = () => {
     tipo: "receita" as "receita" | "despesa" | "transferencia",
     conta: "",
   });
+  const router = useRouter();
 
   const fetchTransacoes = async () => {
     try {
@@ -43,6 +45,15 @@ const Transacoes = () => {
   useEffect(() => {
     fetchTransacoes();
   }, []);
+
+  // Monitora parâmetros da URL para abrir formulário automaticamente
+  useEffect(() => {
+    if (router.query.action === 'new') {
+      openModal();
+      // Remove o parâmetro da URL para não abrir novamente ao recarregar
+      router.replace('/transacoes', undefined, { shallow: true });
+    }
+  }, [router.query.action]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -303,7 +314,7 @@ const Transacoes = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-60 dark:bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+            className="fixed inset-0 bg-black bg-opacity-60 dark:bg-opacity-70 flex items-center justify-center p-2 md:p-4 z-50 backdrop-blur-sm"
             onClick={closeModal}
           >
             <motion.div
@@ -311,12 +322,12 @@ const Transacoes = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className={`rounded-xl shadow-xl w-full max-w-lg ${resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"}`}
+              className={`rounded-xl shadow-xl w-full max-w-sm md:max-w-lg ${resolvedTheme === "dark" ? "bg-gray-800" : "bg-white"}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className={`text-xl font-bold ${resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              <div className="p-4 md:p-6">
+                <div className="flex justify-between items-center mb-4 md:mb-6">
+                  <h2 className={`text-lg md:text-xl font-bold ${resolvedTheme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                     {editingId ? "Editar Transação" : "Nova Transação"}
                   </h2>
                   <button
@@ -324,7 +335,7 @@ const Transacoes = () => {
                     className={`p-1.5 rounded-full ${resolvedTheme === "dark" ? "hover:bg-gray-700 text-gray-400 hover:text-gray-200" : "hover:bg-gray-200 text-gray-500 hover:text-gray-700"}`}
                     aria-label="Fechar modal"
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </button>
                 </div>
                 <TransactionForm

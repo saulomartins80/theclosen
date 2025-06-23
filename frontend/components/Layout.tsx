@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import Chatbot from './Chatbot';
+import Chatbot from './ChatbotCorrected';
+import MobileNavigation from './MobileNavigation';
 import { ProtectedRoute } from './ProtectedRoute';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -28,6 +29,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return false;
   });
   const [isMobileView, setIsMobileView] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showMobileHeader, setShowMobileHeader] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -40,6 +43,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       window.removeEventListener('resize', debouncedCheckMobile);
     };
   }, []);
+
+  // Scroll listener para mostrar/ocultar header no mobile
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isMobileView) {
+        setShowMobileHeader(window.scrollY > 100);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isMobileView]);
 
   useEffect(() => {
     if (!isMobileView && isMobileSidebarOpen) {
@@ -58,17 +73,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [isDesktopSidebarCollapsed]);
 
+  const toggleChat = useCallback(() => {
+    setIsChatOpen(prev => !prev);
+  }, []);
+
   return (
     <ProtectedRoute>
       <Elements stripe={stripePromise}>
         <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-          {isMobileView && (
-            <Sidebar
-              isOpen={isMobileSidebarOpen}
-              onClose={toggleMobileSidebar}
-              isMobile={true}
-            />
-          )}
+          {/* Sidebar para desktop */}
           {!isMobileView && (
             <Sidebar
               isMobile={false}
@@ -78,20 +91,57 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               onClose={() => {}}
             />
           )}
+          
+          {/* Sidebar para mobile */}
+          {isMobileView && (
+            <Sidebar
+              isOpen={isMobileSidebarOpen}
+              onClose={toggleMobileSidebar}
+              isMobile={true}
+            />
+          )}
+          
           <div
             className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
               !isMobileView && isDesktopSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
             }`}
           >
-            <Header
-              isSidebarOpen={isMobileSidebarOpen}
-              toggleMobileSidebar={toggleMobileSidebar}
-            />
-            <main className="flex-1 overflow-y-auto pt-24 md:pt-20 px-0">
+            {/* Header para desktop */}
+            {!isMobileView && (
+              <Header
+                isSidebarOpen={isMobileSidebarOpen}
+                toggleMobileSidebar={toggleMobileSidebar}
+              />
+            )}
+            
+            {/* Header para mobile (aparece quando rola) */}
+            {isMobileView && showMobileHeader && (
+              <Header
+                isSidebarOpen={isMobileSidebarOpen}
+                toggleMobileSidebar={toggleMobileSidebar}
+              />
+            )}
+            
+            {/* Conteúdo principal */}
+            <main className={`flex-1 overflow-y-auto ${
+              isMobileView ? 'pt-4 pb-20' : 'pt-24 md:pt-20'
+            } px-4 md:px-6`}>
               {children}
             </main>
           </div>
-          <Chatbot />
+          
+          {/* Chatbot */}
+          <Chatbot 
+            isOpen={isChatOpen}
+            onToggle={toggleChat}
+          />
+          
+          {/* Navegação móvel */}
+          <MobileNavigation 
+            onChatToggle={toggleChat}
+            isChatOpen={isChatOpen}
+            onSidebarToggle={toggleMobileSidebar}
+          />
         </div>
       </Elements>
     </ProtectedRoute>

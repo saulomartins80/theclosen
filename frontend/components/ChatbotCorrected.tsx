@@ -1,4 +1,3 @@
-// frontend/components/AdvancedChatbot.tsx
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -7,9 +6,6 @@ import {
 } from 'lucide-react';
 import { chatbotAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import Markdown from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
-import 'highlight.js/styles/atom-one-dark.css';
 
 type Message = {
   id: string;
@@ -23,6 +19,7 @@ type Message = {
     riskAssessment?: string;
     educationalResources?: string[];
     isPremium?: boolean;
+    expertise?: string;
   };
 };
 
@@ -32,6 +29,11 @@ type ChatSession = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+interface ChatbotProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
 
 // Função para definir cor do chat conforme o plano
 function getChatColor(plan?: string) {
@@ -97,9 +99,9 @@ function getChatColor(plan?: string) {
   };
 }
 
-export default function AdvancedChatbot() {
+export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotProps) {
   const { user, subscription } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -107,6 +109,10 @@ export default function AdvancedChatbot() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Usar estado externo se fornecido, senão usar interno
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = externalIsOpen !== undefined ? onToggle || (() => {}) : setInternalIsOpen;
 
   // Detectar se é usuário premium baseado no plano
   const isPremiumUser = subscription?.status === 'active' && (
@@ -129,7 +135,26 @@ export default function AdvancedChatbot() {
     return subscription.plan;
   };
 
+  // Obter expertise do consultor
+  const getExpertiseDisplay = () => {
+    if (isPremiumUser) {
+      return {
+        title: 'Dr. Finn',
+        subtitle: 'Consultor Financeiro CFA, CFP, CNAI, CNPI',
+        description: 'Especialista em análise fundamentalista, planejamento financeiro e gestão de risco',
+        icon: '👨‍💼'
+      };
+    }
+    return {
+      title: 'Finn',
+      subtitle: 'Assistente Finnextho',
+      description: 'Especialista em educação financeira e uso da plataforma',
+      icon: '🤖'
+    };
+  };
+
   const chatColors = getChatColor(subscription?.plan?.toString());
+  const expertise = getExpertiseDisplay();
 
   const loadChatSessions = useCallback(async () => {
     try {
@@ -159,7 +184,7 @@ export default function AdvancedChatbot() {
     try {
       setIsLoading(true);
       const response = await chatbotAPI.startNewSession();
-      const newSession = {
+      const newSession: ChatSession = {
         chatId: response.chatId,
         title: 'Nova Conversa',
         createdAt: new Date(),
@@ -167,19 +192,8 @@ export default function AdvancedChatbot() {
       };
       
       setActiveSession(newSession);
+      setMessages([]);
       setSessions(prev => [newSession, ...prev]);
-      setMessages([{
-        id: Date.now().toString(),
-        sender: 'bot',
-        content: isPremiumUser 
-          ? `👋 Olá ${user?.name || ''}! Sou seu consultor financeiro AI. Como posso ajudar com seus investimentos hoje?` 
-          : '👋 Olá! Sou o Finn, seu assistente financeiro. Posso te ajudar com dúvidas sobre o app e conceitos básicos!',
-        timestamp: new Date(),
-        metadata: {
-          isPremium: isPremiumUser
-        }
-      }]);
-      
       setIsNewSessionModalOpen(false);
     } catch (error) {
       console.error('Failed to start new session', error);
@@ -196,6 +210,8 @@ export default function AdvancedChatbot() {
       setMessages(response.data.messages);
     } catch (error) {
       console.error('Failed to load session', error);
+      // Se não conseguir carregar a sessão, criar uma nova
+      await startNewSession();
     } finally {
       setIsLoading(false);
     }
@@ -203,7 +219,13 @@ export default function AdvancedChatbot() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isLoading || !activeSession) return;
+    if (!inputValue.trim() || isLoading) return;
+
+    // Se não há sessão ativa, criar uma nova
+    if (!activeSession) {
+      await startNewSession();
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -213,19 +235,20 @@ export default function AdvancedChatbot() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
       const response = await chatbotAPI.sendQuery({
-        message: inputValue,
+        message: currentInput,
         chatId: activeSession.chatId
       });
 
       const botMessage: Message = {
-        id: response.data.messageId,
+        id: response.data?.messageId || Date.now().toString(),
         sender: 'bot',
-        content: response.data.analysisText || response.data.text,
+        content: response.data?.text || 'Desculpe, não consegui processar sua mensagem.',
         timestamp: new Date(),
         metadata: {
           ...response.data,
@@ -237,13 +260,14 @@ export default function AdvancedChatbot() {
       
       // Atualizar título da sessão se for a primeira mensagem
       if (messages.filter(m => m.sender === 'user').length === 1) {
-        const newTitle = inputValue.slice(0, 30) + (inputValue.length > 30 ? '...' : '');
+        const newTitle = currentInput.slice(0, 30) + (currentInput.length > 30 ? '...' : '');
         setActiveSession(prev => prev ? { ...prev, title: newTitle } : null);
         setSessions(prev => prev.map(s => 
           s.chatId === activeSession.chatId ? { ...s, title: newTitle } : s
         ));
       }
     } catch (error) {
+      console.error('Erro no chat:', error);
       const errorMessage: Message = {
         id: Date.now().toString(),
         sender: 'bot',
@@ -441,7 +465,7 @@ export default function AdvancedChatbot() {
   );
 }
 
-// Componente de bolha de mensagem com suporte a markdown
+// Componente de bolha de mensagem
 function MessageBubble({ message, isPremium }: { message: Message, isPremium: boolean }) {
   return (
     <div className={`flex items-start gap-3 ${message.sender === 'user' ? 'justify-end' : ''}`}>
@@ -457,9 +481,7 @@ function MessageBubble({ message, isPremium }: { message: Message, isPremium: bo
       >
         <div className="p-4">
           <div className={`prose dark:prose-invert prose-sm max-w-none ${message.sender === 'user' ? 'text-white' : ''}`}>
-            <Markdown rehypePlugins={[rehypeHighlight]}>
-              {message.content}
-            </Markdown>
+            <div dangerouslySetInnerHTML={{ __html: message.content }} />
           </div>
           
           {/* Metadados premium */}
@@ -531,4 +553,4 @@ function MessageBubble({ message, isPremium }: { message: Message, isPremium: bo
       )}
     </div>
   );
-}
+} 
