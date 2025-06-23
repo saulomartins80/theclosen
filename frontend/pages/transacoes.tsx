@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Plus, Download, Edit, Trash, X } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -32,7 +32,7 @@ const Transacoes = () => {
   });
   const router = useRouter();
 
-  const fetchTransacoes = async () => {
+  const fetchTransacoes = useCallback(async () => {
     try {
       const data = await transacaoAPI.getAll();
       setTransacoes(data);
@@ -40,22 +40,13 @@ const Transacoes = () => {
       console.error("Erro ao buscar transações:", error);
       toast.error("Erro ao buscar transações.");
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTransacoes();
-  }, []);
+  }, [fetchTransacoes]);
 
-  // Monitora parâmetros da URL para abrir formulário automaticamente
-  useEffect(() => {
-    if (router.query.action === 'new') {
-      openModal();
-      // Remove o parâmetro da URL para não abrir novamente ao recarregar
-      router.replace('/transacoes', undefined, { shallow: true });
-    }
-  }, [router.query.action]);
-
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setEditingId(null);
     setFormData({
       descricao: "",
@@ -65,9 +56,9 @@ const Transacoes = () => {
       tipo: "receita",
       conta: "",
     });
-  };
+  }, []);
 
-  const openModal = (transacao?: Transacao) => {
+  const openModal = useCallback((transacao?: Transacao) => {
     if (transacao) {
       setEditingId(transacao._id);
       const rawDate = (typeof transacao.data === 'object' && transacao.data !== null && '$date' in transacao.data) 
@@ -86,7 +77,16 @@ const Transacoes = () => {
       resetForm();
     }
     setIsFormOpen(true);
-  };
+  }, [resetForm]);
+
+  // Monitora parâmetros da URL para abrir formulário automaticamente
+  useEffect(() => {
+    if (router.query.action === 'new') {
+      openModal();
+      // Remove o parâmetro da URL para não abrir novamente ao recarregar
+      router.replace('/transacoes', undefined, { shallow: true });
+    }
+  }, [router, openModal]);
 
   const closeModal = () => {
     setIsFormOpen(false);
