@@ -174,6 +174,24 @@ export const chatbotAPI = {
       console.error('[chatbotAPI] Erro ao buscar sessão:', error);
       throw error;
     }
+  },
+  saveUserFeedback: async (feedback: {
+    messageId: string;
+    rating: number;
+    helpful: boolean;
+    comment?: string;
+    category: 'accuracy' | 'helpfulness' | 'clarity' | 'relevance';
+    context?: string;
+  }) => {
+    console.log('[chatbotAPI] Enviando feedback:', feedback);
+    try {
+      const response = await api.post('/api/chatbot/feedback', feedback);
+      console.log('[chatbotAPI] Feedback enviado com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[chatbotAPI] Erro ao enviar feedback:', error);
+      throw error;
+    }
   }
 };
 

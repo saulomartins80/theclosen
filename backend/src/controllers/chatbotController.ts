@@ -8,6 +8,10 @@ import AIService from '../services/aiService';
 import { ChatHistoryService } from '../services/chatHistoryService';
 import { IUser } from '../types/user';
 import { v4 as uuidv4 } from 'uuid';
+import { User } from '../models/User';
+import { Transacoes } from '../models/Transacoes';
+import Investimento from '../models/Investimento';
+import { Goal } from '../models/Goal';
 
 const userService = container.get<UserService>(TYPES.UserService);
 const chatHistoryService = new ChatHistoryService();
@@ -30,65 +34,32 @@ interface ChatMessage {
   metadata?: ChatMessageMetadata;
 }
 
-// Base de conhecimento da plataforma para o consultor
-const PLATFORM_KNOWLEDGE = {
-  features: {
-    dashboard: "Dashboard principal com visão geral das finanças, gráficos interativos e métricas de performance",
-    transacoes: "Sistema de registro e categorização de transações com relatórios detalhados",
-    investimentos: "Acompanhamento de carteira de investimentos com análise de performance e alocação",
-    metas: "Definição e acompanhamento de metas financeiras com projeções e alertas",
-    chatbot: "Assistente AI para dúvidas e análises financeiras personalizadas",
-    relatorios: "Relatórios avançados com insights e recomendações personalizadas"
-  },
-  navigation: {
-    sidebar: "Menu lateral com acesso rápido a todas as funcionalidades",
-    header: "Cabeçalho com notificações, perfil do usuário e configurações",
-    mobile: "Interface responsiva otimizada para dispositivos móveis"
-  },
-  plans: {
-    free: "Plano gratuito com funcionalidades básicas limitadas",
-    essencial: "Plano essencial com funcionalidades intermediárias",
-    top: "Plano top com funcionalidades avançadas e análises premium",
-    enterprise: "Plano empresarial com funcionalidades corporativas"
-  }
-};
-
 export const handleChatQuery = async (req: Request, res: Response) => {
-  const { message, chatId } = req.body;
-  const userId = (req as any).user?.uid;
-
-  if (!userId) {
-    return res.status(401).json({ success: false, message: 'User not authenticated' });
-  }
-  if (!message) {
-    return res.status(400).json({ success: false, message: 'Message is required' });
-  }
-
   try {
-    const user = await userService.getUserByFirebaseUid(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    const userId = (req as any).user?.uid;
+    const { message, chatId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    // Obter histórico de conversa se existir, ou criar nova se não existir
+    if (!message || !chatId) {
+      return res.status(400).json({ success: false, message: 'message and chatId are required' });
+    }
+
+    const chatHistoryService = new ChatHistoryService();
+    const aiService = new AIService();
+
+    // Buscar ou criar conversa
     let conversationHistory;
     try {
-      if (chatId) {
-        try {
-          conversationHistory = await chatHistoryService.getConversation(chatId);
-          console.log(`[ChatbotController] Conversa ${chatId} encontrada com ${conversationHistory.messages.length} mensagens`);
-        } catch (error) {
-          console.log(`[ChatbotController] Conversa ${chatId} não encontrada ou expirada, criando nova`);
-          conversationHistory = await chatHistoryService.startNewConversation(userId);
-        }
-      } else {
-        console.log(`[ChatbotController] Nenhum chatId fornecido, criando nova conversa`);
-        conversationHistory = await chatHistoryService.startNewConversation(userId);
-      }
+      conversationHistory = await chatHistoryService.getConversation(chatId);
     } catch (error) {
-      console.error('[ChatbotController] Erro ao obter/criar conversa:', error);
+      // Se a conversa não existe, criar uma nova
       conversationHistory = await chatHistoryService.startNewConversation(userId);
     }
+
+    console.log(`[ChatbotController] Conversa ${chatId} encontrada com ${conversationHistory.messages.length} mensagens`);
 
     // Adicionar mensagem do usuário ao histórico
     await chatHistoryService.addMessage({
@@ -102,6 +73,19 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         isImportant: false
       }
     });
+
+    // Buscar dados do usuário
+    const user = await User.findOne({ firebaseUid: userId });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // BUSCAR DADOS REAIS DAS COLEÇÕES SEPARADAS
+    const [transacoes, investimentos, metas] = await Promise.all([
+      Transacoes.find({ userId: user._id }),
+      Investimento.find({ userId: user._id }),
+      Goal.find({ userId: user._id })
+    ]);
 
     const subscriptionStatus = user.subscription?.status;
     const subscriptionPlan = user.subscription?.plan;
@@ -124,6 +108,79 @@ export const handleChatQuery = async (req: Request, res: Response) => {
       isPremium: isPremium
     });
 
+    // OBTER DADOS REAIS DO USUÁRIO
+    const userRealData = {
+      // Dados pessoais
+      name: user.name || 'Usuário',
+      email: user.email || '',
+      createdAt: user.createdAt,
+      
+      // Dados financeiros reais das coleções
+      transacoes: transacoes,
+      investimentos: investimentos,
+      metas: metas,
+      
+      // Estatísticas calculadas
+      totalTransacoes: transacoes.length,
+      totalInvestimentos: investimentos.length,
+      totalMetas: metas.length,
+      
+      // Resumos dos dados
+      resumoTransacoes: transacoes.length > 0 ? {
+        total: transacoes.length,
+        categorias: transacoes.reduce((acc: any, t: any) => {
+          const cat = t.categoria || 'Sem categoria';
+          acc[cat] = (acc[cat] || 0) + 1;
+          return acc;
+        }, {}),
+        ultimas: transacoes.slice(-5).map(t => ({
+          descricao: t.descricao,
+          valor: t.valor,
+          categoria: t.categoria,
+          tipo: t.tipo,
+          data: t.data
+        }))
+      } : null,
+      
+      resumoInvestimentos: investimentos.length > 0 ? {
+        total: investimentos.length,
+        tipos: investimentos.reduce((acc: any, i: any) => {
+          const tipo = i.tipo || 'Sem tipo';
+          acc[tipo] = (acc[tipo] || 0) + 1;
+          return acc;
+        }, {}),
+        ultimos: investimentos.slice(-5).map(i => ({
+          nome: i.nome,
+          valor: i.valor,
+          tipo: i.tipo,
+          data: i.data
+        }))
+      } : null,
+      
+      resumoMetas: metas.length > 0 ? {
+        total: metas.length,
+        status: metas.reduce((acc: any, m: any) => {
+          const status = m.prioridade || 'media';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {}),
+        ativas: metas.filter((m: any) => m.valor_atual < m.valor_total).slice(-5).map(m => ({
+          titulo: m.meta,
+          valor: m.valor_total,
+          valorAtual: m.valor_atual,
+          prazo: m.data_conclusao,
+          prioridade: m.prioridade
+        }))
+      } : null
+    };
+
+    console.log('[ChatbotController] Dados reais do usuário:', {
+      name: userRealData.name,
+      totalTransacoes: userRealData.totalTransacoes,
+      totalInvestimentos: userRealData.totalInvestimentos,
+      totalMetas: userRealData.totalMetas
+    });
+
     let response;
     const startTime = Date.now();
 
@@ -132,17 +189,31 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         // Consultor financeiro de alto nível para usuários premium
         const financialContext = {
           userData: {
-            hasTransactions: Array.isArray(user.transacoes) && user.transacoes.length > 0,
-            hasInvestments: Array.isArray(user.investimentos) && user.investimentos.length > 0,
-            hasGoals: Array.isArray(user.metas) && user.metas.length > 0,
+            // Dados pessoais reais
+            name: userRealData.name,
+            email: userRealData.email,
+            createdAt: userRealData.createdAt,
+            
+            // Dados financeiros reais
+            hasTransactions: userRealData.totalTransacoes > 0,
+            hasInvestments: userRealData.totalInvestimentos > 0,
+            hasGoals: userRealData.totalMetas > 0,
+            
+            // Resumos detalhados
+            transacoes: userRealData.resumoTransacoes,
+            investimentos: userRealData.resumoInvestimentos,
+            metas: userRealData.resumoMetas,
+            
+            // Dados completos para análise
+            transacoesCompletas: userRealData.transacoes,
+            investimentosCompletos: userRealData.investimentos,
+            metasCompletas: userRealData.metas,
+            
             riskProfile: (user as any).perfilInvestidor || 'moderado',
-            name: user.name || 'Cliente Premium',
             subscriptionPlan: subscriptionPlan,
-            subscriptionStatus: subscriptionStatus,
-            email: user.email,
-            createdAt: user.createdAt
+            subscriptionStatus: subscriptionStatus
           },
-          platformKnowledge: PLATFORM_KNOWLEDGE,
+          platformKnowledge: 'Conhecimento da plataforma Finnextho',
           marketContext: {
             currentMarket: 'Dados em tempo real disponíveis',
             relevantIndicators: ['S&P 500', 'IBOVESPA', 'CDI', 'IPCA', 'Dólar', 'Euro']
@@ -156,6 +227,18 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         );
       } else {
         // Usar resposta personalizada baseada no feedback do usuário
+        const basicContext = {
+          userData: {
+            name: userRealData.name,
+            hasTransactions: userRealData.totalTransacoes > 0,
+            hasInvestments: userRealData.totalInvestimentos > 0,
+            hasGoals: userRealData.totalMetas > 0,
+            transacoes: userRealData.resumoTransacoes,
+            investimentos: userRealData.resumoInvestimentos,
+            metas: userRealData.resumoMetas
+          }
+        };
+
         response = await aiService.getPersonalizedResponse(
           userId,
           message,
@@ -179,7 +262,13 @@ export const handleChatQuery = async (req: Request, res: Response) => {
           confidence: isPremium ? 0.95 : 0.85,
           messageType: isPremium ? 'premium' : 'basic',
           isImportant: false,
-          messageId: messageId // ID para feedback
+          messageId: messageId, // ID para feedback
+          userDataAccessed: {
+            name: userRealData.name,
+            totalTransacoes: userRealData.totalTransacoes,
+            totalInvestimentos: userRealData.totalInvestimentos,
+            totalMetas: userRealData.totalMetas
+          }
         },
         timestamp: new Date()
       });
@@ -189,7 +278,13 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         text: response.analysisText || response.text,
         chatId: conversationHistory.chatId,
         messageId: messageId,
-        isPremium
+        isPremium,
+        userData: {
+          name: userRealData.name,
+          totalTransacoes: userRealData.totalTransacoes,
+          totalInvestimentos: userRealData.totalInvestimentos,
+          totalMetas: userRealData.totalMetas
+        }
       };
 
       return res.status(200).json({ 

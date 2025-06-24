@@ -3,23 +3,23 @@
 
  Pasta de C:\Users\USER\theclosen\backend\dist\middlewares
 
-23/06/2025  00:43    <DIR>          .
-23/06/2025  00:43    <DIR>          ..
-23/06/2025  00:43               286 asyncHandler.js
-23/06/2025  00:43               351 asyncHandler.js.map
-23/06/2025  00:43             1.308 auth.js
-23/06/2025  00:43             1.297 auth.js.map
-23/06/2025  00:43             4.220 authMiddleware.js
-23/06/2025  00:43             3.041 authMiddleware.js.map
-23/06/2025  00:43               686 cors.js
-23/06/2025  00:43               591 cors.js.map
-23/06/2025  00:43             1.351 errorHandler.js
-23/06/2025  00:43             1.110 errorHandler.js.map
-23/06/2025  00:43             1.407 marketDataValidation.js
-23/06/2025  00:43             1.205 marketDataValidation.js.map
-23/06/2025  00:43             2.803 stripeWebhookMiddleware.js
-23/06/2025  00:43             2.132 stripeWebhookMiddleware.js.map
-23/06/2025  00:43             2.159 webhookRateLimit.js
-23/06/2025  00:43             1.492 webhookRateLimit.js.map
+24/06/2025  02:17    <DIR>          .
+24/06/2025  02:17    <DIR>          ..
+24/06/2025  02:17               286 asyncHandler.js
+24/06/2025  02:17               351 asyncHandler.js.map
+24/06/2025  02:17             1.308 auth.js
+24/06/2025  02:17             1.297 auth.js.map
+24/06/2025  02:17             4.220 authMiddleware.js
+24/06/2025  02:17             3.041 authMiddleware.js.map
+24/06/2025  02:17               686 cors.js
+24/06/2025  02:17               591 cors.js.map
+24/06/2025  02:17             1.351 errorHandler.js
+24/06/2025  02:17             1.110 errorHandler.js.map
+24/06/2025  02:17             1.407 marketDataValidation.js
+24/06/2025  02:17             1.205 marketDataValidation.js.map
+24/06/2025  02:17             2.803 stripeWebhookMiddleware.js
+24/06/2025  02:17             2.132 stripeWebhookMiddleware.js.map
+24/06/2025  02:17             2.159 webhookRateLimit.js
+24/06/2025  02:17             1.492 webhookRateLimit.js.map
               16 arquivo(s)         25.439 bytes
-               2 pasta(s)   79.178.330.112 bytes dispon¡veis
+               2 pasta(s)   78.858.919.936 bytes dispon¡veis

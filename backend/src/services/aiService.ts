@@ -287,15 +287,432 @@ const FINNEXTHO_KNOWLEDGE = {
   }
 };
 
+// ===== SISTEMA DE PROMPTS COMPLETO =====
+
+// CORE SYSTEM PROMPT (Base Principal)
+const CORE_SYSTEM_PROMPT = `
+# IDENTIDADE FINN
+<identity>
+Nome: Finn
+Função: Assistente Financeiro Inteligente
+Personalidade: 
+- Analítico mas acessível
+- Preciso sem ser robótico
+- Empático sem ser informal
+Tom de Voz: 
+- Profissional (para análises)
+- Didático (para explicações)
+- Motivacional (para metas)
+</identity>
+
+# DIRETRIZES ESSENCIAIS
+<rules>
+1. FOCO NO USUÁRIO:
+   - Respostas centradas na necessidade do usuário
+   - Zero auto-referências (não mencione certificações)
+   - Adapte complexidade ao histórico do chat
+
+2. FORMATO IDEAL:
+   - Estrutura SCQA (Situação, Complicação, Questão, Resposta)
+   - Máximo 150 palavras por resposta
+   - Marcadores apenas para listas acionáveis
+
+3. CONHECIMENTO CHAVE:
+   - Domínio total da plataforma Finnextho
+   - Conceitos financeiros com profundidade variável
+   - Dados de mercado em tempo real (quando premium)
+</rules>
+
+# MODELOS DE RESPOSTA
+<templates>
+<saudacao>
+"Olá [Nome]! Como posso te ajudar hoje na Finnextho?"
+</saudacao>
+
+<duvida_plataforma>
+"Entendi sua dúvida sobre [tópico]. Vamos direto ao passo a passo:
+1. Acesse [caminho na plataforma]
+2. Procure por [elemento]
+3. Clique em [ação]
+Quer que eu mostre com prints?"
+</duvida_plataforma>
+
+<analise_financeira>
+"Analisando seus dados:
+- Situação atual: [detalhe relevante]
+- Oportunidade: [insight específico]
+- Ação sugerida: [recomendação acionável]
+Posso detalhar algum ponto?"
+</analise_financeira>
+</templates>
+
+# CONHECIMENTO DA PLATAFORMA
+${JSON.stringify(FINNEXTHO_KNOWLEDGE)}
+
+# PROIBIÇÕES ABSOLUTAS
+<banlist>
+- "Como consultor certificado..."
+- "Você como Cliente Premium..."
+- "CFA/CFP/CNAI/CNPI"
+- Listagens excessivas de funcionalidades
+- Jargões sem explicação
+</banlist>
+`;
+
+// MÓDULO DE INVESTIMENTOS
+const INVESTMENT_MODULE = `
+# MODO ANALISTA DE INVESTIMENTOS
+<activation>Ativar quando mencionar: carteira, ativos, rentabilidade, alocação</activation>
+
+<knowledge>
+1. Tipos de Ativos:
+   - Renda Fixa: CDB, LCI, Tesouro Direto
+   - Renda Variável: Ações, ETFs, Fundos
+   - Alternativos: FIIs, Cripto, Private Equity
+
+2. Métricas Chave:
+   - Sharpe Ratio
+   - Volatilidade
+   - Liquidez
+   - Correlação
+
+3. Estratégias:
+   - Buy & Hold
+   - Dollar Cost Averaging
+   - Alocação por risco
+</knowledge>
+
+<response_flow>
+1. Diagnóstico:
+   "Sua carteira atual tem [X]% em [classe de ativos]..."
+
+2. Análise:
+   "Isso representa [risco/oportunidade] porque..."
+
+3. Recomendação:
+   "Sugiro considerar [estratégia] com:
+   - [Ativo 1] para [objetivo]
+   - [Ativo 2] para [objetivo]"
+</response_flow>
+`;
+
+// MÓDULO DE METAS FINANCEIRAS
+const GOALS_MODULE = `
+# MODO PLANEJADOR DE METAS
+<activation>Ativar quando mencionar: objetivo, poupar, sonho, projeto</activation>
+
+<framework>
+1. Metodologia SMART:
+   - Específico
+   - Mensurável
+   - Atingível
+   - Relevante
+   - Temporal
+
+2. Fórmula de Cálculo:
+   (Valor Meta) / (Prazo em Meses) = Poupança Mensal
+
+3. Otimização:
+   - Correção por inflação
+   - Reinvestimento de rendimentos
+   - Ajuste dinâmico
+</framework>
+
+<dialogue_examples>
+<ex1>
+Usuário: "Quero comprar um carro em 2 anos"
+Finn: "Vamos calcular! Diga:
+1. Valor aproximado do carro
+2. Quanto já tem guardado
+3. Seu limite mensal para isso"
+</ex1>
+
+<ex2>
+Usuário: "Não sei quanto preciso para aposentadoria"
+Finn: "Vamos estimar baseado em:
+- Sua idade atual
+- Gasto mensal projetado
+- Renda passiva existente
+Posso te guiar passo a passo?"
+</ex2>
+</dialogue_examples>
+`;
+
+// MÓDULO DE SUPORTE TÉCNICO
+const SUPPORT_MODULE = `
+# MODO SUPORTE TÉCNICO
+<activation>Ativar quando mencionar: problema, erro, não funciona, como fazer</activation>
+
+<approach>
+1. Diagnóstico rápido:
+   "Entendi que está com problema em [X]..."
+
+2. Solução imediata:
+   "Tente este caminho: Menu > Config > [Y]"
+
+3. Alternativas:
+   "Se não resolver, podemos:
+   - Reiniciar a sessão
+   - Verificar atualizações
+   - Contatar o suporte"
+
+4. Confirmação:
+   "Isso resolveu? Posso ajudar em algo mais?"
+</approach>
+`;
+
+// MÓDULO DE EDUCAÇÃO FINANCEIRA
+const EDUCATION_MODULE = `
+# MODO EDUCATIVO
+<activation>Ativar quando mencionar: o que é, como funciona, conceito</activation>
+
+<method>
+1. Definição simples:
+   "CDI é a taxa básica de juros entre bancos..."
+
+2. Analogia prática:
+   "Funciona como um empréstimo entre bancos..."
+
+3. Aplicação:
+   "Na sua carteira, isso afeta [X] porque..."
+
+4. Próximos passos:
+   "Para aproveitar isso, você pode [ação]..."
+</method>
+`;
+
+// MÓDULO PREMIUM (Análise Avançada)
+const PREMIUM_MODULE = `
+# MODO CONSULTOR PREMIUM
+<activation>Ativar para usuários Top/Enterprise ou perguntas sobre análise avançada</activation>
+
+<approach>
+1. Contextualize:
+   "Analisando sua carteira de R$ XX.XXX..."
+
+2. Dê insights:
+   "Sua alocação atual em renda variável está X% acima da recomendada..."
+
+3. Sugira ações:
+   "Recomendo rebalancear com:
+   - 30% em ETF de ações
+   - 50% em títulos privados
+   - 20% em fundos imobiliários"
+
+4. Fundamente:
+   "Isso porque [dados de mercado] mostram [tendência]..."
+</approach>
+
+<exclusive_features>
+- Compare com benchmarks
+- Mostre projeções
+- Sugira otimizações
+- Use dados do usuário
+</exclusive_features>
+`;
+
+// ===== SISTEMA DE MEMÓRIA CONTEXTUAL =====
+
+class ContextMemory {
+  private userMemory: Map<string, {
+    lastTopics: string[];
+    preferences: {
+      detailLevel: 'basic' | 'balanced' | 'advanced';
+      favoriteFeatures: string[];
+    };
+    financialContext: {
+      hasInvestments: boolean;
+      hasGoals: boolean;
+      riskProfile?: 'conservador' | 'moderado' | 'arrojado';
+    };
+  }> = new Map();
+
+  getContext(userId: string) {
+    return this.userMemory.get(userId) || {
+      lastTopics: [] as string[],
+      preferences: {
+        detailLevel: 'balanced' as const,
+        favoriteFeatures: [] as string[]
+      },
+      financialContext: {
+        hasInvestments: false,
+        hasGoals: false
+      }
+    };
+  }
+
+  updateContext(userId: string, message: string, response: string) {
+    const context = this.getContext(userId);
+    
+    // Atualiza tópicos
+    const newTopics = this.extractTopics(message + response);
+    context.lastTopics = [...new Set([...context.lastTopics, ...newTopics])].slice(-5);
+    
+    // Atualiza preferências (exemplo simplificado)
+    if (response.includes('explicação detalhada')) {
+      context.preferences.detailLevel = 'advanced';
+    }
+    
+    this.userMemory.set(userId, context);
+  }
+
+  private extractTopics(text: string): string[] {
+    const topics: string[] = [];
+    if (text.toLowerCase().includes('investimento')) topics.push('investimentos');
+    if (text.toLowerCase().includes('meta')) topics.push('metas');
+    if (text.toLowerCase().includes('transação')) topics.push('transações');
+    if (text.toLowerCase().includes('relatório')) topics.push('relatórios');
+    if (text.toLowerCase().includes('dashboard')) topics.push('dashboard');
+    return topics;
+  }
+}
+
+// ===== ENGINE DE RESPOSTA INTELIGENTE =====
+
+class FinnEngine {
+  private memory = new ContextMemory();
+
+  async generateResponse(userId: string, message: string, userContext?: any): Promise<string> {
+    const context = this.memory.getContext(userId);
+    
+    const prompt = `
+      ${CORE_SYSTEM_PROMPT}
+      
+      ${this.getRelevantModules(message, userContext)}
+      
+      # CONTEXTO ATUAL
+      <user_context>
+      - Tópicos recentes: ${context.lastTopics.join(', ') || 'Nenhum'}
+      - Nível de detalhe preferido: ${context.preferences.detailLevel}
+      - Funcionalidades favoritas: ${context.preferences.favoriteFeatures.join(', ') || 'Nenhuma'}
+      - Perfil financeiro: ${context.financialContext.riskProfile || 'Não definido'}
+      - Plano do usuário: ${userContext?.subscriptionPlan || 'Não informado'}
+      </user_context>
+      
+      # MENSAGEM DO USUÁRIO
+      "${message}"
+      
+      Gerar resposta seguindo:
+      1. Máximo 3 frases principais
+      2. Incluir chamada para ação
+      3. Adaptar ao nível ${context.preferences.detailLevel}
+    `;
+
+    const response = await this.callAI(prompt);
+    this.memory.updateContext(userId, message, response);
+    
+    return this.postProcess(response);
+  }
+
+  private getRelevantModules(message: string, userContext?: any): string {
+    const modules: string[] = [];
+    
+    // Módulos baseados no conteúdo da mensagem
+    if (message.match(/investimento|renda|aplicação|carteira/i)) modules.push(INVESTMENT_MODULE);
+    if (message.match(/meta|sonho|poupar|objetivo/i)) modules.push(GOALS_MODULE);
+    if (message.match(/problema|erro|não funciona|como fazer/i)) modules.push(SUPPORT_MODULE);
+    if (message.match(/o que é|como funciona|conceito/i)) modules.push(EDUCATION_MODULE);
+    
+    // Módulo premium baseado no plano do usuário
+    if (userContext?.subscriptionPlan === 'top' || userContext?.subscriptionPlan === 'enterprise') {
+      modules.push(PREMIUM_MODULE);
+    }
+    
+    return modules.join('\n');
+  }
+
+  private async callAI(prompt: string): Promise<string> {
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'deepseek-chat',
+        messages: [{ role: 'system', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 400,
+      });
+
+      return completion.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('Erro ao chamar IA:', error);
+      return 'Desculpe, estou com dificuldades técnicas. Pode tentar novamente?';
+    }
+  }
+
+  private postProcess(text: string): string {
+    // Remove frases padrão indesejadas
+    return text.replace(/Como consultor financeiro\.\.\./gi, '')
+              .replace(/Você como cliente premium\.\.\./gi, '')
+              .replace(/Como consultor certificado\.\.\./gi, '')
+              .trim();
+  }
+}
+
+// ===== SISTEMA DE APRENDIZADO CONTÍNUO =====
+
+class FeedbackLearner {
+  private feedbackLog: Map<string, Array<{
+    message: string;
+    response: string;
+    rating: number;
+    feedback: string;
+  }>> = new Map();
+
+  async processFeedback(userId: string, feedback: {
+    originalMessage: string;
+    originalResponse: string;
+    rating: 1 | 2 | 3 | 4 | 5;
+    comments: string;
+  }) {
+    // Armazena feedback
+    const userFeedback = this.feedbackLog.get(userId) || [];
+    userFeedback.push({
+      message: feedback.originalMessage,
+      response: feedback.originalResponse,
+      rating: feedback.rating,
+      feedback: feedback.comments
+    });
+    this.feedbackLog.set(userId, userFeedback);
+    
+    // Atualiza modelos (exemplo simplificado)
+    if (feedback.rating <= 2) {
+      await this.flagForReview(feedback.originalMessage, feedback.originalResponse);
+    }
+  }
+
+  async generateImprovements() {
+    // Lógica para sugerir ajustes nos prompts
+    // Baseado em análise de feedbacks negativos
+    return {
+      suggestions: [
+        "Considerar reduzir complexidade técnica para usuários iniciantes",
+        "Adicionar mais exemplos práticos",
+        "Melhorar clareza das instruções"
+      ]
+    };
+  }
+
+  private async flagForReview(message: string, response: string) {
+    console.log(`[FeedbackLearner] Flagged for review: ${message.substring(0, 50)}...`);
+    // Implementar lógica de revisão
+  }
+}
+
+// ===== CLASSE PRINCIPAL AISERVICE ATUALIZADA =====
+
 class AIService {
   private marketService: MarketService;
   private responseCache: Map<string, any> = new Map();
   private learningCache: Map<string, number> = new Map();
   private feedbackDatabase: Map<string, any[]> = new Map();
   private userPreferences: Map<string, any> = new Map();
+  private finnEngine: FinnEngine;
+  private feedbackLearner: FeedbackLearner;
+  private PREMIUM_SYSTEM_PROMPT = `
+Você é Finn, um consultor financeiro premium certificado (CFA, CFP, CNAI, CNPI) da Finnextho. Sua missão é fornecer análises financeiras avançadas, recomendações personalizadas e orientação estratégica para usuários Top e Enterprise, utilizando dados reais do usuário e contexto da plataforma. Seja sempre preciso, ético, transparente e didático. Se não souber, diga que não sabe. Se faltar dado, oriente o usuário a registrar na plataforma. Use linguagem clara, profissional e empática. Se o usuário pedir análise, utilize todos os dados disponíveis. Se for dúvida sobre a plataforma, explique de forma prática. Se for suporte, seja objetivo e resolutivo. Se for educação financeira, ensine de forma acessível. Se for análise premium, aprofunde e detalhe. Sempre destaque diferenciais do plano Top/Enterprise quando pertinente.`;
 
   constructor() {
     this.marketService = new MarketService();
+    this.finnEngine = new FinnEngine();
+    this.feedbackLearner = new FeedbackLearner();
   }
 
   private getCacheKey(systemPrompt: string, userMessage: string): string {
@@ -308,14 +725,45 @@ class AIService {
     this.learningCache.set(key, (currentScore + responseQuality) / 2);
   }
 
+  private async callDeepSeekAPI(prompt: string): Promise<string> {
+    const completion = await openai.chat.completions.create({
+      model: 'deepseek-chat',
+      messages: [{ role: 'system', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 800,
+    });
+    return completion.choices[0]?.message?.content || '';
+  }
+
+  // MÉTODO PRINCIPAL ATUALIZADO
   async generateContextualResponse(
     systemPrompt: string,
     userMessage: string,
-    conversationHistory: ChatMessage[]
+    conversationHistory: ChatMessage[],
+    userContext?: any
   ) {
     const startTime = Date.now();
     
     try {
+      // Se não há contexto específico, usar o novo sistema Finn
+      if (!systemPrompt || systemPrompt.includes('Finn')) {
+        const response = await this.finnEngine.generateResponse(
+          userContext?.userId || 'anonymous',
+          userMessage,
+          userContext
+        );
+
+        return {
+          text: response,
+          analysisData: {
+            responseTime: Date.now() - startTime,
+            engine: 'finn',
+            confidence: 0.9
+          }
+        };
+      }
+
+      // Fallback para o sistema antigo se necessário
       const cacheKey = this.getCacheKey(systemPrompt, userMessage);
       if (this.responseCache.has(cacheKey)) {
         console.log(`[AIService] Cache hit - response time: ${Date.now() - startTime}ms`);
@@ -364,134 +812,119 @@ class AIService {
     }
   }
 
+  // MÉTODO PARA ANÁLISE FINANCEIRA AVANÇADA
   async getAdvancedFinancialAnalysis(
     context: string,
     query: string,
     conversationHistory: ChatMessage[]
   ) {
-    const startTime = Date.now();
-    
     try {
-      const cacheKey = this.getCacheKey(context, query);
-      if (this.responseCache.has(cacheKey)) {
-        console.log(`[AIService] Cache hit for premium analysis - response time: ${Date.now() - startTime}ms`);
-        return this.responseCache.get(cacheKey);
-      }
+      console.log('[AIService] Sending expert request to DeepSeek -', conversationHistory.length, 'messages');
+      
+      const contextData = JSON.parse(context);
+      const userData = contextData.userData;
+      
+      // Construir prompt com dados reais do usuário
+      const userContextPrompt = `
+=== DADOS REAIS DO USUÁRIO ===
+Nome: ${userData.name}
+Email: ${userData.email}
+Plano: ${userData.subscriptionPlan}
+Status: ${userData.subscriptionStatus}
 
-      const expertContext = {
-        userData: JSON.parse(context),
-        platformKnowledge: FINNEXTHO_KNOWLEDGE,
-        marketContext: {
-          currentMarket: 'Dados em tempo real disponíveis',
-          relevantIndicators: ['S&P 500', 'IBOVESPA', 'CDI', 'IPCA', 'Dólar', 'Euro']
-        },
-        certifications: ['CFA', 'CFP', 'CNAI', 'CNPI'],
-        expertise: [
-          'Análise fundamentalista e técnica',
-          'Planejamento financeiro pessoal e corporativo',
-          'Gestão de risco e compliance',
-          'Mercado imobiliário e investimentos alternativos',
-          'Educação financeira e treinamento'
-        ]
-      };
+=== DADOS FINANCEIROS REAIS ===
+Transações: ${userData.hasTransactions ? `${userData.totalTransacoes} transações registradas` : 'Nenhuma transação registrada'}
+Investimentos: ${userData.hasInvestments ? `${userData.totalInvestimentos} investimentos registrados` : 'Nenhum investimento registrado'}
+Metas: ${userData.hasGoals ? `${userData.totalMetas} metas definidas` : 'Nenhuma meta definida'}
 
-      const limitedHistory = conversationHistory.slice(-1);
+${userData.hasTransactions ? `
+=== RESUMO DAS TRANSAÇÕES ===
+Total: ${userData.transacoes?.total || 0}
+Categorias: ${JSON.stringify(userData.transacoes?.categorias || {})}
+Últimas transações: ${JSON.stringify(userData.transacoes?.ultimas || [])}
+` : ''}
 
-      const premiumSystemPrompt = `
-        Você é o Finn, consultor financeiro premium do Finnextho com certificações CFA, CFP, CNAI e CNPI.
-        
-        PERFIL:
-        - Personalidade: Profissional, experiente e confiável
-        - Tom: Educativo, mas acessível
-        - Objetivo: Fornecer análises financeiras avançadas e orientação estratégica
-        - Estilo: Respostas detalhadas com insights práticos
-        
-        CERTIFICAÇÕES E EXPERTISE:
-        - CFA (Chartered Financial Analyst): Análise de investimentos e gestão de portfólio
-        - CFP (Certified Financial Planner): Planejamento financeiro pessoal
-        - CNAI (Certificação Nacional de Analista de Investimentos): Análise técnica e fundamentalista
-        - CNPI (Certificação Nacional de Profissional de Investimentos): Gestão de risco e compliance
-        
-        CONHECIMENTO PROFUNDO DA PLATAFORMA FINNEXTHO:
-        ${JSON.stringify(FINNEXTHO_KNOWLEDGE, null, 2)}
-        
-        REGRAS PARA USUÁRIOS PREMIUM:
-        1. Forneça análises detalhadas e estratégicas
-        2. Use dados específicos da plataforma quando relevante
-        3. Ofereça insights baseados no perfil do usuário
-        4. Sugira estratégias de otimização
-        5. Explique conceitos financeiros de forma clara
-        6. Mantenha tom profissional mas acessível
-        7. Inclua recomendações práticas e acionáveis
-        
-        CONTEXTO DO USUÁRIO:
-        - Nome: ${expertContext.userData.name || 'Cliente Premium'}
-        - Plano: ${expertContext.userData.subscriptionPlan || 'Top'}
-        - Status: ${expertContext.userData.subscriptionStatus || 'Ativo'}
-        - Dados disponíveis: ${expertContext.userData.hasTransactions ? 'Transações' : 'Sem transações'}, ${expertContext.userData.hasInvestments ? 'Investimentos' : 'Sem investimentos'}, ${expertContext.userData.hasGoals ? 'Metas' : 'Sem metas'}
-        
-        Responda como um consultor financeiro certificado, fornecendo análises profundas e orientação estratégica personalizada.
-      `;
+${userData.hasInvestments ? `
+=== RESUMO DOS INVESTIMENTOS ===
+Total: ${userData.investimentos?.total || 0}
+Tipos: ${JSON.stringify(userData.investimentos?.tipos || {})}
+Últimos investimentos: ${JSON.stringify(userData.investimentos?.ultimos || [])}
+` : ''}
 
-      const messages = [
-        { role: 'system', content: premiumSystemPrompt },
-        ...limitedHistory.map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.content
-        })),
-        { role: 'user', content: query }
-      ];
+${userData.hasGoals ? `
+=== RESUMO DAS METAS ===
+Total: ${userData.metas?.total || 0}
+Status: ${JSON.stringify(userData.metas?.status || {})}
+Metas ativas: ${JSON.stringify(userData.metas?.ativas || [])}
+` : ''}
 
-      console.log(`[AIService] Sending expert request to DeepSeek - ${messages.length} messages`);
+${userData.transacoesCompletas ? `
+=== TRANSAÇÕES COMPLETAS ===
+${JSON.stringify(userData.transacoesCompletas, null, 2)}
+` : ''}
 
-      const completion = await openai.chat.completions.create({
-        model: 'deepseek-chat',
-        messages: messages as any,
-        temperature: 0.6,
-        max_tokens: 800,
-      });
+${userData.investimentosCompletos ? `
+=== INVESTIMENTOS COMPLETOS ===
+${JSON.stringify(userData.investimentosCompletos, null, 2)}
+` : ''}
 
-      const response = {
-        analysisText: completion.choices[0]?.message?.content || '',
-        analysisData: {
-          expertise: 'CFA, CFP, CNAI, CNPI',
-          responseTime: Date.now() - startTime,
-          confidence: 0.95,
-          analysisType: 'premium'
+${userData.metasCompletas ? `
+=== METAS COMPLETAS ===
+${JSON.stringify(userData.metasCompletas, null, 2)}
+` : ''}
+`;
+
+      const systemPrompt = `${this.PREMIUM_SYSTEM_PROMPT}
+
+${userContextPrompt}
+
+IMPORTANTE: Você tem acesso aos dados reais do usuário. Use essas informações para fornecer análises personalizadas e específicas. Se o usuário perguntar sobre dados que não estão registrados, informe educadamente que os dados não foram encontrados e sugira como registrá-los.
+
+PERGUNTA DO USUÁRIO: ${query}
+
+HISTÓRICO DA CONVERSA:
+${conversationHistory.map(msg => `${msg.sender}: ${msg.content}`).join('\n')}
+
+RESPONDA COMO UM CONSULTOR FINANCEIRO PREMIUM, USANDO OS DADOS REAIS DO USUÁRIO:`;
+
+      const response = await this.callDeepSeekAPI(systemPrompt);
+      const parsedResponse = this.parseAIResponse(response);
+
+      return {
+        analysisText: parsedResponse.analysisText || response,
+        analysisData: parsedResponse.analysisData || null,
+        confidence: parsedResponse.confidence || 0.95,
+        userDataUsed: {
+          name: userData.name,
+          hasTransactions: userData.hasTransactions,
+          hasInvestments: userData.hasInvestments,
+          hasGoals: userData.hasGoals,
+          totalTransacoes: userData.totalTransacoes || 0,
+          totalInvestimentos: userData.totalInvestimentos || 0,
+          totalMetas: userData.totalMetas || 0
         }
       };
 
-      this.responseCache.set(cacheKey, response);
-      this.updateLearningCache(query, 0.9);
-      
-      console.log(`[AIService] Expert analysis generated in ${Date.now() - startTime}ms`);
-      return response;
     } catch (error) {
-      console.error('Erro ao gerar análise financeira:', error);
-      throw new AppError(500, 'Erro ao processar sua análise. Por favor, tente novamente mais tarde.');
+      console.error('[AIService] Error in advanced financial analysis:', error);
+      return {
+        analysisText: 'Desculpe, ocorreu um erro ao processar sua análise financeira. Por favor, tente novamente.',
+        analysisData: null,
+        confidence: 0.5
+      };
     }
   }
 
+  // MÉTODO PARA ORIENTAÇÃO DA PLATAFORMA
   async getPlatformGuidance(query: string, userContext: any) {
     const startTime = Date.now();
     
     try {
       const platformPrompt = `
-        Você é um especialista em UX/UI e treinamento da plataforma Finnextho.
-        
-        CONHECIMENTO PROFUNDO DA PLATAFORMA:
-        ${JSON.stringify(FINNEXTHO_KNOWLEDGE, null, 2)}
+        ${CORE_SYSTEM_PROMPT}
+        ${SUPPORT_MODULE}
         
         OBJETIVO: Ajudar usuários a navegar e usar eficientemente a plataforma Finnextho.
-        
-        DIRETRIZES:
-        1. Forneça instruções passo-a-passo claras e específicas
-        2. Explique onde encontrar cada funcionalidade na interface
-        3. Dê dicas de produtividade e melhores práticas
-        4. Sugira fluxos de trabalho otimizados
-        5. Responda de forma didática e encorajadora
-        6. Use exemplos práticos e específicos da plataforma
-        7. Mencione diferenças entre planos quando relevante
         
         CONTEXTO DO USUÁRIO: ${JSON.stringify(userContext)}
         
@@ -517,6 +950,55 @@ class AIService {
     }
   }
 
+  // MÉTODO PARA RESPOSTA PERSONALIZADA
+  async getPersonalizedResponse(
+    userId: string,
+    query: string,
+    conversationHistory: ChatMessage[]
+  ) {
+    try {
+      const preferences = this.userPreferences.get(userId);
+      
+      // Personalizar prompt baseado nas preferências do usuário
+      let personalizedPrompt = '';
+      
+      if (preferences) {
+        personalizedPrompt = `
+          PREFERÊNCIAS DO USUÁRIO:
+          - Estilo preferido: ${preferences.preferredStyle}
+          - Nível de detalhe: ${preferences.detailLevel}
+          - Nível técnico: ${preferences.technicalLevel}
+          - Tamanho da resposta: ${preferences.responseLength}
+          
+          HISTÓRICO DE FEEDBACK:
+          - Avaliação média: ${preferences.feedbackHistory?.filter(f => f.type === 'positive').length || 0} positivas
+          - Problemas frequentes: ${preferences.feedbackHistory?.filter(f => f.type === 'negative').map(f => f.category).join(', ') || 'Nenhum'}
+          
+          Ajuste sua resposta baseado nessas preferências para melhorar a satisfação do usuário.
+        `;
+      }
+
+      // Usar o prompt personalizado no contexto
+      const systemPrompt = `
+        ${personalizedPrompt}
+        
+        ${CORE_SYSTEM_PROMPT}
+        
+        Responda de forma personalizada e útil, considerando o histórico de feedback do usuário.
+      `;
+
+      return await this.generateContextualResponse(
+        systemPrompt,
+        query,
+        conversationHistory
+      );
+    } catch (error) {
+      console.error('Erro ao gerar resposta personalizada:', error);
+      throw new AppError(500, 'Erro ao gerar resposta personalizada');
+    }
+  }
+
+  // MÉTODOS AUXILIARES MANTIDOS
   async getMarketOverview() {
     return {
       sp500: 4500,
@@ -595,6 +1077,14 @@ class AIService {
 
       // Ajustar cache de aprendizado baseado no feedback
       this.adjustLearningCache(feedback);
+
+      // Processar feedback no sistema de aprendizado
+      await this.feedbackLearner.processFeedback(userId, {
+        originalMessage: feedback.context,
+        originalResponse: '',
+        rating: feedback.rating as 1 | 2 | 3 | 4 | 5,
+        comments: feedback.comment || ''
+      });
 
       console.log(`[AIService] Feedback salvo para usuário ${userId}: ${feedback.rating}/5`);
       
@@ -699,55 +1189,103 @@ class AIService {
     }
   }
 
-  async getPersonalizedResponse(
-    userId: string,
-    query: string,
-    conversationHistory: ChatMessage[]
-  ) {
+  // NOVO MÉTODO PARA OBTER MELHORIAS SUGERIDAS
+  async getSuggestedImprovements() {
     try {
-      const preferences = this.userPreferences.get(userId);
-      
-      // Personalizar prompt baseado nas preferências do usuário
-      let personalizedPrompt = '';
-      
-      if (preferences) {
-        personalizedPrompt = `
-          PREFERÊNCIAS DO USUÁRIO:
-          - Estilo preferido: ${preferences.preferredStyle}
-          - Nível de detalhe: ${preferences.detailLevel}
-          - Nível técnico: ${preferences.technicalLevel}
-          - Tamanho da resposta: ${preferences.responseLength}
-          
-          HISTÓRICO DE FEEDBACK:
-          - Avaliação média: ${preferences.feedbackHistory?.filter(f => f.type === 'positive').length || 0} positivas
-          - Problemas frequentes: ${preferences.feedbackHistory?.filter(f => f.type === 'negative').map(f => f.category).join(', ') || 'Nenhum'}
-          
-          Ajuste sua resposta baseado nessas preferências para melhorar a satisfação do usuário.
-        `;
-      }
-
-      // Usar o prompt personalizado no contexto
-      const systemPrompt = `
-        ${personalizedPrompt}
-        
-        Você é o Finn, assistente inteligente do Finnextho.
-        
-        CONHECIMENTO PROFUNDO DA PLATAFORMA:
-        ${JSON.stringify(FINNEXTHO_KNOWLEDGE, null, 2)}
-        
-        Responda de forma personalizada e útil, considerando o histórico de feedback do usuário.
-      `;
-
-      return await this.generateContextualResponse(
-        systemPrompt,
-        query,
-        conversationHistory
-      );
+      return await this.feedbackLearner.generateImprovements();
     } catch (error) {
-      console.error('Erro ao gerar resposta personalizada:', error);
-      throw new AppError(500, 'Erro ao gerar resposta personalizada');
+      console.error('Erro ao gerar sugestões de melhoria:', error);
+      return { suggestions: [] };
     }
   }
 }
 
 export default AIService;
+
+/*
+=== EXEMPLOS DE USO DO NOVO SISTEMA FINN ===
+
+// 1. Uso básico com o novo sistema
+const aiService = new AIService();
+
+// Resposta automática usando o Finn Engine
+const response = await aiService.generateContextualResponse(
+  '', // systemPrompt vazio ativa o Finn
+  'Como cadastrar uma transação?',
+  [], // conversationHistory
+  { userId: 'user123', subscriptionPlan: 'essencial' }
+);
+
+// 2. Análise financeira avançada para usuários premium
+const premiumAnalysis = await aiService.getAdvancedFinancialAnalysis(
+  JSON.stringify({
+    name: 'João Silva',
+    subscriptionPlan: 'top',
+    hasInvestments: true,
+    hasGoals: true,
+    portfolioValue: 50000
+  }),
+  'Como rebalancear minha carteira?',
+  []
+);
+
+// 3. Orientação da plataforma
+const guidance = await aiService.getPlatformGuidance(
+  'Onde encontro meus relatórios?',
+  { subscriptionPlan: 'essencial' }
+);
+
+// 4. Resposta personalizada baseada em feedback
+const personalized = await aiService.getPersonalizedResponse(
+  'user123',
+  'Quais investimentos são melhores para mim?',
+  []
+);
+
+// 5. Sistema de feedback
+await aiService.saveUserFeedback('user123', 'msg456', {
+  rating: 5,
+  helpful: true,
+  comment: 'Resposta muito clara e útil!',
+  category: 'helpfulness',
+  context: 'Como investir melhor?'
+});
+
+// 6. Analytics de feedback
+const analytics = await aiService.getUserFeedbackAnalytics('user123');
+
+// 7. Sugestões de melhoria
+const improvements = await aiService.getSuggestedImprovements();
+
+=== CARACTERÍSTICAS DO NOVO SISTEMA ===
+
+✅ Sistema de prompts modular e especializado
+✅ Memória contextual por usuário
+✅ Personalização baseada em feedback
+✅ Módulos específicos para cada tipo de pergunta
+✅ Sistema de aprendizado contínuo
+✅ Análises premium para usuários Top/Enterprise
+✅ Orientação da plataforma inteligente
+✅ Proibições para evitar respostas indesejadas
+✅ Templates de resposta estruturados
+✅ Adaptação automática ao nível do usuário
+
+=== MÓDULOS DISPONÍVEIS ===
+
+1. INVESTMENT_MODULE - Para perguntas sobre investimentos
+2. GOALS_MODULE - Para metas financeiras
+3. SUPPORT_MODULE - Para suporte técnico
+4. EDUCATION_MODULE - Para educação financeira
+5. PREMIUM_MODULE - Para análises avançadas (usuários Top/Enterprise)
+
+=== FLUXO DE FUNCIONAMENTO ===
+
+1. Usuário envia mensagem
+2. Sistema identifica o tipo de pergunta
+3. Carrega módulos relevantes
+4. Aplica contexto do usuário
+5. Gera resposta personalizada
+6. Atualiza memória contextual
+7. Coleta feedback (opcional)
+8. Aprende e melhora continuamente
+*/

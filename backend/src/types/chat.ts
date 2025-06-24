@@ -8,6 +8,12 @@ export interface ChatMessageMetadata {
   isImportant?: boolean;
   messageType?: 'basic' | 'premium' | 'analysis' | 'guidance';
   messageId?: string;
+  userDataAccessed?: {
+    name: string;
+    totalTransacoes: number;
+    totalInvestimentos: number;
+    totalMetas: number;
+  };
 }
 
 export interface ChatMessage {
