@@ -1,13 +1,6 @@
-import admin from 'firebase-admin';
+import { adminFirestore } from '@config/firebaseAdmin';
 
-// Inicialize se necessário (igual no authService)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    // mesma configuração do authService
-  });
-}
-
-const db = admin.firestore();
+const db = adminFirestore;
 
 interface Budget {
   userId: string;

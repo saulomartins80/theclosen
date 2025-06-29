@@ -1,5 +1,5 @@
 import { stripe, STRIPE_CONFIG } from '../config/stripe';
-import { admin } from '../config/firebase';
+import { adminFirestore } from '@config/firebaseAdmin';
 import { AppError } from '../core/errors/AppError';
 import { logSubscriptionEvent, logError } from './loggerService';
 import type { Stripe } from 'stripe';
@@ -11,7 +11,7 @@ import { UserRepository } from '../modules/users/repositories/UserRepository';
 import { StripeSubscriptionWithPeriod, convertToStripeSubscriptionWithPeriod } from '../types/stripe';
 import { rateLimit } from 'express-rate-limit';
 
-const db = admin.firestore();
+const db = adminFirestore;
 
 // Rate limiting para webhooks
 const webhookRateLimit = rateLimit({

@@ -18,9 +18,6 @@ node_modules/
 # CSS gerado automaticamente
 styles/output.css
 
-# Arquivo de configuração do Vercel
-.vercel
-
 # Arquivos de ambiente
 .env
 .env.local
@@ -79,10 +76,31 @@ backend/node_modules/
 
 # Arquivos gerados
 *.dll
-*.map.vercel
+*.map
 
 # Firebase service account files
 src/config/firebase-admin*.json
 src/config/private/
 src/config/private/
-.env
+
+# Render specific files
+.render-buildlogs/
+.render-deploy-logs/
+
+# Docker files (removed for Render migration)
+Dockerfile
+docker-compose*.yml
+start-docker*.sh
+stop-docker.sh
+test-docker*.ps1
+nginx.conf
+DOCKER_SETUP.md
+hsm-simulator/
+secrets/
+docker.env
+mongo-init.js
+
+# Vercel files (removed for Render migration)
+.vercel
+.vercelignore
+vercel.json

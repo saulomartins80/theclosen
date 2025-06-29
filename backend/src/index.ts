@@ -234,7 +234,7 @@ app.get('/health', (async (req: express.Request, res: express.Response): Promise
   }
 }) as express.RequestHandler);
 
-// Configuração do middleware para webhooks do Stripe
+// Configuração do middleware para webhooks do Stripe (DEVE vir ANTES do express.json())
 app.use('/api/subscriptions/webhook', express.raw({ type: 'application/json' }));
 
 // Configuração do body-parser para outras rotas

@@ -9,12 +9,11 @@ import { IUser, ISubscription } from '@models/User';
 import { IUserProfile, IUserWithTokens } from '../interfaces/user.interface';
 import { TYPES } from '@core/types';
 import { User } from '../types/User';
-import { admin } from '../../../config/firebase';
+import { adminAuth, adminFirestore } from '@config/firebaseAdmin';
 import logger, { logError } from '../../../services/loggerService';
 import { SubscriptionStatus } from '../types/User';
-import { adminAuth } from '@config/firebaseAdmin';
 
-const db = admin.firestore();
+const db = adminFirestore;
 
 interface UpdateProfileData extends Partial<Pick<IUser, 'name' | 'email' | 'photoUrl'>> {
   currentPassword?: string;

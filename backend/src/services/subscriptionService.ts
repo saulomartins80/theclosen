@@ -1,5 +1,5 @@
 import { stripe, STRIPE_CONFIG } from '../config/stripe';
-import { admin } from '../config/firebase';
+import { adminAuth, adminFirestore } from '@config/firebaseAdmin';
 import { AppError } from '../core/errors/AppError';
 import { logSubscriptionEvent, logError } from './loggerService';
 import type { Stripe } from 'stripe';
@@ -9,7 +9,7 @@ import { TYPES } from '../core/types';
 import { Subscription, SubscriptionStatus } from '../modules/users/types/User';
 import { UserRepository } from '../modules/users/repositories/UserRepository';
 
-const db = admin.firestore();
+const db = adminFirestore.collection('users');
 
 interface StripeSubscriptionWithPeriod extends Stripe.Subscription {
     current_period_end: number;
@@ -208,7 +208,7 @@ export class SubscriptionService {
                 cancelAtPeriodEnd: subscription.cancel_at_period_end
             };
 
-            await db.collection('users').doc(userId).update({
+            await db.doc(userId).update({
                 subscription: subscriptionData,
                 updatedAt: new Date()
             });

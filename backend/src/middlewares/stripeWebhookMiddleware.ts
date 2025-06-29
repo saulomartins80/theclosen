@@ -1,9 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
+import express from 'express';
 import { stripe, STRIPE_CONFIG } from '../config/stripe';
 import { AppError } from '../core/errors/AppError';
 import { logError } from '../services/loggerService';
 
-export const stripeWebhookMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+export const stripeWebhookMiddleware = express.raw({ type: 'application/json' });
+
+export const validateStripeWebhook = (req: Request, res: Response, next: NextFunction): void => {
+  const sig = req.headers['stripe-signature'];
+  
+  if (!sig) {
+    res.status(400).json({ error: 'Stripe signature header missing' });
+    return;
+  }
+  
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    res.status(500).json({ error: 'Stripe webhook secret not configured' });
+    return;
+  }
+  
+  next();
+  return;
+};
+
+export const stripeWebhookMiddlewareHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
         console.log('Webhook recebido - Headers:', {
             'stripe-signature': req.headers['stripe-signature'],

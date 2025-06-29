@@ -12,7 +12,7 @@ interface StockData {
 }
 
 const YAHOO_FINANCE_API_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';
-const REQUEST_TIMEOUT = 30000;
+const REQUEST_TIMEOUT = 10000;
 
 // Categorias completas de ativos
 const symbolMappings: Record<string, string> = {
@@ -300,66 +300,85 @@ const getAssetTypeFromSymbol = (symbol: string): keyof MarketDataResponse | null
 };
 
 export const fetchYahooFinanceData = async (symbol: string): Promise<StockData | null> => {
-  try {
-    if (!symbol) {
-      console.error('Invalid symbol: Symbol cannot be empty');
-      return null;
-    }
+  const maxRetries = 2;
+  let lastError: any = null;
 
-    // Find the key in symbolMappings for the given symbol value (case-insensitive lookup)
-    const matchedKey = Object.keys(symbolMappings).find(
-        key => symbolMappings[key].toUpperCase() === symbol.toUpperCase()
-    );
-    const assetName = matchedKey || symbol; // Use the key as a potential friendly name, fallback to symbol
-
-    // Use the provided symbol directly, as it should be the Yahoo Finance format
-    const yahooSymbol = symbol;
-
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await axios.get(`${YAHOO_FINANCE_API_URL}/${yahooSymbol}`, {
-        params: { interval: '1d', range: '1d' },
-        timeout: REQUEST_TIMEOUT
-      });
-
-      // Log the response from Yahoo Finance API
-      console.log(`Response from Yahoo Finance API for ${yahooSymbol}:`, response.data);
-
-      const result = response.data.chart?.result?.[0];
-      if (!result) {
-         console.warn(`No chart data found for symbol ${yahooSymbol}`);
-         return null; // No chart data means no valid asset data
+      if (!symbol) {
+        console.error('Invalid symbol: Symbol cannot be empty');
+        return null;
       }
 
-      const meta = result.meta;
-       // Basic check if essential data exists
-      if (meta.regularMarketPrice === undefined || meta.chartPreviousClose === undefined) {
-           console.warn(`Incomplete market data for symbol ${yahooSymbol}`);
-           return null; // Incomplete data
+      // Find the key in symbolMappings for the given symbol value (case-insensitive lookup)
+      const matchedKey = Object.keys(symbolMappings).find(
+          key => symbolMappings[key].toUpperCase() === symbol.toUpperCase()
+      );
+      const assetName = matchedKey || symbol; // Use the key as a potential friendly name, fallback to symbol
+
+      // Use the provided symbol directly, as it should be the Yahoo Finance format
+      const yahooSymbol = symbol;
+
+      try {
+        const response = await axios.get(`${YAHOO_FINANCE_API_URL}/${yahooSymbol}`, {
+          params: { interval: '1d', range: '1d' },
+          timeout: REQUEST_TIMEOUT
+        });
+
+        // Log the response from Yahoo Finance API
+        console.log(`Response from Yahoo Finance API for ${yahooSymbol}:`, response.data);
+
+        const result = response.data.chart?.result?.[0];
+        if (!result) {
+           console.warn(`No chart data found for symbol ${yahooSymbol}`);
+           return null; // No chart data means no valid asset data
+        }
+
+        const meta = result.meta;
+         // Basic check if essential data exists
+        if (meta.regularMarketPrice === undefined || meta.chartPreviousClose === undefined) {
+             console.warn(`Incomplete market data for symbol ${yahooSymbol}`);
+             return null; // Incomplete data
+        }
+
+        const previousClose = meta.chartPreviousClose || 0;
+        const currentPrice = meta.regularMarketPrice || 0;
+        const change = currentPrice - previousClose;
+        const changePercent = previousClose !== 0 ? (change / previousClose) * 100 : 0;
+
+        return {
+          symbol: symbol, // Return the original requested symbol
+          name: assetName, // Include potential friendly name from mapping
+          price: currentPrice,
+          change,
+          changePercent,
+          volume: meta.regularMarketVolume,
+          currency: meta.currency || (symbol.endsWith('.SA') ? 'BRL' : 'USD') // Infer currency if not provided
+        };
+      } catch (error: any) {
+        lastError = error;
+        if (attempt < maxRetries) {
+          console.warn(`Attempt ${attempt} failed for ${symbol} (Yahoo Symbol: ${yahooSymbol}): ${error.message || error}. Retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          continue;
+        }
+        console.error(`Error fetching data for ${symbol} (Yahoo Symbol: ${yahooSymbol}) after ${maxRetries} attempts:`, error.message || error);
+        return null;
       }
 
-      const previousClose = meta.chartPreviousClose || 0;
-      const currentPrice = meta.regularMarketPrice || 0;
-      const change = currentPrice - previousClose;
-      const changePercent = previousClose !== 0 ? (change / previousClose) * 100 : 0;
-
-      return {
-        symbol: symbol, // Return the original requested symbol
-        name: assetName, // Include potential friendly name from mapping
-        price: currentPrice,
-        change,
-        changePercent,
-        volume: meta.regularMarketVolume,
-        currency: meta.currency || (symbol.endsWith('.SA') ? 'BRL' : 'USD') // Infer currency if not provided
-      };
     } catch (error: any) {
-      console.error(`Error fetching data for ${symbol} (Yahoo Symbol: ${yahooSymbol}):`, error.message || error);
+      lastError = error;
+      if (attempt < maxRetries) {
+        console.warn(`Attempt ${attempt} failed for ${symbol}: ${error.message || error}. Retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        continue;
+      }
+      console.error(`Error processing symbol ${symbol} after ${maxRetries} attempts:`, error.message || error);
       return null;
     }
-
-  } catch (error: any) {
-    console.error(`Error processing symbol ${symbol}:`, error.message || error);
-    return null;
   }
+
+  return null;
 };
 
 interface MarketDataResponse {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { SubscriptionController } from '../modules/subscriptions/controllers/SubscriptionController';
 import { asyncHandler } from '../middlewares/asyncHandler';
 import { authenticate } from '../middlewares/authMiddleware';
+import { stripeWebhookMiddleware, stripeWebhookMiddlewareHandler } from '../middlewares/stripeWebhookMiddleware';
 import { AuthRequest } from '../types/auth';
 import Stripe from 'stripe';
 import { User } from '../models/User';
@@ -18,16 +19,11 @@ router.get('/plans', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Webhook do Stripe (deve ser público e usar middleware específico)
-router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
-  const sig = req.headers['stripe-signature'];
-
-  try {
-    const event = stripe.webhooks.constructEvent(
-      req.body,
-      sig as string,
-      process.env.STRIPE_WEBHOOK_SECRET as string
-    );
-
+router.post('/webhook', 
+  stripeWebhookMiddleware,
+  stripeWebhookMiddlewareHandler,
+  asyncHandler(async (req: Request, res: Response) => {
+    const event = req.body as Stripe.Event;
     console.log('Evento recebido:', event.type);
 
     switch (event.type) {
@@ -222,11 +218,7 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
     }
 
     res.json({ received: true });
-  } catch (error) {
-    console.error('Erro no webhook:', error);
-    res.status(400).json({ error: 'Erro no webhook' });
-  }
-}));
+  }));
 
 // Rota para verificação de sessão (pública)
 router.post('/verify-session', asyncHandler(async (req: Request, res: Response) => {

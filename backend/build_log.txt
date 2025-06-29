@@ -3,25 +3,25 @@
 
  Pasta de C:\Users\USER\theclosen\backend\dist\middlewares
 
-28/06/2025  22:44    <DIR>          .
-28/06/2025  22:44    <DIR>          ..
-28/06/2025  22:44               286 asyncHandler.js
-28/06/2025  22:44               351 asyncHandler.js.map
-28/06/2025  22:44             1.308 auth.js
-28/06/2025  22:44             1.297 auth.js.map
-28/06/2025  22:44             4.965 authMiddleware.js
-28/06/2025  22:44             3.600 authMiddleware.js.map
-28/06/2025  22:44             1.693 cors.js
-28/06/2025  22:44             1.377 cors.js.map
-28/06/2025  22:44             1.351 errorHandler.js
-28/06/2025  22:44             1.110 errorHandler.js.map
-28/06/2025  22:44             1.407 marketDataValidation.js
-28/06/2025  22:44             1.205 marketDataValidation.js.map
-28/06/2025  22:44             8.185 securityMiddleware.js
-28/06/2025  22:44             6.739 securityMiddleware.js.map
-28/06/2025  22:44             2.803 stripeWebhookMiddleware.js
-28/06/2025  22:44             2.132 stripeWebhookMiddleware.js.map
-28/06/2025  22:44             2.159 webhookRateLimit.js
-28/06/2025  22:44             1.492 webhookRateLimit.js.map
-              18 arquivo(s)         43.460 bytes
-               2 pasta(s)   76.283.510.784 bytes dispon¡veis
+29/06/2025  18:35    <DIR>          .
+29/06/2025  18:35    <DIR>          ..
+29/06/2025  18:35               286 asyncHandler.js
+29/06/2025  18:35               351 asyncHandler.js.map
+29/06/2025  18:35             1.308 auth.js
+29/06/2025  18:35             1.297 auth.js.map
+29/06/2025  18:35            13.969 authMiddleware.js
+29/06/2025  18:35            10.805 authMiddleware.js.map
+29/06/2025  18:35             1.693 cors.js
+29/06/2025  18:35             1.377 cors.js.map
+29/06/2025  18:35             1.351 errorHandler.js
+29/06/2025  18:35             1.110 errorHandler.js.map
+29/06/2025  18:35             1.407 marketDataValidation.js
+29/06/2025  18:35             1.205 marketDataValidation.js.map
+29/06/2025  18:35             8.185 securityMiddleware.js
+29/06/2025  18:35             6.739 securityMiddleware.js.map
+29/06/2025  18:35             3.624 stripeWebhookMiddleware.js
+29/06/2025  18:35             2.719 stripeWebhookMiddleware.js.map
+29/06/2025  18:35             2.159 webhookRateLimit.js
+29/06/2025  18:35             1.492 webhookRateLimit.js.map
+              18 arquivo(s)         61.077 bytes
+               2 pasta(s)   74.746.658.816 bytes dispon¡veis
