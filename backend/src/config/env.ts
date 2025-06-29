@@ -20,6 +20,7 @@ export const env = {
   rateLimitWindowMs: process.env.RATE_LIMIT_WINDOW_MS, // Adicionado
   rateLimitMax: process.env.RATE_LIMIT_MAX, // Adicionado
   appJwtSecret: process.env.APP_JWT_SECRET,
+  jwtSecret: process.env.JWT_SECRET || process.env.APP_JWT_SECRET || 'default-secret-key-change-in-production',
   // Variáveis do Firebase Admin - Use FIREBASE_ADMIN_CREDENTIALS no Vercel dashboard
   firebaseAdminCredentials: process.env.FIREBASE_ADMIN_CREDENTIALS,
   // Chaves individuais (usadas talvez localmente ou como fallback)

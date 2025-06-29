@@ -89,3 +89,213 @@ html.dark input:-moz-autofill:focus,
 html.dark input:-moz-autofill:active {
   filter: none !important; 
 }
+
+/* ESTILOS PARA REACT-TOASTIFY */
+.Toastify__toast-container {
+  z-index: 9999 !important;
+}
+
+.Toastify__toast {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  font-family: inherit !important;
+}
+
+.Toastify__toast--light {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.Toastify__toast--dark {
+  background: #1f2937 !important;
+  color: #ffffff !important;
+  border: 1px solid #374151 !important;
+}
+
+.Toastify__toast--success {
+  background: #f0fdf4 !important;
+  color: #166534 !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.Toastify__toast--error {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.Toastify__toast--warning {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.Toastify__toast--info {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.Toastify__close-button {
+  color: #6b7280 !important;
+  opacity: 0.7 !important;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1 !important;
+}
+
+.Toastify__progress-bar {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6) !important;
+}
+
+/* Melhorar contraste do chat no modo claro */
+.chat-message-bot {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  color: #1f2937 !important;
+}
+
+.chat-message-user {
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+/* Melhorar visual do chat container */
+.chat-container {
+  background: #f9fafb !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.chat-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.chat-input {
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  color: #1f2937 !important;
+}
+
+.chat-input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Correções específicas para contraste no modo claro */
+.chat-header-text {
+  color: #1f2937 !important; /* Cinza escuro para modo claro */
+}
+
+.chat-header-text.dark {
+  color: #ffffff !important; /* Branco para modo escuro */
+}
+
+.chat-message-text {
+  color: #1f2937 !important; /* Cinza escuro para modo claro */
+}
+
+.chat-message-text.dark {
+  color: #ffffff !important; /* Branco para modo escuro */
+}
+
+.chat-divider {
+  border-color: #d1d5db !important; /* Cinza claro para modo claro */
+}
+
+.chat-divider.dark {
+  border-color: #374151 !important; /* Cinza escuro para modo escuro */
+}
+
+/* Forçar contraste em textos específicos do chat */
+.chat-title {
+  color: #111827 !important; /* Cinza muito escuro */
+}
+
+.chat-subtitle {
+  color: #4b5563 !important; /* Cinza médio */
+}
+
+.chat-message-content {
+  color: #111827 !important; /* Cinza muito escuro */
+}
+
+/* Modo escuro - sobrescrever as cores acima */
+.dark .chat-title {
+  color: #ffffff !important;
+}
+
+.dark .chat-subtitle {
+  color: #9ca3af !important;
+}
+
+.dark .chat-message-content {
+  color: #ffffff !important;
+}
+
+/* Melhorar visibilidade das bordas divisórias */
+.chat-border-top {
+  border-top: 1px solid #d1d5db !important;
+}
+
+.chat-border-bottom {
+  border-bottom: 1px solid #d1d5db !important;
+}
+
+.dark .chat-border-top {
+  border-top: 1px solid #374151 !important;
+}
+
+.dark .chat-border-bottom {
+  border-bottom: 1px solid #374151 !important;
+}
+
+/* Melhorar visual da lista de conversas */
+.chat-session-item {
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+}
+
+.dark .chat-session-item {
+  border: 1px solid #374151 !important;
+  background: #1f2937 !important;
+}
+
+.chat-session-item:hover {
+  background: #f9fafb !important;
+}
+
+.dark .chat-session-item:hover {
+  background: #374151 !important;
+}
+
+/* Modo escuro para toasts */
+html.dark .Toastify__toast {
+  background-color: #374151 !important;
+  color: white !important;
+}
+
+html.dark .Toastify__toast--success {
+  background-color: #059669 !important;
+}
+
+html.dark .Toastify__toast--error {
+  background-color: #DC2626 !important;
+}
+
+html.dark .Toastify__toast--warning {
+  background-color: #D97706 !important;
+}
+
+html.dark .Toastify__toast--info {
+  background-color: #2563EB !important;
+}
+
+/* Garantir que os toasts apareçam acima de tudo */
+.Toastify__toast-container--top-right {
+  top: 1em !important;
+  right: 1em !important;
+  z-index: 9999 !important;
+}

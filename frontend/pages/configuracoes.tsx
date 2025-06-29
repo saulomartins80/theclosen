@@ -560,9 +560,6 @@ export default function ConfiguracoesPage() {
                     {/* Componente de Notificações */}
                     <Notifications
                       resolvedTheme={resolvedTheme}
-                      initialNotifications={sampleNotifications}
-                      onMarkAsRead={markSampleAsRead}
-                      onMarkAllAsRead={markAllSampleAsRead}
                     />
                   </div>
 

@@ -187,3 +187,48 @@ export const deleteTransacao = async (req: Request, res: Response): Promise<void
     res.status(500).json({ message: "Erro interno do servidor." });
   }
 };
+
+export const suggestAndAddTransaction = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Usuário não autenticado." });
+      return;
+    }
+
+    const { valor, tipo, categoria, descricao, conta, data, confirmacao } = req.body;
+
+    // Se não confirmado, apenas retorna a sugestão
+    if (!confirmacao) {
+      const sugestao = {
+        valor: valor || 0,
+        tipo: tipo || "despesa",
+        categoria: categoria || "outros",
+        descricao: descricao || "Transação sem descrição",
+        conta: conta || "Conta Corrente",
+        data: data ? new Date(data) : new Date(),
+        userId,
+        status: "pendente",
+        mensagem: "Por favor, confirme os dados da transação"
+      };
+
+      res.json({
+        ...sugestao,
+        acoes: [
+          { acao: "confirmar", texto: "Confirmar", endpoint: `/api/transacoes/sugestao`, metodo: "POST" },
+          { acao: "editar", texto: "Editar", camposEditaveis: ["valor", "tipo", "categoria", "descricao", "conta", "data"] }
+        ]
+      });
+      return;
+    }
+
+    // Se confirmado, processa normalmente
+    await createTransacao(req, res);
+  } catch (error: unknown) {
+    console.error('Erro ao sugerir transação:', error);
+    res.status(500).json({
+      message: 'Erro ao sugerir transação',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+};

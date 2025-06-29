@@ -47,7 +47,10 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({
       return {
         icon: DollarSign,
         label: 'Novo Investimento',
-        action: () => router.push('/investimentos?action=new'),
+        action: () => {
+          // Abre o formulário diretamente na página de investimentos
+          router.push('/investimentos?action=new');
+        },
         color: 'from-purple-500 to-purple-600',
         pulse: true
       };

@@ -332,10 +332,11 @@ export class UserService {
   }
 
   private async generateTokens(user: IUser): Promise<{ token: string; firebaseToken: string }> {
-    const jwtSecret = process.env.APP_JWT_SECRET;
-    if (!jwtSecret) {
-        console.error('CRÍTICO: APP_JWT_SECRET não definido.');
-        throw new AppError(500, 'Configuração interna do servidor ausente (JWT Secret).');
+    const jwtSecret = process.env.JWT_SECRET || process.env.APP_JWT_SECRET;
+    
+    if (!jwtSecret || jwtSecret === 'default-secret-change-in-production') {
+      console.error('CRÍTICO: JWT_SECRET não definido.');
+      throw new Error('JWT_SECRET não configurado');
     }
     const tokenPayload = { id: user.id, email: user.email, uid: user.firebaseUid };
     const token = jwt.sign(tokenPayload, jwtSecret, { expiresIn: '7d' });

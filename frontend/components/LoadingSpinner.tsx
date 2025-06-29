@@ -1,6 +1,5 @@
-// components/LoadingSpinner.tsx
 import React from "react";
-import { motion } from "framer-motion";
+import { motion, Variants } from "framer-motion";
 
 interface LoadingSpinnerProps {
   fullScreen?: boolean;
@@ -25,7 +24,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     accent: 'text-purple-500'
   };
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     animate: {
       rotate: 360,
       transition: {
@@ -36,7 +35,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     }
   };
 
-  const circleVariants = {
+  const circleVariants: Variants = {
     animate: {
       scale: [1, 1.2, 1],
       opacity: [0.5, 1, 0.5],
@@ -100,4 +99,4 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
   );
 };
 
-export default LoadingSpinner;
+export default LoadingSpinner; 

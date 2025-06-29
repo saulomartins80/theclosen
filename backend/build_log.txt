@@ -3,23 +3,25 @@
 
  Pasta de C:\Users\USER\theclosen\backend\dist\middlewares
 
-24/06/2025  02:17    <DIR>          .
-24/06/2025  02:17    <DIR>          ..
-24/06/2025  02:17               286 asyncHandler.js
-24/06/2025  02:17               351 asyncHandler.js.map
-24/06/2025  02:17             1.308 auth.js
-24/06/2025  02:17             1.297 auth.js.map
-24/06/2025  02:17             4.220 authMiddleware.js
-24/06/2025  02:17             3.041 authMiddleware.js.map
-24/06/2025  02:17               686 cors.js
-24/06/2025  02:17               591 cors.js.map
-24/06/2025  02:17             1.351 errorHandler.js
-24/06/2025  02:17             1.110 errorHandler.js.map
-24/06/2025  02:17             1.407 marketDataValidation.js
-24/06/2025  02:17             1.205 marketDataValidation.js.map
-24/06/2025  02:17             2.803 stripeWebhookMiddleware.js
-24/06/2025  02:17             2.132 stripeWebhookMiddleware.js.map
-24/06/2025  02:17             2.159 webhookRateLimit.js
-24/06/2025  02:17             1.492 webhookRateLimit.js.map
-              16 arquivo(s)         25.439 bytes
-               2 pasta(s)   78.858.919.936 bytes dispon¡veis
+28/06/2025  22:44    <DIR>          .
+28/06/2025  22:44    <DIR>          ..
+28/06/2025  22:44               286 asyncHandler.js
+28/06/2025  22:44               351 asyncHandler.js.map
+28/06/2025  22:44             1.308 auth.js
+28/06/2025  22:44             1.297 auth.js.map
+28/06/2025  22:44             4.965 authMiddleware.js
+28/06/2025  22:44             3.600 authMiddleware.js.map
+28/06/2025  22:44             1.693 cors.js
+28/06/2025  22:44             1.377 cors.js.map
+28/06/2025  22:44             1.351 errorHandler.js
+28/06/2025  22:44             1.110 errorHandler.js.map
+28/06/2025  22:44             1.407 marketDataValidation.js
+28/06/2025  22:44             1.205 marketDataValidation.js.map
+28/06/2025  22:44             8.185 securityMiddleware.js
+28/06/2025  22:44             6.739 securityMiddleware.js.map
+28/06/2025  22:44             2.803 stripeWebhookMiddleware.js
+28/06/2025  22:44             2.132 stripeWebhookMiddleware.js.map
+28/06/2025  22:44             2.159 webhookRateLimit.js
+28/06/2025  22:44             1.492 webhookRateLimit.js.map
+              18 arquivo(s)         43.460 bytes
+               2 pasta(s)   76.283.510.784 bytes dispon¡veis

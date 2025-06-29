@@ -1,23 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Edit, Trash, Filter, X, DollarSign, PieChart, Loader2, Shield, TrendingUp, Home, Bitcoin, Layers, Globe, Activity, BarChart } from 'lucide-react'; // Added BarChart for consistency
+import { Plus, Edit, Trash, Filter, X, DollarSign, PieChart, Loader2, Shield, TrendingUp, Home, Bitcoin, Layers, Globe, Activity, BarChart } from 'lucide-react';
 import { toast } from 'react-toastify';
 import dynamic from 'next/dynamic';
 import { investimentoAPI } from '../services/api';
 import { motion } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
-import { useTheme } from "../context/ThemeContext"; // Import useTheme
-import { ToastContainer } from 'react-toastify';
+import { useTheme } from "../context/ThemeContext";
 import { useRouter } from 'next/router';
-
-// Tipagem melhorada
-type Investimento = {
-  _id: string;
-  nome: string;
-  tipo: 'Renda Fixa' | 'Tesouro Direto' | 'Ações' | 'Fundos Imobiliários' | 'Criptomoedas' | 'Previdência Privada' | 'ETF' | 'Internacional' | 'Renda Variável';
-  valor: number;
-  data: string;
-  meta?: number;
-};
+import { Investimento } from '../types';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -65,7 +55,25 @@ const InvestimentosDashboard = () => {
     'Previdência Privada': { bg: 'bg-pink-100', text: 'text-pink-800', dark: { bg: 'dark:bg-pink-900', text: 'dark:text-pink-200' } },
     'ETF': { bg: 'bg-teal-100', text: 'text-teal-800', dark: { bg: 'dark:bg-teal-900', text: 'dark:text-teal-200' } },
     'Internacional': { bg: 'bg-rose-100', text: 'text-rose-800', dark: { bg: 'dark:bg-rose-900', text: 'dark:text-rose-200' } },
-    'Renda Variável': { bg: 'bg-orange-100', text: 'text-orange-800', dark: { bg: 'dark:bg-orange-900', text: 'dark:text-orange-200' } }
+    'Renda Variável': { bg: 'bg-orange-100', text: 'text-orange-800', dark: { bg: 'dark:bg-orange-900', text: 'dark:text-orange-200' } },
+    // Novos tipos
+    'LCI': { bg: 'bg-emerald-100', text: 'text-emerald-800', dark: { bg: 'dark:bg-emerald-900', text: 'dark:text-emerald-200' } },
+    'LCA': { bg: 'bg-cyan-100', text: 'text-cyan-800', dark: { bg: 'dark:bg-cyan-900', text: 'dark:text-cyan-200' } },
+    'CDB': { bg: 'bg-sky-100', text: 'text-sky-800', dark: { bg: 'dark:bg-sky-900', text: 'dark:text-sky-200' } },
+    'CDI': { bg: 'bg-violet-100', text: 'text-violet-800', dark: { bg: 'dark:bg-violet-900', text: 'dark:text-violet-200' } },
+    'Poupança': { bg: 'bg-lime-100', text: 'text-lime-800', dark: { bg: 'dark:bg-lime-900', text: 'dark:text-lime-200' } },
+    'Fundos de Investimento': { bg: 'bg-amber-100', text: 'text-amber-800', dark: { bg: 'dark:bg-amber-900', text: 'dark:text-amber-200' } },
+    'Debêntures': { bg: 'bg-fuchsia-100', text: 'text-fuchsia-800', dark: { bg: 'dark:bg-fuchsia-900', text: 'dark:text-fuchsia-200' } },
+    'CRA': { bg: 'bg-slate-100', text: 'text-slate-800', dark: { bg: 'dark:bg-slate-900', text: 'dark:text-slate-200' } },
+    'CRI': { bg: 'bg-zinc-100', text: 'text-zinc-800', dark: { bg: 'dark:bg-zinc-900', text: 'dark:text-zinc-200' } },
+    'Letras de Câmbio': { bg: 'bg-stone-100', text: 'text-stone-800', dark: { bg: 'dark:bg-stone-900', text: 'dark:text-stone-200' } },
+    'COE': { bg: 'bg-red-100', text: 'text-red-800', dark: { bg: 'dark:bg-red-900', text: 'dark:text-red-200' } },
+    'Fundos Multimercado': { bg: 'bg-blue-100', text: 'text-blue-800', dark: { bg: 'dark:bg-blue-900', text: 'dark:text-blue-200' } },
+    'Fundos Cambiais': { bg: 'bg-green-100', text: 'text-green-800', dark: { bg: 'dark:bg-green-900', text: 'dark:text-green-200' } },
+    'Fundos de Ações': { bg: 'bg-emerald-100', text: 'text-emerald-800', dark: { bg: 'dark:bg-emerald-900', text: 'dark:text-emerald-200' } },
+    'Fundos de Renda Fixa': { bg: 'bg-cyan-100', text: 'text-cyan-800', dark: { bg: 'dark:bg-cyan-900', text: 'dark:text-cyan-200' } },
+    'Fundos de Previdência': { bg: 'bg-sky-100', text: 'text-sky-800', dark: { bg: 'dark:bg-sky-900', text: 'dark:text-sky-200' } },
+    'Fundos de Crédito Privado': { bg: 'bg-violet-100', text: 'text-violet-800', dark: { bg: 'dark:bg-violet-900', text: 'dark:text-violet-200' } }
   };
 
   const fetchInvestimentos = async () => {
@@ -80,16 +88,60 @@ const InvestimentosDashboard = () => {
         throw new Error('Formato de dados inválido recebido da API');
       }
 
-      const tiposValidos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'];
+      const tiposValidos: Investimento['tipo'][] = [
+        'Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 
+        'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável', 'LCI', 'LCA', 
+        'CDB', 'CDI', 'Poupança', 'Fundos de Investimento', 'Debêntures', 'CRA', 'CRI', 
+        'Letras de Câmbio', 'COE', 'Fundos Multimercado', 'Fundos Cambiais', 
+        'Fundos de Ações', 'Fundos de Renda Fixa', 'Fundos de Previdência', 'Fundos de Crédito Privado'
+      ];
 
-      const formattedData = rawData.map((item: any) => ({
-        _id: item._id?.$oid || item._id || Math.random().toString(36).substring(2, 9),
-        nome: item.nome || 'Sem nome',
-        tipo: tiposValidos.includes(item.tipo) ? item.tipo : 'Renda Fixa',
-        valor: Number(item.valor) || 0,
-        data: item.data ? new Date(item.data).toISOString() : new Date().toISOString(),
-        meta: item.meta !== undefined ? Number(item.meta) : undefined
-      }));
+      const formattedData = rawData.map((item: any) => {
+        // Função para obter data local no formato YYYY-MM-DD
+        const getLocalDate = (dateString: string) => {
+          if (!dateString) {
+            // Se não há data, usar hoje
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
+          
+          // Se já é uma string YYYY-MM-DD, retornar como está
+          if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            return dateString;
+          }
+          
+          // Se é uma data ISO ou objeto Date, converter corretamente
+          const date = new Date(dateString);
+          
+          // Verificar se a data é válida
+          if (isNaN(date.getTime())) {
+            console.error('Data inválida:', dateString);
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
+          
+          // Usar UTC para evitar problemas de timezone
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        };
+
+        return {
+          _id: item._id?.$oid || item._id || Math.random().toString(36).substring(2, 9),
+          nome: item.nome || 'Sem nome',
+          tipo: tiposValidos.includes(item.tipo) ? item.tipo : 'Renda Fixa',
+          valor: Number(item.valor) || 0,
+          data: getLocalDate(item.data),
+          meta: item.meta !== undefined ? Number(item.meta) : undefined
+        };
+      });
 
       setInvestimentos(formattedData);
     } catch (err) {
@@ -162,7 +214,13 @@ const InvestimentosDashboard = () => {
   };
 
   const chartData = useMemo(() => {
-    const tiposValidos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'];
+    const tiposValidos: Investimento['tipo'][] = [
+      'Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 
+      'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável', 'LCI', 'LCA', 
+      'CDB', 'CDI', 'Poupança', 'Fundos de Investimento', 'Debêntures', 'CRA', 'CRI', 
+      'Letras de Câmbio', 'COE', 'Fundos Multimercado', 'Fundos Cambiais', 
+      'Fundos de Ações', 'Fundos de Renda Fixa', 'Fundos de Previdência', 'Fundos de Crédito Privado'
+    ];
     const tiposPresentes = Array.from(
       new Set<Investimento['tipo']>(
         investimentosFiltrados
@@ -191,6 +249,23 @@ const InvestimentosDashboard = () => {
             case 'ETF': return '#14B8A6';
             case 'Internacional': return '#F43F5E';
             case 'Renda Variável': return '#F97316';
+            case 'LCI': return '#059669';
+            case 'LCA': return '#0891B2';
+            case 'CDB': return '#0EA5E9';
+            case 'CDI': return '#7C3AED';
+            case 'Poupança': return '#84CC16';
+            case 'Fundos de Investimento': return '#D97706';
+            case 'Debêntures': return '#C026D3';
+            case 'CRA': return '#475569';
+            case 'CRI': return '#52525B';
+            case 'Letras de Câmbio': return '#78716C';
+            case 'COE': return '#DC2626';
+            case 'Fundos Multimercado': return '#3B82F6';
+            case 'Fundos Cambiais': return '#10B981';
+            case 'Fundos de Ações': return '#059669';
+            case 'Fundos de Renda Fixa': return '#0891B2';
+            case 'Fundos de Previdência': return '#0EA5E9';
+            case 'Fundos de Crédito Privado': return '#7C3AED';
             default: return '#6B7280';
           }
         })
@@ -213,6 +288,23 @@ const InvestimentosDashboard = () => {
             case 'ETF': return '#2DD4BF';
             case 'Internacional': return '#FB7185';
             case 'Renda Variável': return '#FB923C';
+            case 'LCI': return '#34D399';
+            case 'LCA': return '#22D3EE';
+            case 'CDB': return '#38BDF8';
+            case 'CDI': return '#A78BFA';
+            case 'Poupança': return '#A3E635';
+            case 'Fundos de Investimento': return '#FBBF24';
+            case 'Debêntures': return '#E879F9';
+            case 'CRA': return '#94A3B8';
+            case 'CRI': return '#A1A1AA';
+            case 'Letras de Câmbio': return '#A8A29E';
+            case 'COE': return '#F87171';
+            case 'Fundos Multimercado': return '#60A5FA';
+            case 'Fundos Cambiais': return '#34D399';
+            case 'Fundos de Ações': return '#34D399';
+            case 'Fundos de Renda Fixa': return '#22D3EE';
+            case 'Fundos de Previdência': return '#38BDF8';
+            case 'Fundos de Crédito Privado': return '#A78BFA';
             default: return '#9CA3AF';
           }
         })
@@ -235,7 +327,7 @@ const InvestimentosDashboard = () => {
       toast.error('Valor deve ser positivo');
       return;
     }
-    if (!form.data.data) { // Manter a validação se a data foi preenchida
+      if (!form.data.data) {
       toast.error('Data é obrigatória');
       return;
     }
@@ -243,9 +335,9 @@ const InvestimentosDashboard = () => {
     // Prepara os dados para a API
     const payload = {
       nome: form.data.nome.trim(),
-      tipo: form.data.tipo,
+      tipo: form.data.tipo as any,
       valor: Number(form.data.valor),
-      data: form.data.data, // <--- Envia a string YYYY-MM-DD diretamente
+      data: form.data.data + 'T12:00:00Z',
       ...(form.data.meta !== undefined && { meta: Number(form.data.meta) })
     };
 
@@ -269,7 +361,6 @@ const InvestimentosDashboard = () => {
   }
 };
 
-
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja excluir este investimento?')) return;
 
@@ -278,9 +369,9 @@ const InvestimentosDashboard = () => {
       toast.success('Investimento excluído com sucesso!');
       await fetchInvestimentos();
     } catch (err) {
+      console.error('Erro ao excluir:', err);
       const errorMessage = (err as any)?.response?.data?.message || (err as any).message || 'Erro ao excluir investimento';
       toast.error(errorMessage);
-      console.error('Erro ao excluir:', err);
     }
   };
 
@@ -330,7 +421,13 @@ const InvestimentosDashboard = () => {
     );
   }
 
-  const todosTipos: Investimento['tipo'][] = ['Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'];
+  const todosTipos: Investimento['tipo'][] = [
+    'Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários', 'Criptomoedas', 
+    'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável', 'LCI', 'LCA', 
+    'CDB', 'CDI', 'Poupança', 'Fundos de Investimento', 'Debêntures', 'CRA', 'CRI', 
+    'Letras de Câmbio', 'COE', 'Fundos Multimercado', 'Fundos Cambiais', 
+    'Fundos de Ações', 'Fundos de Renda Fixa', 'Fundos de Previdência', 'Fundos de Crédito Privado'
+  ];
 
   return (
     <div
@@ -372,19 +469,17 @@ const InvestimentosDashboard = () => {
             </button>
           </div>
 
-          {/* Botão de filtro visível apenas no mobile (NOVO TRECHO) */}
-          <div className="md:hidden flex gap-3 w-full justify-end"> {/* Este div só aparece em mobile */}
+          {/* Botão de filtro visível apenas no mobile */}
+          <div className="md:hidden flex gap-3 w-full justify-end">
              <button
                onClick={() => setFilters({ ...filters, open: !filters.open })}
                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${resolvedTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
              >
-               {filters.open ? <X size={18} /> : <Filter size={18} />} {/* Ícone muda conforme o filtro está aberto/fechado */}
+               {filters.open ? <X size={18} /> : <Filter size={18} />}
                Filtro
              </button>
-             {/* O botão flutuante de "Novo Investimento" para mobile já existe mais abaixo no código */}
           </div>
-
-        </div> {/* <-- Fim do div do header */}
+          </div>
 
         {/* Cards de resumo */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
@@ -740,45 +835,31 @@ const InvestimentosDashboard = () => {
           <Plus size={24} />
         </button>
 
-        {/* ToastContainer para notificações */}
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          toastClassName={`text-sm rounded-xl shadow-lg ${resolvedTheme === "dark" ? "bg-gray-700 text-gray-100" : "bg-white text-gray-800"}`}
-        />
-
         {/* Modal do Formulário */}
         {form.open && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md animate-fade-in">
-              <div className="p-6">
-                <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md max-h-[600px] overflow-y-auto animate-fade-in">
+              <div className="p-4 md:p-6">
+                <h2 className="text-lg md:text-xl font-bold mb-4 text-gray-900 dark:text-white">
                   {form.mode === 'add' ? 'Novo Investimento' : 'Editar Investimento'}
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
+                    <label className="block mb-1 md:mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nome *</label>
                     <input
                       type="text"
                       value={form.data.nome || ''}
                       onChange={(e) => setForm({ ...form, data: { ...form.data, nome: e.target.value } })}
-                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm md:text-base"
                       placeholder="Ex: CDB Banco XYZ"
                     />
                   </div>
                   <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo *</label>
+                    <label className="block mb-1 md:mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo *</label>
                     <select
                       value={form.data.tipo || 'Renda Fixa'}
                       onChange={(e) => setForm({ ...form, data: { ...form.data, tipo: e.target.value as Investimento['tipo'] } })}
-                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm md:text-base"
                     >
                       {Object.keys(tipoCores).map(tipo => (
                         <option key={tipo} value={tipo}>{tipo}</option>
@@ -786,23 +867,22 @@ const InvestimentosDashboard = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Valor (R$) *</label>
+                    <label className="block mb-1 md:mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Valor (R$) *</label>
                     <input
                       type="number"
                       value={form.data.valor === undefined ? '' : form.data.valor}
                       onChange={(e) => setForm({ ...form, data: { ...form.data, valor: e.target.value === '' ? undefined : Number(e.target.value) } })}
-                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm md:text-base"
                       min="0.01"
                       step="0.01"
                       placeholder="0,00"
                     />
                   </div>
                   <div>
-                    <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Data *</label>
+                    <label className="block mb-1 md:mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Data *</label>
                     <input
                       type="date"
                       value={form.data.data || ''}
-                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setForm({ 
                         ...form, 
                         data: { 
@@ -810,20 +890,20 @@ const InvestimentosDashboard = () => {
                           data: e.target.value 
                         } 
                       })}
-                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm md:text-base"
                     />
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 mt-6">
+                <div className="flex justify-end gap-2 md:gap-3 mt-4 md:mt-6">
                   <button
                     onClick={() => setForm({ ...form, open: false })}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                    className="px-3 md:px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm md:text-base"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleFormSubmit}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    className="px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm md:text-base"
                   >
                     {form.mode === 'add' ? 'Adicionar' : 'Salvar'}
                   </button>

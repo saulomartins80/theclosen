@@ -4,28 +4,47 @@ import {
   MessageSquare, X, Send, User, Bot, 
   Sparkles, BarChart2, Lightbulb, BookOpen,
   Copy, ThumbsUp, ThumbsDown, Paperclip, Command,
-  Star, TrendingUp, Target, Shield, Zap
+  Star, TrendingUp, Target, Shield, Zap, Trash2,
+  AlertTriangle, Clock, BarChart3, CheckCircle, XCircle,
+  Plus, Edit3, Eye, Brain, Zap as ZapIcon
 } from 'lucide-react';
 import { chatbotAPI } from '../services/api';
+import { chatbotDeleteAPI } from '../services/chatbotDeleteAPI';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import React from 'react';
 
-type Message = {
+// Tipos para o sistema de automação inteligente
+type AutomatedAction = {
+  type: 'CREATE_TRANSACTION' | 'CREATE_INVESTMENT' | 'CREATE_GOAL' | 'ANALYZE_DATA' | 'GENERATE_REPORT';
+  payload: any;
+  confidence: number;
+  requiresConfirmation: boolean;
+  successMessage: string;
+  errorMessage: string;
+  followUpQuestions?: string[];
+  isAutomated?: boolean;
+};
+
+type ChatMessage = {
   id: string;
   sender: 'user' | 'bot';
-  content: string;
+  content: string | React.ReactElement;
   timestamp: Date;
   metadata?: {
+    action?: AutomatedAction;
+    isAutomated?: boolean;
+    processingTime?: number;
+    confidence?: number;
     analysisData?: any;
-    chartData?: any;
-    actionItems?: string[];
-    riskAssessment?: string;
-    educationalResources?: string[];
+    suggestions?: string[];
     isPremium?: boolean;
     expertise?: string;
-    followUpQuestions?: string[];
     userLevel?: 'basic' | 'intermediate' | 'advanced';
-    confidence?: number;
-    responseTime?: number;
+    actionExecuted?: boolean;
+    requiresConfirmation?: boolean;
   };
 };
 
@@ -52,12 +71,15 @@ const getChatTheme = (plan?: string) => {
       secondary: '#6366f1',
       gradient: 'from-purple-600 to-indigo-600',
       bubbleUser: 'bg-gradient-to-r from-purple-600 to-indigo-600',
-      bubbleBot: 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700',
+      bubbleBot: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
       text: 'text-gray-900 dark:text-white',
       icon: '🏆',
       accent: 'text-purple-600 dark:text-purple-400',
       button: 'bg-purple-600 hover:bg-purple-700',
-      border: 'border-purple-300 dark:border-purple-600'
+      border: 'border-purple-300 dark:border-purple-600',
+      chatBg: 'bg-gray-50 dark:bg-gray-800',
+      headerBg: 'bg-white dark:bg-gray-900',
+      inputBg: 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'
     };
   }
   
@@ -68,12 +90,15 @@ const getChatTheme = (plan?: string) => {
       secondary: '#f97316',
       gradient: 'from-amber-500 to-orange-500',
       bubbleUser: 'bg-gradient-to-r from-amber-500 to-orange-500',
-      bubbleBot: 'bg-gray-50 dark:bg-gray-800',
+      bubbleBot: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
       text: 'text-gray-900 dark:text-white',
       icon: '👑',
       accent: 'text-amber-600 dark:text-amber-400',
       button: 'bg-amber-600 hover:bg-amber-700',
-      border: 'border-amber-300 dark:border-amber-600'
+      border: 'border-amber-300 dark:border-amber-600',
+      chatBg: 'bg-gray-50 dark:bg-gray-800',
+      headerBg: 'bg-white dark:bg-gray-900',
+      inputBg: 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'
     };
   }
   
@@ -84,12 +109,15 @@ const getChatTheme = (plan?: string) => {
       secondary: '#059669',
       gradient: 'from-emerald-500 to-green-500',
       bubbleUser: 'bg-gradient-to-r from-emerald-500 to-green-500',
-      bubbleBot: 'bg-white dark:bg-gray-700',
+      bubbleBot: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
       text: 'text-gray-900 dark:text-white',
       icon: '⭐',
       accent: 'text-emerald-600 dark:text-emerald-400',
       button: 'bg-emerald-600 hover:bg-emerald-700',
-      border: 'border-emerald-300 dark:border-emerald-600'
+      border: 'border-emerald-300 dark:border-emerald-600',
+      chatBg: 'bg-gray-50 dark:bg-gray-800',
+      headerBg: 'bg-white dark:bg-gray-900',
+      inputBg: 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'
     };
   }
   
@@ -100,161 +128,177 @@ const getChatTheme = (plan?: string) => {
     secondary: '#8b5cf6',
     gradient: 'from-indigo-500 to-purple-500',
     bubbleUser: 'bg-indigo-600',
-    bubbleBot: 'bg-white dark:bg-gray-700',
+    bubbleBot: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
     text: 'text-gray-900 dark:text-white',
     icon: '💬',
     accent: 'text-indigo-600 dark:text-indigo-400',
     button: 'bg-indigo-600 hover:bg-indigo-700',
-    border: 'border-indigo-300 dark:border-indigo-600'
+    border: 'border-indigo-300 dark:border-indigo-600',
+    chatBg: 'bg-gray-50 dark:bg-gray-800',
+    headerBg: 'bg-white dark:bg-gray-900',
+    inputBg: 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'
   };
 };
 
-// Componente de Feedback Modal
-const FeedbackModal = ({ messageId, onClose, onSubmit }: {
-  messageId: string;
-  onClose: () => void;
-  onSubmit: (feedback: any) => void;
+// Componente de Ação Automatizada
+const AutomatedActionCard = ({ 
+  action, 
+  onConfirm, 
+  onEdit, 
+  onCancel,
+  theme 
+}: {
+  action: AutomatedAction;
+  onConfirm: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  theme: any;
 }) => {
-  const [feedback, setFeedback] = useState({
-    rating: 0,
-    helpful: true,
-    comment: '',
-    category: 'helpfulness' as 'accuracy' | 'helpfulness' | 'clarity' | 'relevance'
-  });
+  const getActionIcon = () => {
+    switch (action.type) {
+      case 'CREATE_TRANSACTION': return '💰';
+      case 'CREATE_INVESTMENT': return '📈';
+      case 'CREATE_GOAL': return '🎯';
+      case 'ANALYZE_DATA': return '📊';
+      case 'GENERATE_REPORT': return '📋';
+      default: return '🤖';
+    }
+  };
 
-  const handleSubmit = () => {
-    onSubmit({
-      messageId,
-      rating: feedback.rating,
-      helpful: feedback.helpful,
-      comment: feedback.comment,
-      category: feedback.category,
-      context: ''
-    });
-    onClose();
+  const getActionTitle = () => {
+    switch (action.type) {
+      case 'CREATE_TRANSACTION': return 'Transação Detectada';
+      case 'CREATE_INVESTMENT': return 'Investimento Detectado';
+      case 'CREATE_GOAL': return 'Meta Detectada';
+      case 'ANALYZE_DATA': return 'Análise Automática';
+      case 'GENERATE_REPORT': return 'Relatório Gerado';
+      default: return 'Ação Automatizada';
+    }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
-      >
-        <h3 className="text-lg font-bold mb-4 dark:text-white">Avalie esta resposta</h3>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border ${theme.border} p-4 mb-4 shadow-sm`}>
+      <div className="flex items-center mb-3">
+        <span className="text-2xl mr-2">{getActionIcon()}</span>
+        <div className="flex-1">
+          <h3 className="font-semibold text-gray-900 dark:text-white">{getActionTitle()}</h3>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-1">
+              <Brain size={14} className="text-blue-500" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Confiança: {Math.round(action.confidence * 100)}%
+              </span>
+            </div>
+            {action.isAutomated && (
+              <div className="flex items-center gap-1">
+                <ZapIcon size={14} className="text-green-500" />
+                <span className="text-xs text-green-600 dark:text-green-400">Automático</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="mb-4">
+        <p className="text-gray-700 dark:text-gray-300 text-sm mb-3">
+          {action.successMessage}
+        </p>
         
-        <div className="mb-4">
-          <label className="block mb-2 dark:text-gray-300">Qualidade:</label>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button 
-                key={star}
-                onClick={() => setFeedback({...feedback, rating: star})}
-                className={`p-2 rounded-full transition-colors ${
-                  feedback.rating >= star 
-                    ? 'bg-yellow-500 text-white' 
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                }`}
+        {action.payload && (
+          <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {Object.entries(action.payload).map(([key, value]) => (
+                <div key={key} className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400 capitalize">
+                    {key.replace(/_/g, ' ')}:
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {typeof value === 'number' && key.includes('valor') 
+                      ? `R$ ${value.toFixed(2)}` 
+                      : String(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex flex-col space-y-2">
+        <button
+          onClick={onConfirm}
+          className={`w-full ${theme.button} text-white px-4 py-3 rounded-lg flex items-center justify-center font-medium transition-all duration-200 hover:scale-105`}
+        >
+          <CheckCircle className="w-4 h-4 mr-2" />
+          Confirmar
+        </button>
+        
+        <div className="flex space-x-2">
+          <button
+            onClick={onEdit}
+            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg flex items-center justify-center text-sm transition-colors"
+          >
+            <Edit3 className="w-4 h-4 mr-1" />
+            Editar
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center justify-center text-sm transition-colors"
+          >
+            <XCircle className="w-4 h-4 mr-1" />
+            Cancelar
+          </button>
+        </div>
+      </div>
+      
+      {action.followUpQuestions && action.followUpQuestions.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Perguntas relacionadas:</p>
+          <div className="flex flex-wrap gap-2">
+            {action.followUpQuestions.map((question, index) => (
+              <button
+                key={index}
+                className="px-3 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-full text-xs hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
+                onClick={() => {
+                  // Implementar envio automático da pergunta
+                  console.log('Pergunta sugerida:', question);
+                }}
               >
-                <Star size={16} fill={feedback.rating >= star ? 'currentColor' : 'none'} />
+                {question}
               </button>
             ))}
           </div>
         </div>
-        
-        <div className="mb-4">
-          <label className="block mb-2 dark:text-gray-300">Foi útil?</label>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFeedback({...feedback, helpful: true})}
-              className={`p-2 rounded-full transition-colors ${
-                feedback.helpful 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-            >
-              <ThumbsUp size={16} />
-            </button>
-            <button
-              onClick={() => setFeedback({...feedback, helpful: false})}
-              className={`p-2 rounded-full transition-colors ${
-                !feedback.helpful 
-                  ? 'bg-red-500 text-white' 
-                  : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-            >
-              <ThumbsDown size={16} />
-            </button>
-          </div>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block mb-2 dark:text-gray-300">Categoria:</label>
-          <select 
-            value={feedback.category}
-            onChange={(e) => setFeedback({...feedback, category: e.target.value as any})}
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
-          >
-            <option value="helpfulness">Utilidade</option>
-            <option value="accuracy">Precisão</option>
-            <option value="clarity">Clareza</option>
-            <option value="relevance">Relevância</option>
-          </select>
-        </div>
-        
-        <div className="mb-4">
-          <label className="block mb-2 dark:text-gray-300">Comentário (opcional):</label>
-          <textarea
-            value={feedback.comment}
-            onChange={(e) => setFeedback({...feedback, comment: e.target.value})}
-            className="w-full p-2 border rounded dark:bg-gray-700 dark:text-white"
-            rows={3}
-            placeholder="Conte-nos mais sobre sua experiência..."
-          />
-        </div>
-        
-        <div className="flex justify-end gap-2">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 border rounded-lg dark:text-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-          >
-            Cancelar
-          </button>
-          <button 
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            disabled={feedback.rating === 0}
-          >
-            Enviar Feedback
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
+      )}
+    </div>
   );
 };
 
-// Componente de Mensagem Avançado
+// Componente de Mensagem Avançado com Automação
 const AdvancedMessageBubble = ({ 
   message, 
   theme, 
   isPremium,
-  onFeedback 
+  onFeedback,
+  onActionConfirm,
+  onActionEdit,
+  onActionCancel
 }: { 
-  message: Message; 
+  message: ChatMessage; 
   theme: any;
   isPremium: boolean;
   onFeedback: (messageId: string) => void;
+  onActionConfirm: (action: AutomatedAction) => void;
+  onActionEdit: (action: AutomatedAction) => void;
+  onActionCancel: (action: AutomatedAction) => void;
 }) => {
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string | React.ReactElement) => {
     try {
-      await navigator.clipboard.writeText(text);
-      // Você pode adicionar um toast aqui
+      if (typeof text === 'string') {
+        await navigator.clipboard.writeText(text);
+      } else {
+        await navigator.clipboard.writeText('Conteúdo copiado');
+      }
     } catch (err) {
       console.error('Erro ao copiar:', err);
     }
@@ -312,10 +356,16 @@ const AdvancedMessageBubble = ({
                     Confiança: {Math.round(message.metadata.confidence * 100)}%
                   </div>
                 )}
+                {message.metadata.isAutomated && (
+                  <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                    <ZapIcon size={14} />
+                    <span className="text-xs font-medium">Automático</span>
+                  </div>
+                )}
               </div>
-              {message.metadata.responseTime && (
+              {message.metadata.processingTime && (
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {message.metadata.responseTime}ms
+                  {message.metadata.processingTime}ms
                 </div>
               )}
             </div>
@@ -324,12 +374,26 @@ const AdvancedMessageBubble = ({
         
         {/* Conteúdo da mensagem */}
         <div className="p-4">
-          <div className={`prose dark:prose-invert prose-sm max-w-none ${message.sender === 'user' ? 'text-white' : ''}`}>
-            <div dangerouslySetInnerHTML={{ __html: message.content }} />
-          </div>
+          {message.metadata?.action && !message.metadata.requiresConfirmation ? (
+            <AutomatedActionCard
+              action={message.metadata.action}
+              onConfirm={() => onActionConfirm(message.metadata!.action!)}
+              onEdit={() => onActionEdit(message.metadata!.action!)}
+              onCancel={() => onActionCancel(message.metadata!.action!)}
+              theme={theme}
+            />
+          ) : (
+            <div className={`prose dark:prose-invert prose-sm max-w-none chat-message-content ${message.sender === 'user' ? 'text-white' : ''}`}>
+              {typeof message.content === 'string' ? (
+                <div dangerouslySetInnerHTML={{ __html: message.content }} />
+              ) : (
+                message.content
+              )}
+            </div>
+          )}
           
           {/* Metadados ricos */}
-          {message.sender === 'bot' && message.metadata && (
+          {message.sender === 'bot' && message.metadata && !message.metadata.action && (
             <div className="mt-4 space-y-3">
               {/* Análise de dados */}
               {message.metadata.analysisData && (
@@ -346,70 +410,21 @@ const AdvancedMessageBubble = ({
                 </div>
               )}
               
-              {/* Itens de ação */}
-              {message.metadata.actionItems && (
+              {/* Sugestões */}
+              {message.metadata.suggestions && (
                 <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Target size={16} className="text-green-600 dark:text-green-400" />
-                    <h4 className="font-bold text-sm text-green-800 dark:text-green-200">Ações Recomendadas</h4>
+                    <Lightbulb size={16} className="text-green-600 dark:text-green-400" />
+                    <h4 className="font-bold text-sm text-green-800 dark:text-green-200">Sugestões</h4>
                   </div>
                   <ul className="space-y-1 text-sm">
-                    {message.metadata.actionItems.map((item, i) => (
+                    {message.metadata.suggestions.map((suggestion, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <span className="text-green-600 dark:text-green-400">•</span>
-                        <span className="text-green-700 dark:text-green-300">{item}</span>
+                        <span className="text-green-700 dark:text-green-300">{suggestion}</span>
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
-              
-              {/* Recursos educativos */}
-              {message.metadata.educationalResources && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BookOpen size={16} className="text-amber-600 dark:text-amber-400" />
-                    <h4 className="font-bold text-sm text-amber-800 dark:text-amber-200">Para Aprender Mais</h4>
-                  </div>
-                  <ul className="space-y-1 text-sm">
-                    {message.metadata.educationalResources.map((resource, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-amber-600 dark:text-amber-400">•</span>
-                        <a 
-                          href={resource} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="text-amber-700 dark:text-amber-300 hover:underline"
-                        >
-                          {resource}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {/* Perguntas de acompanhamento */}
-              {message.metadata.followUpQuestions && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Lightbulb size={16} className="text-blue-600 dark:text-blue-400" />
-                    <h4 className="font-bold text-sm text-blue-800 dark:text-blue-200">Perguntas Relacionadas</h4>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {message.metadata.followUpQuestions.map((question, i) => (
-                      <button
-                        key={i}
-                        className="px-3 py-1 bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-full text-xs hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors"
-                        onClick={() => {
-                          // Aqui você pode implementar a lógica para enviar a pergunta automaticamente
-                          console.log('Pergunta sugerida:', question);
-                        }}
-                      >
-                        {question}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               )}
             </div>
@@ -469,129 +484,66 @@ const CommandBar = ({
   theme: any;
   placeholder: string;
 }) => {
-  const [input, setInput] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isFocused, setIsFocused] = useState(false);
+  const [message, setMessage] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isLoading) {
-      onSubmit(input);
-      setInput('');
-      setSuggestions([]);
+    if (message.trim() && !isLoading) {
+      onSubmit(message.trim());
+      setMessage('');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+      handleSubmit(e as any);
     }
   };
 
-  // Sugestões baseadas no input
-  useEffect(() => {
-    if (input.length > 2) {
-      const commonQuestions = [
-        'Como cadastrar uma transação?',
-        'Quais investimentos são melhores?',
-        'Como definir uma meta?',
-        'Onde encontro meus relatórios?',
-        'Como funciona o CDI?'
-      ];
-      
-      const filtered = commonQuestions.filter(q => 
-        q.toLowerCase().includes(input.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 3));
-    } else {
-      setSuggestions([]);
-    }
-  }, [input]);
-
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      <div className="relative">
+    <form onSubmit={handleSubmit} className="flex gap-2">
+      <div className="flex-1 relative">
         <input
           type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
           placeholder={placeholder}
           disabled={isLoading}
-          className="w-full pl-4 pr-12 py-3 rounded-full bg-gray-100 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white disabled:opacity-50"
+          className={`w-full px-4 py-3 rounded-lg ${theme.inputBg} text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200`}
         />
-        
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className={`absolute right-2 top-1/2 -translate-y-1/2 ${theme.button} text-white p-2 rounded-full disabled:opacity-50 transition-colors`}
-        >
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-          ) : (
-            <Send size={18} />
-          )}
-        </button>
-      </div>
-      
-      {/* Sugestões */}
-      {isFocused && suggestions.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          className="absolute bottom-full mb-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10 border dark:border-gray-700"
-        >
-          {suggestions.map((suggestion, index) => (
-            <div
-              key={index}
-              className="p-3 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0 dark:border-gray-700"
-              onMouseDown={() => {
-                setInput(suggestion);
-                setSuggestions([]);
-              }}
-            >
-              <div className="font-medium dark:text-white text-sm">{suggestion}</div>
-            </div>
-          ))}
-        </motion.div>
-      )}
-      
-      {/* Barra de ferramentas */}
-      <div className="flex items-center justify-between mt-2 px-2">
-        <div className="flex gap-2">
-          <button 
-            type="button" 
-            className="text-gray-500 hover:text-indigo-600 transition-colors"
-            title="Anexar arquivo"
+        {message && (
+          <button
+            type="button"
+            onClick={() => setMessage('')}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <Paperclip size={16} />
+            <X size={16} />
           </button>
-          <button 
-            type="button" 
-            className="text-gray-500 hover:text-indigo-600 transition-colors"
-            title="Comandos rápidos"
-          >
-            <Command size={16} />
-          </button>
-        </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          Shift+Enter para quebrar linha
-        </div>
+        )}
       </div>
+      <button
+        type="submit"
+        disabled={!message.trim() || isLoading}
+        className={`px-4 py-3 rounded-lg ${theme.button} text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2`}
+      >
+        {isLoading ? (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Send size={16} />
+        )}
+      </button>
     </form>
   );
 };
 
 export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotProps) {
   const { user, subscription } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
@@ -706,6 +658,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
     }
   };
 
+  // Função principal de envio de mensagem com automação inteligente
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || isLoading) return;
 
@@ -715,7 +668,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
       return;
     }
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
       content: message,
@@ -726,23 +679,131 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
     setIsLoading(true);
 
     try {
+      // ✅ CORREÇÃO: Usar endpoint correto que salva nas sessões
       const response = await chatbotAPI.sendQuery({
         message: message,
-        chatId: activeSession.chatId
+        chatId: activeSession.chatId,
+        // O backend já busca os dados reais do usuário
       });
 
-      const botMessage: Message = {
-        id: response.data?.messageId || Date.now().toString(),
-        sender: 'bot',
-        content: response.data?.text || 'Desculpe, não consegui processar sua mensagem.',
-        timestamp: new Date(),
-        metadata: {
-          ...response.data,
-          isPremium: isPremiumUser
-        }
-      };
+      console.log('[FRONTEND] Full response:', response);
+      console.log('[FRONTEND] Response type:', response.type);
+      console.log('[FRONTEND] Response text:', response.text);
 
-      setMessages(prev => [...prev, botMessage]);
+      if (response.type === 'ACTION_DETECTED') {
+        console.log('[FRONTEND] Processing automated action');
+        // Ação automatizada detectada
+        const action = response.automatedAction;
+        
+        // ✅ NOVA LÓGICA: Verificar se já foi executada automaticamente
+        if (action.executed) {
+          // Ação já foi executada automaticamente pelo backend
+          const successMessage: ChatMessage = {
+            id: `success-${Date.now()}`,
+            sender: 'bot',
+            content: `✅ ${response.message || response.text}`,
+            timestamp: new Date(),
+            metadata: {
+              isAutomated: true,
+              isPremium: isPremiumUser,
+              actionExecuted: true
+            }
+          };
+          
+          setMessages(prev => [...prev, successMessage]);
+          
+          // Adicionar sugestões de acompanhamento de forma natural
+          if (action.followUpQuestions && action.followUpQuestions.length > 0) {
+            const followUpMessage: ChatMessage = {
+              id: `followup-${Date.now()}`,
+              sender: 'bot',
+              content: 'Posso ajudar com mais alguma coisa?',
+              timestamp: new Date(),
+              metadata: {
+                suggestions: action.followUpQuestions,
+                isPremium: isPremiumUser
+              }
+            };
+            
+            setMessages(prev => [...prev, followUpMessage]);
+          }
+        } else if (action.error) {
+          // Houve erro na execução automática
+          const errorMessage: ChatMessage = {
+            id: `error-${Date.now()}`,
+            sender: 'bot',
+            content: `❌ ${response.message || response.text}`,
+            timestamp: new Date(),
+            metadata: {
+              action: action,
+              isAutomated: true,
+              confidence: action.confidence,
+              isPremium: isPremiumUser,
+              requiresConfirmation: true
+            }
+          };
+          
+          setMessages(prev => [...prev, errorMessage]);
+        } else {
+          // Ação precisa de confirmação
+          const botMessage: ChatMessage = {
+            id: `action-${Date.now()}`,
+            sender: 'bot',
+            content: response.message || response.text || 'Detectei uma ação que posso executar automaticamente!',
+            timestamp: new Date(),
+            metadata: {
+              action: action,
+              isAutomated: true,
+              confidence: action.confidence,
+              isPremium: isPremiumUser,
+              requiresConfirmation: true
+            }
+          };
+
+          setMessages(prev => [...prev, botMessage]);
+        }
+      } else if (response.type === 'TEXT_RESPONSE') {
+        console.log('[FRONTEND] Processing text response');
+        // ✅ CORREÇÃO: Acessar o texto da resposta corretamente
+        const responseText = response.message || response.data?.text || response.text || 'Olá! Como posso te ajudar hoje?';
+        console.log('[FRONTEND] Text content:', responseText);
+        
+        // Resposta normal do chatbot
+        const botMessage: ChatMessage = {
+          id: response.metadata?.messageId || response.data?.messageId || response.messageId || Date.now().toString(),
+          sender: 'bot',
+          content: responseText,
+          timestamp: new Date(),
+          metadata: {
+            ...response.metadata,
+            ...response.data,
+            isPremium: isPremiumUser,
+            processingTime: response.metadata?.processingTime || response.data?.processingTime
+          }
+        };
+
+        console.log('[FRONTEND] Created bot message:', botMessage);
+        setMessages(prev => [...prev, botMessage]);
+      } else {
+        console.log('[FRONTEND] Processing fallback response');
+        // ✅ CORREÇÃO: Acessar o texto da resposta corretamente
+        const responseText = response.message || response.data?.text || response.text || 'Olá! Como posso te ajudar hoje?';
+        console.log('[FRONTEND] Fallback text:', responseText);
+        
+        // Fallback para resposta simples
+        const botMessage: ChatMessage = {
+          id: Date.now().toString(),
+          sender: 'bot',
+          content: responseText,
+          timestamp: new Date(),
+          metadata: {
+            isPremium: isPremiumUser
+          }
+        };
+
+        console.log('[FRONTEND] Created fallback message:', botMessage);
+        setMessages(prev => [...prev, botMessage]);
+      }
       
       // Atualizar título da sessão se for a primeira mensagem
       if (messages.filter(m => m.sender === 'user').length === 1) {
@@ -754,7 +815,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
       }
     } catch (error) {
       console.error('Erro no chat:', error);
-      const errorMessage: Message = {
+      const errorMessage: ChatMessage = {
         id: Date.now().toString(),
         sender: 'bot',
         content: 'Desculpe, ocorreu um erro. Por favor, tente novamente.',
@@ -766,10 +827,94 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
     }
   };
 
+  // Executar ação automatizada
+  const executeAutomatedAction = async (action: AutomatedAction) => {
+    try {
+      const response = await chatbotAPI.executeAction({
+        action: action.type,
+        payload: action.payload,
+        chatId: activeSession?.chatId
+      });
+
+      if (response.success) {
+        // ✅ MELHORADO: Mensagem mais natural
+        const successMessage: ChatMessage = {
+          id: `success-${Date.now()}`,
+          sender: 'bot',
+          content: `✅ ${action.successMessage}`,
+          timestamp: new Date(),
+          metadata: {
+            isAutomated: true,
+            isPremium: isPremiumUser,
+            actionExecuted: true
+          }
+        };
+        
+        setMessages(prev => [...prev, successMessage]);
+        
+        // ✅ ADICIONADO: Toast de sucesso
+        toast.success(action.successMessage);
+        
+        // ✅ MELHORADO: Sugestões mais naturais
+        if (action.followUpQuestions && action.followUpQuestions.length > 0) {
+          const followUpMessage: ChatMessage = {
+            id: `followup-${Date.now()}`,
+            sender: 'bot',
+            content: 'Posso ajudar com mais alguma coisa?',
+            timestamp: new Date(),
+            metadata: {
+              suggestions: action.followUpQuestions,
+              isPremium: isPremiumUser
+            }
+          };
+          
+          setMessages(prev => [...prev, followUpMessage]);
+        }
+      } else {
+        throw new Error('Failed to execute action');
+      }
+    } catch (error) {
+      console.error('Erro ao executar ação:', error);
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        sender: 'bot',
+        content: `❌ ${action.errorMessage}`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      // ✅ ADICIONADO: Toast de erro
+      toast.error(action.errorMessage);
+    }
+  };
+
+  // Handlers para ações automatizadas
+  const handleActionConfirm = async (action: AutomatedAction) => {
+    await executeAutomatedAction(action);
+  };
+
+  const handleActionEdit = (action: AutomatedAction) => {
+    // Implementar edição da ação
+    console.log('Editar ação:', action);
+    toast.info('Funcionalidade de edição em desenvolvimento');
+  };
+
+  const handleActionCancel = (action: AutomatedAction) => {
+    const cancelMessage: ChatMessage = {
+      id: `cancel-${Date.now()}`,
+      sender: 'bot',
+      content: 'Ação cancelada. Como posso ajudar?',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, cancelMessage]);
+    
+    // ✅ ADICIONADO: Toast de cancelamento
+    toast.info('Ação cancelada');
+  };
+
   const handleFeedback = async (feedbackData: any) => {
     try {
       await chatbotAPI.saveUserFeedback(feedbackData);
-      // Você pode adicionar um toast de sucesso aqui
       console.log('Feedback enviado com sucesso!');
     } catch (error) {
       console.error('Erro ao enviar feedback:', error);
@@ -782,6 +927,49 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
 
   const closeFeedbackModal = () => {
     setFeedbackModal({ messageId: '', isOpen: false });
+  };
+
+  // Funções para exclusão de sessões
+  const handleDeleteSession = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita que o clique propague para o loadSession
+    
+    if (window.confirm('Tem certeza que deseja excluir esta conversa? Esta ação não pode ser desfeita.')) {
+      try {
+        await chatbotDeleteAPI.deleteSession(chatId);
+        
+        // Remove a sessão da lista
+        setSessions(prev => prev.filter(s => s.chatId !== chatId));
+        
+        // Se a sessão ativa for a mesma que foi excluída, limpa a sessão ativa
+        if (activeSession?.chatId === chatId) {
+          setActiveSession(null);
+          setMessages([]);
+        }
+        
+        console.log('Sessão excluída com sucesso');
+      } catch (error) {
+        console.error('Erro ao excluir sessão:', error);
+        alert('Erro ao excluir a conversa. Tente novamente.');
+      }
+    }
+  };
+
+  const handleDeleteAllSessions = async () => {
+    if (window.confirm('Tem certeza que deseja excluir TODAS as conversas? Esta ação não pode ser desfeita.')) {
+      try {
+        await chatbotDeleteAPI.deleteAllSessions();
+        
+        // Limpa todas as sessões
+        setSessions([]);
+        setActiveSession(null);
+        setMessages([]);
+        
+        console.log('Todas as sessões foram excluídas com sucesso');
+      } catch (error) {
+        console.error('Erro ao excluir todas as sessões:', error);
+        alert('Erro ao excluir as conversas. Tente novamente.');
+      }
+    }
   };
 
   if (!user) return null;
@@ -819,13 +1007,25 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
               // Visualização de seleção de sessão
               <div className="flex-1 p-4 overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold dark:text-white">Suas Conversas</h3>
-                  <button
-                    onClick={() => setIsNewSessionModalOpen(true)}
-                    className={`${theme.button} text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2`}
-                  >
-                    Nova Conversa
-                  </button>
+                  <h3 className="text-lg font-bold chat-title">Suas Conversas</h3>
+                  <div className="flex gap-2">
+                    {sessions.length > 0 && (
+                      <button
+                        onClick={handleDeleteAllSessions}
+                        className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm flex items-center gap-2 border border-red-200 dark:border-red-800"
+                        title="Excluir todas as conversas"
+                      >
+                        <Trash2 size={14} />
+                        Limpar Tudo
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setIsNewSessionModalOpen(true)}
+                      className={`${theme.button} text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2`}
+                    >
+                      Nova Conversa
+                    </button>
+                  </div>
                 </div>
                 
                 {Array.isArray(sessions) && sessions.length > 0 ? (
@@ -833,21 +1033,34 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
                     {sessions.map(session => (
                       <div
                         key={session.chatId}
-                        onClick={() => loadSession(session.chatId)}
-                        className="p-3 border dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        className="p-3 chat-border-bottom rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                       >
-                        <h4 className="font-medium dark:text-white">{session.title}</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(session.updatedAt).toLocaleString()}
-                        </p>
+                        <div 
+                          className="cursor-pointer"
+                          onClick={() => loadSession(session.chatId)}
+                        >
+                          <h4 className="font-medium text-gray-900 dark:text-white">{session.title}</h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {new Date(session.updatedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex justify-end mt-2">
+                          <button
+                            onClick={(e) => handleDeleteSession(session.chatId, e)}
+                            className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-colors"
+                            title="Excluir conversa"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <MessageSquare className="w-12 h-12 text-gray-400 mb-4" />
-                    <h4 className="text-lg font-medium dark:text-white mb-2">Nenhuma conversa encontrada</h4>
-                    <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Nenhuma conversa encontrada</h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
                       Comece uma nova conversa para interagir com o assistente
                     </p>
                     <button
@@ -862,10 +1075,10 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
             ) : (
               // Chat ativo
               <>
-                <header className="bg-white dark:bg-gray-900 p-4 border-b dark:border-gray-700 flex justify-between items-center">
+                <header className={`${theme.headerBg} p-4 chat-border-bottom flex justify-between items-center`}>
                   <div>
-                    <h3 className="font-bold dark:text-white">{activeSession.title}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <h3 className="font-bold chat-title">{activeSession.title}</h3>
+                    <p className="text-xs chat-subtitle">
                       {isPremiumUser ? (
                         <span className="flex items-center gap-1">
                           <Sparkles size={12} /> {getPlanDisplayName()}
@@ -875,13 +1088,13 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
                   </div>
                   <button
                     onClick={() => setActiveSession(null)}
-                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
                   >
                     <X size={18} />
                   </button>
                 </header>
 
-                <div className="flex-1 p-4 overflow-y-auto bg-gray-50 dark:bg-gray-800">
+                <div className={`flex-1 p-4 overflow-y-auto ${theme.chatBg}`}>
                   <div className="space-y-6">
                     {messages.map((msg) => (
                       <AdvancedMessageBubble 
@@ -890,6 +1103,9 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
                         theme={theme}
                         isPremium={isPremiumUser}
                         onFeedback={openFeedbackModal}
+                        onActionConfirm={handleActionConfirm}
+                        onActionEdit={handleActionEdit}
+                        onActionCancel={handleActionCancel}
                       />
                     ))}
                     {isLoading && (
@@ -910,16 +1126,16 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
                   </div>
                 </div>
 
-                <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
+                <div className={`p-4 chat-border-top ${theme.headerBg}`}>
                   <CommandBar 
                     onSubmit={handleSendMessage}
                     isLoading={isLoading}
                     theme={theme}
-                      placeholder={isPremiumUser 
-                        ? "Digite sua pergunta sobre investimentos..." 
-                        : "Pergunte sobre finanças ou o app..."}
+                    placeholder={isPremiumUser 
+                      ? "Digite sua pergunta ou ação financeira..." 
+                      : "Pergunte sobre finanças ou o app..."}
                   />
-                  </div>
+                </div>
               </>
             )}
           </motion.div>
@@ -937,7 +1153,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
             <h3 className="text-lg font-bold mb-4 dark:text-white">Nova Conversa</h3>
             <p className="mb-6 text-gray-600 dark:text-gray-300">
               {isPremiumUser
-                ? "Você está iniciando uma nova sessão com o consultor financeiro premium. Podemos analisar seus dados e oferecer insights personalizados."
+                ? "Você está iniciando uma nova sessão com o consultor financeiro premium. Posso executar ações automaticamente e analisar seus dados em tempo real."
                 : "Você está iniciando uma nova conversa com o assistente básico. Posso ajudar com dúvidas sobre o app e conceitos financeiros gerais."}
             </p>
             <div className="flex justify-end gap-3">
@@ -969,6 +1185,153 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
           />
         )}
       </AnimatePresence>
+
+      {/* ToastContainer para notificações */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        toastClassName={`text-sm rounded-xl shadow-lg ${resolvedTheme === "dark" ? "bg-gray-700 text-gray-100" : "bg-white text-gray-800"}`}
+      />
     </>
   );
-} 
+}
+
+// Componente de Feedback Modal
+const FeedbackModal = ({ messageId, onClose, onSubmit }: {
+  messageId: string;
+  onClose: () => void;
+  onSubmit: (feedback: any) => void;
+}) => {
+  const [feedback, setFeedback] = useState({
+    rating: 0,
+    helpful: true,
+    comment: '',
+    category: 'helpfulness' as 'accuracy' | 'helpfulness' | 'clarity' | 'relevance'
+  });
+
+  const handleSubmit = () => {
+    onSubmit({
+      messageId,
+      rating: feedback.rating,
+      helpful: feedback.helpful,
+      comment: feedback.comment,
+      category: feedback.category,
+      context: ''
+    });
+    onClose();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
+      >
+        <h3 className="text-lg font-bold mb-4 dark:text-white">Avalie esta resposta</h3>
+        
+        <div className="mb-4">
+          <label className="block mb-2 dark:text-gray-300">Qualidade:</label>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button 
+                key={star}
+                onClick={() => setFeedback({...feedback, rating: star})}
+                className={`p-2 rounded-full transition-colors ${
+                  feedback.rating >= star 
+                    ? 'bg-yellow-500 text-white' 
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                }`}
+              >
+                <Star size={16} fill={feedback.rating >= star ? 'currentColor' : 'none'} />
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <label className="block mb-2 dark:text-gray-300">Foi útil?</label>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFeedback({...feedback, helpful: true})}
+              className={`px-4 py-2 rounded-lg border transition-colors ${
+                feedback.helpful 
+                  ? 'bg-green-500 text-white border-green-500' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+              }`}
+            >
+              <ThumbsUp size={16} className="mr-2" />
+              Sim
+            </button>
+            <button
+              onClick={() => setFeedback({...feedback, helpful: false})}
+              className={`px-4 py-2 rounded-lg border transition-colors ${
+                !feedback.helpful 
+                  ? 'bg-red-500 text-white border-red-500' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+              }`}
+            >
+              <ThumbsDown size={16} className="mr-2" />
+              Não
+            </button>
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <label className="block mb-2 dark:text-gray-300">Categoria:</label>
+          <select
+            value={feedback.category}
+            onChange={(e) => setFeedback({...feedback, category: e.target.value as any})}
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          >
+            <option value="helpfulness">Utilidade</option>
+            <option value="accuracy">Precisão</option>
+            <option value="clarity">Clareza</option>
+            <option value="relevance">Relevância</option>
+          </select>
+        </div>
+        
+        <div className="mb-6">
+          <label className="block mb-2 dark:text-gray-300">Comentário (opcional):</label>
+          <textarea
+            value={feedback.comment}
+            onChange={(e) => setFeedback({...feedback, comment: e.target.value})}
+            placeholder="Conte-nos mais sobre sua experiência..."
+            className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+            rows={3}
+          />
+        </div>
+        
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={feedback.rating === 0}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed"
+          >
+            Enviar Feedback
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};

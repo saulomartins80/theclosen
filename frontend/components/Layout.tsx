@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import Header from './Header';
+import MobileHeader from './MobileHeader';
 import Sidebar from './Sidebar';
 import Chatbot from './ChatbotCorrected';
 import MobileNavigation from './MobileNavigation';
@@ -21,6 +23,7 @@ const debounce = (func: Function, wait: number) => {
 const MD_BREAKPOINT = 768;
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(() => {
     if (typeof window !== 'undefined' && window.innerWidth >= MD_BREAKPOINT) {
@@ -31,6 +34,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMobileView, setIsMobileView] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showMobileHeader, setShowMobileHeader] = useState(false);
+
+  // Função para obter o título da página atual
+  const getPageTitle = () => {
+    const path = router.pathname;
+    switch (path) {
+      case '/dashboard':
+        return 'Dashboard';
+      case '/transacoes':
+        return 'Transações';
+      case '/investimentos':
+        return 'Investimentos';
+      case '/metas':
+        return 'Metas';
+      case '/profile':
+        return 'Perfil';
+      case '/configuracoes':
+        return 'Configurações';
+      default:
+        return 'FinNext';
+    }
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -116,9 +140,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             
             {/* Header para mobile (aparece quando rola) */}
             {isMobileView && showMobileHeader && (
-              <Header
-                isSidebarOpen={isMobileSidebarOpen}
-                toggleMobileSidebar={toggleMobileSidebar}
+              <MobileHeader
+                title={getPageTitle()}
+                onMenuToggle={toggleMobileSidebar}
+                showBackButton={false}
               />
             )}
             

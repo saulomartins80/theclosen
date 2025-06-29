@@ -1,3 +1,4 @@
+//ChatHistoryService.ts
 import { ChatMessage, Conversation, ChatAnalytics, ChatSession } from '../types/chat';
 import { ChatMessage as ChatMessageModel, IChatMessage } from '../models/ChatMessage';
 import { v4 as uuidv4 } from 'uuid';
@@ -278,10 +279,10 @@ export class ChatHistoryService {
     try {
       console.log(`[ChatHistoryService] Excluindo conversa: ${chatId}`);
       
-      // Excluir a conversa do MongoDB
-      await ChatMessageModel.deleteOne({ chatId });
+      // Excluir a conversa do MongoDB - CORRIGIDO: usar deleteMany em vez de deleteOne
+      const result = await ChatMessageModel.deleteMany({ chatId });
       
-      console.log(`[ChatHistoryService] Conversa ${chatId} excluída com sucesso`);
+      console.log(`[ChatHistoryService] Conversa ${chatId} excluída com sucesso - ${result.deletedCount} mensagens removidas`);
     } catch (error) {
       console.error(`[ChatHistoryService] Erro ao excluir conversa ${chatId}:`, error);
       throw new AppError(500, 'Erro ao excluir conversa');

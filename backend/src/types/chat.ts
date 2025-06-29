@@ -6,13 +6,34 @@ export interface ChatMessageMetadata {
   expertise?: string;
   confidence?: number;
   isImportant?: boolean;
-  messageType?: 'basic' | 'premium' | 'analysis' | 'guidance';
+  messageType?: 'basic' | 'premium' | 'analysis' | 'guidance' | 'streaming';
   messageId?: string;
+  chunkCount?: number;
+  isPremium?: boolean;
+  actionExecuted?: boolean;
+  actionType?: string;
+  result?: any;
+  action?: any;
+  requiresConfirmation?: boolean;
   userDataAccessed?: {
     name: string;
     totalTransacoes: number;
     totalInvestimentos: number;
     totalMetas: number;
+  };
+  celebrations?: string[];
+  motivationalMessage?: string;
+  upsellMessage?: string;
+  emotionalContext?: {
+    stressLevel: number;
+    recentEmotions: string[];
+  };
+  achievements?: {
+    total: number;
+    list: string[];
+    points: number;
+    level: number;
+    streak: number;
   };
 }
 

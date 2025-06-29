@@ -120,25 +120,31 @@ export const marketDataAPI = {
 
 // --- CHATBOT API ---
 export const chatbotAPI = {
-  sendQuery: async (query: { message: string; chatId: string }) => {
-    console.log('[chatbotAPI] Enviando consulta:', query);
+  sendQuery: async (data: { message: string; chatId: string; context?: any }) => {
     try {
-      // Timeout de 60 segundos para respostas premium que podem demorar
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-      const response = await api.post('/api/chatbot/query', query, {
-        signal: controller.signal
-      });
+      console.log('[chatbotAPI] Enviando consulta:', data);
       
-      clearTimeout(timeoutId);
+      // ✅ CORREÇÃO: Usar endpoint correto que salva nas sessões
+      const response = await api.post('/api/chatbot/query', {
+        message: data.message,
+        chatId: data.chatId
+      });
+
       console.log('[chatbotAPI] Resposta recebida com sucesso:', response.data);
       return response.data;
     } catch (error) {
       console.error('[chatbotAPI] Erro ao enviar consulta:', error);
-      if ((error as any).name === 'AbortError') {
-        throw new Error('Timeout: A resposta está demorando mais que o esperado');
-      }
+      throw error;
+    }
+  },
+  executeAction: async (actionData: { action: string; payload: any; chatId?: string }) => {
+    console.log('[chatbotAPI] Executando ação:', actionData);
+    try {
+      const response = await api.post('/api/automated-actions/execute', actionData);
+      console.log('[chatbotAPI] Ação executada com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[chatbotAPI] Erro ao executar ação:', error);
       throw error;
     }
   },

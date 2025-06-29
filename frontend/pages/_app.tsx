@@ -1,9 +1,10 @@
 // frontend/pages/_app.tsx
 import { useRouter } from 'next/router'
-import { ThemeProvider } from '../context/ThemeContext'
+import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { AuthProvider } from '../context/AuthContext'
 import { FinanceProvider } from '../context/FinanceContext'
 import { DashboardProvider } from '../context/DashboardContext'
+import { NotificationProvider } from '../context/NotificationContext'
 import type { AppProps } from 'next/app'
 import Layout from '../components/Layout'
 import '../tailwind-output.css'
@@ -54,29 +55,43 @@ function AppContent({ Component, pageProps }: AppProps) {
   )
 }
 
+function ToastContainerWithTheme() {
+  const { theme } = useTheme();
+  
+  return (
+    <ToastContainer
+      position="top-right"
+      autoClose={5000}
+      hideProgressBar={false}
+      newestOnTop={true}
+      closeOnClick={true}
+      rtl={false}
+      pauseOnFocusLoss={false}
+      draggable={true}
+      pauseOnHover={true}
+      limit={5}
+      style={{ zIndex: 9999 }}
+      toastStyle={{ zIndex: 9999 }}
+      theme={theme === 'dark' ? 'dark' : 'light'}
+      closeButton={true}
+      onClick={() => {}}
+    />
+  );
+}
+
 function MyApp(props: AppProps) {
   return (
     <ThemeProvider>
       <AuthProvider>
         <DashboardProvider>
           <FinanceProvider>
-            <Elements stripe={stripePromise}>
-              <GoogleAnalytics />
-              <ToastContainer
-                position="top-right"
-                autoClose={5000}
-                hideProgressBar={false}
-                newestOnTop={false}
-                closeOnClick
-                rtl={false}
-                pauseOnFocusLoss
-                draggable
-                pauseOnHover
-                style={{ zIndex: 9999 }}
-                toastStyle={{ zIndex: 9999 }}
-              />
-              <AppContent {...props} />
-            </Elements>
+            <NotificationProvider>
+              <Elements stripe={stripePromise}>
+                <GoogleAnalytics />
+                <ToastContainerWithTheme />
+                <AppContent {...props} />
+              </Elements>
+            </NotificationProvider>
           </FinanceProvider>
         </DashboardProvider>
       </AuthProvider>

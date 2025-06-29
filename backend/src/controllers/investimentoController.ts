@@ -6,7 +6,10 @@ import Investimento from '../models/Investimento'; // Seu modelo de Investimento
 
 const TIPOS_VALIDOS = [
   'Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários',
-  'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'
+  'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável',
+  'LCI', 'LCA', 'CDB', 'CDI', 'Poupança', 'Fundos de Investimento', 'Debêntures',
+  'CRA', 'CRI', 'Letras de Câmbio', 'COE', 'Fundos Multimercado', 'Fundos Cambiais',
+  'Fundos de Ações', 'Fundos de Renda Fixa', 'Fundos de Previdência', 'Fundos de Crédito Privado'
 ] as const;
 
 export const getInvestimentos = async (req: Request, res: Response): Promise<void> => {
@@ -49,7 +52,18 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const { nome, valor, data, tipo } = req.body;
+    const { 
+      nome, 
+      valor, 
+      data, 
+      tipo, 
+      instituicao, 
+      rentabilidade, 
+      vencimento, 
+      liquidez, 
+      risco, 
+      categoria 
+    } = req.body;
 
     if (!nome?.trim()) {
       res.status(400).json({ message: "Nome é obrigatório" });
@@ -70,9 +84,55 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const dataObj = data ? new Date(data) : new Date();
+    // Corrigir tratamento da data para evitar problemas de timezone
+    let dataObj: Date;
+    if (data) {
+      // Se a data vem como string YYYY-MM-DD, adicionar horário UTC
+      if (typeof data === 'string' && data.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        dataObj = new Date(data + 'T12:00:00Z');
+      } else {
+        dataObj = new Date(data);
+      }
+    } else {
+      dataObj = new Date();
+    }
+    
     if (isNaN(dataObj.getTime())) {
       res.status(400).json({ message: "Data inválida" });
+      return;
+    }
+
+    // Validar rentabilidade se fornecida
+    let rentabilidadeNum: number | undefined;
+    if (rentabilidade !== undefined) {
+      rentabilidadeNum = Number(rentabilidade);
+      if (isNaN(rentabilidadeNum) || rentabilidadeNum < 0 || rentabilidadeNum > 1000) {
+        res.status(400).json({ message: "Rentabilidade deve ser um número entre 0 e 1000" });
+        return;
+      }
+    }
+
+    // Validar data de vencimento se fornecida
+    let vencimentoObj: Date | undefined;
+    if (vencimento) {
+      vencimentoObj = new Date(vencimento);
+      if (isNaN(vencimentoObj.getTime())) {
+        res.status(400).json({ message: "Data de vencimento inválida" });
+        return;
+      }
+    }
+
+    // Validar liquidez se fornecida
+    const liquidezValida = ['D+0', 'D+1', 'D+30', 'D+60', 'D+90', 'D+180', 'D+365', 'Sem liquidez'];
+    if (liquidez && !liquidezValida.includes(liquidez)) {
+      res.status(400).json({ message: "Liquidez inválida", valoresValidos: liquidezValida });
+      return;
+    }
+
+    // Validar risco se fornecido
+    const riscoValido = ['Baixo', 'Médio', 'Alto', 'Muito Alto'];
+    if (risco && !riscoValido.includes(risco)) {
+      res.status(400).json({ message: "Risco inválido", valoresValidos: riscoValido });
       return;
     }
 
@@ -81,7 +141,14 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
       valor: valorNumerico,
       data: dataObj,
       tipo,
-      userId // ASSOCIAR O userId
+      userId,
+      // Novos campos opcionais
+      ...(instituicao && { instituicao: instituicao.trim() }),
+      ...(rentabilidadeNum !== undefined && { rentabilidade: rentabilidadeNum }),
+      ...(vencimentoObj && { vencimento: vencimentoObj }),
+      ...(liquidez && { liquidez }),
+      ...(risco && { risco }),
+      ...(categoria && { categoria: categoria.trim() })
     });
 
     await novoInvestimento.save();
@@ -211,6 +278,49 @@ export const deleteInvestimento = async (req: Request, res: Response): Promise<v
     console.error('Erro ao excluir investimento:', error);
     res.status(500).json({
       message: 'Erro ao excluir investimento',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+};
+
+export const suggestAndAddInvestment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Usuário não autenticado." });
+      return;
+    }
+
+    const { nome, valor, data, tipo, confirmacao } = req.body;
+
+    // Se não confirmado, apenas retorna a sugestão
+    if (!confirmacao) {
+      const sugestao = {
+        nome: nome?.trim() || "Investimento sem nome",
+        valor: valor || 0,
+        data: data ? new Date(data) : new Date(),
+        tipo: tipo || "Renda Fixa",
+        userId,
+        status: "pendente",
+        mensagem: "Por favor, confirme os dados do investimento"
+      };
+
+      res.json({
+        ...sugestao,
+        acoes: [
+          { acao: "confirmar", texto: "Confirmar", endpoint: `/api/investimentos/sugestao`, metodo: "POST" },
+          { acao: "editar", texto: "Editar", camposEditaveis: ["nome", "valor", "data", "tipo"] }
+        ]
+      });
+      return;
+    }
+
+    // Se confirmado, processa normalmente
+    await addInvestimento(req, res);
+  } catch (error: unknown) {
+    console.error('Erro ao sugerir investimento:', error);
+    res.status(500).json({
+      message: 'Erro ao sugerir investimento',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }

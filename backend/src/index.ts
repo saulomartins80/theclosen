@@ -26,6 +26,7 @@ import authRoutes from './routes/authRoutes';
 import marketDataRoutes from './routes/marketDataRoutes'; 
 import protectedRoutes from './routes/protectedRoutes';
 import userRoutes from './modules/users/routes/userRoutes';
+import automatedActionsRoutes from './routes/automatedActions';
 
 interface HealthCheckResponse {
   status: 'OK' | 'PARTIAL' | 'FAIL';
@@ -249,6 +250,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/market-data', marketDataRoutes);
 app.use('/api/protected', protectedRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/automated-actions', automatedActionsRoutes);
 
 app.use(errorHandler as express.ErrorRequestHandler);
 

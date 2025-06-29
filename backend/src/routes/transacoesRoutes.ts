@@ -3,7 +3,8 @@ import {
   createTransacao,
   getTransacoes,
   updateTransacao,
-  deleteTransacao
+  deleteTransacao,
+  suggestAndAddTransaction
 } from "../controllers/transacoesController";
 import { authenticate } from "../middlewares/authMiddleware"; // Importar o middleware
 import { asyncHandler } from "../utils/asyncHandler"; // Importar o asyncHandler
@@ -15,6 +16,9 @@ const router = express.Router();
 
 // Rota para criar transação (protegida)
 router.post("/", authenticate, asyncHandler(createTransacao));
+
+// Rota para sugestão de transação (protegida)
+router.post("/sugestao", authenticate, asyncHandler(suggestAndAddTransaction));
 
 // Rota para listar transações (protegida)
 router.get("/", authenticate, asyncHandler(getTransacoes));

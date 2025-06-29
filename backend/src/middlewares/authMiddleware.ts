@@ -7,7 +7,12 @@ import { container } from '@core/container';
 import { TYPES } from '@core/types';
 import { UserService } from '@modules/users/services/UserService';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'c601';
+// JWT_SECRET mais seguro - deve ser definido em variável de ambiente
+const JWT_SECRET = process.env.JWT_SECRET || process.env.APP_JWT_SECRET || process.env.NEXTAUTH_SECRET || 'default-secret-change-in-production';
+
+if (!process.env.JWT_SECRET && !process.env.APP_JWT_SECRET && !process.env.NEXTAUTH_SECRET) {
+  console.warn('[SECURITY] JWT_SECRET não configurado! Use uma variável de ambiente segura.');
+}
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -17,6 +22,12 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }
 
     const token = authHeader.split(' ')[1];
+    
+    // Validação adicional do token
+    if (!token || token.length < 10) {
+      return next(new AppError(401, 'Token inválido'));
+    }
+
     const isFirebaseToken = token.length > 500;
     const userService = container.get<UserService>(TYPES.UserService);
 
@@ -24,6 +35,11 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       try {
         const firebaseDecoded = await adminAuth.verifyIdToken(token);
         const firebaseUid = firebaseDecoded.uid;
+
+        // Validação adicional do UID
+        if (!firebaseUid || firebaseUid.length < 10) {
+          return next(new AppError(401, 'UID Firebase inválido'));
+        }
 
         const mongoUser = await userService.getUserByFirebaseUid(firebaseUid) as any;
 

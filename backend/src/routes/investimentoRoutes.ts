@@ -3,7 +3,8 @@ import {
   getInvestimentos,
   addInvestimento,
   updateInvestimento,
-  deleteInvestimento
+  deleteInvestimento,
+  suggestAndAddInvestment
 } from '../controllers/investimentoController';
 import { authenticate } from "../middlewares/authMiddleware"; // Importar o middleware
 import { asyncHandler } from "../utils/asyncHandler"; // Importar o asyncHandler
@@ -17,6 +18,9 @@ router.get('/', authenticate, asyncHandler(getInvestimentos));
 
 // Rota para adicionar investimento (protegida)
 router.post('/', authenticate, asyncHandler(addInvestimento));
+
+// Rota para sugestão de investimento (protegida)
+router.post('/sugestao', authenticate, asyncHandler(suggestAndAddInvestment));
 
 // Rota para atualizar investimento (protegida)
 router.put('/:id', authenticate, asyncHandler(updateInvestimento));

@@ -2,9 +2,10 @@ import express from "express";
 import {
   getGoals,
   getGoalsProgressByCategory,
-  saveGoal,
+  createGoal,
   updateGoal,
-  deleteGoal
+  deleteGoal,
+  suggestAndAddGoal
 } from "../controllers/goalController";
 import { authenticate } from "../middlewares/authMiddleware"; // Importar o middleware
 import { asyncHandler } from "../utils/asyncHandler"; // Importar o asyncHandler
@@ -18,7 +19,10 @@ router.get("/", authenticate, asyncHandler(getGoals));
 router.get("/progress-by-category", authenticate, asyncHandler(getGoalsProgressByCategory));
 
 // Rota para criar meta
-router.post("/", authenticate, asyncHandler(saveGoal));
+router.post("/", authenticate, asyncHandler(createGoal));
+
+// Rota para sugestão de meta
+router.post("/sugestao", authenticate, asyncHandler(suggestAndAddGoal));
 
 // Rota para atualizar meta
 router.put("/:id", authenticate, asyncHandler(updateGoal));

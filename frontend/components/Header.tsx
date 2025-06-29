@@ -1,25 +1,21 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiX, FiSun, FiMoon, FiMonitor, FiMenu, FiSearch, FiSettings, FiUser, FiLogOut, FiChevronRight } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
-import Notifications, { NotificationItem } from './Notifications'; // Importar componente e tipo
+import Notifications, { NotificationItem } from './Notifications';
 
 type Theme = 'light' | 'dark' | 'system';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
   toggleMobileSidebar: () => void;
-  notifications?: NotificationItem[];
-  unreadNotificationCount?: number;
 }
 
 export default function Header({
   isSidebarOpen,
-  toggleMobileSidebar,
-  notifications = [],
-  unreadNotificationCount = 0
+  toggleMobileSidebar
 }: HeaderProps) {
   const { user, logout: authContextLogout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -161,7 +157,6 @@ export default function Header({
         {/* Notificações dinâmicas */}
         <Notifications
           resolvedTheme={resolvedTheme}
-          initialNotifications={notifications}
         />
 
         {/* Perfil do usuário */}
