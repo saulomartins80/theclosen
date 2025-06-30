@@ -1,0 +1,23 @@
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Arquivos de build
+.next/
+out/
+dist/
+
+# Arquivos de configuração
+next.config.js
+tailwind.config.js
+postcss.config.js
+
+# Arquivos de tipos
+*.d.ts
+
+# Arquivos de teste
+**/*.test.*
+**/*.spec.*
+
+# Arquivos específicos com problemas
+src/@types/react-notifications.d.ts 

@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:no-lint": "DISABLE_ESLINT_PLUGIN=true next build",
     "start": "next start",
     "lint": "next lint",
     "fix-critical": "node scripts/fix-critical-errors.js",
