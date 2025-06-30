@@ -104,3 +104,5 @@ code/
 frontend/CORRECOES_*.md
 backend/.env.backup
 backend/env-complete.txt
+backend/.env.backup
+backend/env-complete.txt
