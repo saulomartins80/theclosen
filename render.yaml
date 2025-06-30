@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: theclosen-backend
+    env: node
+    plan: starter
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: FIREBASE_ADMIN_PROJECT_ID
+        sync: false
+      - key: FIREBASE_ADMIN_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_ADMIN_PRIVATE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://theclosen-frontend.onrender.com
+      - key: REDIS_URL
+        value: redis://red-d1gsqdvgi27c73c34r8g:6379
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: YAHOO_FINANCE_API_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: HSM_API_KEY
+        sync: false
+      - key: AUDIT_API_KEY
+        sync: false
+      - key: APP_JWT_SECRET
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX
+        value: 1000
+    healthCheckPath: /health
+    autoDeploy: true
+
+databases:
+  - name: theclosen-mongodb
+    databaseName: finnextho
+    plan: starter 
