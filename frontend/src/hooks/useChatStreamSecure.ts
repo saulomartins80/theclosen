@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { sanitizeInput, validateMessageSize, sanitizeApiData, logSuspiciousActivity, SECURITY_CONFIG } from '../utils/security';
+import { sanitizeInput, validateMessageSize, logSuspiciousActivity, SECURITY_CONFIG } from '../utils/security';
 
 interface StreamData {
   content: string;

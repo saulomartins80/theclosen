@@ -2,5 +2,32 @@
   "extends": [
     "next/core-web-vitals",
     "next/typescript"
+  ],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-unsafe-function-type": "warn",
+    "@typescript-eslint/no-var-requires": "error",
+    "@typescript-eslint/no-empty-function": "warn",
+    "@typescript-eslint/prefer-const": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "react/no-unescaped-entities": "warn",
+    "no-console": "warn",
+    "no-debugger": "error",
+    "no-alert": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["pages/api/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "warn"
+      }
+    },
+    {
+      "files": ["components/**/*.tsx"],
+      "rules": {
+        "@typescript-eslint/no-unused-vars": "warn"
+      }
+    }
   ]
 }
