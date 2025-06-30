@@ -102,3 +102,5 @@ frontend/tsconfig.tsbuildinfo
 # Arquivos de correção e desenvolvimento
 code/
 frontend/CORRECOES_*.md
+backend/.env.backup
+backend/env-complete.txt

@@ -29,68 +29,88 @@ const api = axios.create({
 
 // Interceptor para autenticação com logs detalhados
 api.interceptors.request.use(async (config) => {
-  console.log(`[api.ts] Starting request to: ${config.url}`);
+  console.log(`[api.ts] 🚀 Iniciando requisição para: ${config.method?.toUpperCase()} ${config.url}`);
   
   const auth = getAuth();
   const user = auth.currentUser;
 
+  console.log(`[api.ts] 👤 Estado do usuário:`, {
+    userExists: !!user,
+    uid: user?.uid,
+    email: user?.email,
+    emailVerified: user?.emailVerified
+  });
+
   if (user) {
-    console.log(`[api.ts] User found (UID: ${user.uid}). Getting ID token for request to: ${config.url}`);
+    console.log(`[api.ts] 🔑 Usuário encontrado (UID: ${user.uid}). Obtendo ID token para: ${config.url}`);
     try {
       const token = await getIdToken(user, true);
-      console.log(`[api.ts] Successfully obtained token for request to: ${config.url}`);
+      console.log(`[api.ts] ✅ Token obtido com sucesso para: ${config.url}`);
+      console.log(`[api.ts] 🔑 Token (primeiros 20 chars): ${token.substring(0, 20)}...`);
+      console.log(`[api.ts] 📏 Tamanho do token: ${token.length}`);
+      
       config.headers.Authorization = `Bearer ${token}`;
-      console.log(`[api.ts] Authorization header set for request to: ${config.url}`);
+      console.log(`[api.ts] ✅ Header Authorization configurado para: ${config.url}`);
     } catch (error) {
-      console.error(`[api.ts] Error getting ID token for request to: ${config.url}`, error);
+      console.error(`[api.ts] ❌ Erro ao obter ID token para: ${config.url}`, error);
       throw new Error(`Failed to get authentication token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   } else {
-    console.warn(`[api.ts] No authenticated user found. Request to ${config.url} will be unauthenticated.`);
+    console.warn(`[api.ts] ⚠️ Nenhum usuário autenticado encontrado. Requisição para ${config.url} será não autenticada.`);
+    console.warn(`[api.ts] 📋 Headers da requisição:`, config.headers);
   }
 
   return config;
 }, (error) => {
-  console.error('[api.ts] Request interceptor error:', error);
+  console.error('[api.ts] ❌ Erro no interceptor de requisição:', error);
   return Promise.reject(error);
 });
 
 // Interceptor para tratamento de erros com logs detalhados
 api.interceptors.response.use(
   (response) => {
-    console.log(`[api.ts] Successful response from ${response.config.url}`, {
+    console.log(`[api.ts] ✅ Resposta bem-sucedida de ${response.config.url}`, {
       status: response.status,
+      method: response.config.method,
       data: response.data
     });
     return response;
   },
   (error) => {
-    console.error(`[api.ts] Response error from ${error.config?.url || 'unknown endpoint'}:`, {
+    console.error(`[api.ts] ❌ Erro de resposta de ${error.config?.url || 'endpoint desconhecido'}:`, {
       code: error.code,
       status: error.response?.status,
       message: error.message,
-      responseData: error.response?.data
+      method: error.config?.method,
+      responseData: error.response?.data,
+      headers: error.config?.headers
     });
 
     if (error.code === 'ECONNABORTED') {
-      console.error('[api.ts] Request timeout occurred');
+      console.error('[api.ts] ⏰ Timeout da requisição');
       return Promise.reject(new Error('Request timeout. Please try again.'));
     }
     
     if (error.response?.status === 401) {
-      console.warn('[api.ts] 401 Unauthorized - Redirecting to login');
+      console.warn('[api.ts] 🔒 401 Unauthorized - Redirecionando para login');
+      console.warn('[api.ts] 📋 Detalhes do erro 401:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        responseData: error.response?.data
+      });
       const currentPath = window.location.pathname;
       const redirectPath = currentPath === '/' ? '' : currentPath;
       window.location.href = `/auth/login?redirect=${encodeURIComponent(redirectPath)}`;
     }
     
     if (error.response?.status === 404) {
-      console.error('[api.ts] 404 Not Found - Resource not available');
+      console.error('[api.ts] 🔍 404 Not Found - Recurso não disponível');
       return Promise.reject(new Error('The requested resource was not found.'));
     }
     
     if (error.response?.status >= 500) {
-      console.error('[api.ts] Server error occurred');
+      console.error('[api.ts] 💥 Erro do servidor');
       return Promise.reject(new Error('Server error. Please try again later.'));
     }
 
