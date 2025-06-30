@@ -9,16 +9,26 @@ export class CacheService {
   private readonly USER_PREFERENCES_TTL = 3600; // 1 hora
 
   constructor() {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD,
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-      keepAlive: 30000,
-      family: 4,
-      db: 0,
-    });
+    // Usar REDIS_URL se disponível, senão usar configuração individual
+    if (process.env.REDIS_URL) {
+      this.redis = new Redis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+        keepAlive: 30000,
+        family: 4,
+      });
+    } else {
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+        password: process.env.REDIS_PASSWORD,
+        maxRetriesPerRequest: 3,
+        lazyConnect: true,
+        keepAlive: 30000,
+        family: 4,
+        db: 0,
+      });
+    }
 
     this.redis.on('error', (error) => {
       console.error('Redis connection error:', error);

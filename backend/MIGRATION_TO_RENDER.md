@@ -34,6 +34,7 @@ Este documento descreve a migração completa do projeto TheClosen do Docker par
 ### Backend
 - ✅ `render.yaml` - Configuração do Render para backend
 - ✅ `RENDER_DEPLOYMENT.md` - Documentação de deploy
+- ✅ `REDIS_SETUP.md` - Configuração específica do Redis
 - ✅ `.gitignore` - Atualizado para excluir arquivos do Docker
 
 ### Frontend
@@ -64,7 +65,7 @@ FIREBASE_ADMIN_PRIVATE_KEY=<sua chave privada>
 STRIPE_SECRET_KEY=<sua chave do Stripe>
 STRIPE_WEBHOOK_SECRET=<seu webhook secret>
 FRONTEND_URL=https://theclosen-frontend.onrender.com
-REDIS_URL=<seu Redis URL>
+REDIS_URL=redis://red-d1gsqdvgi27c73c34r8g:6379
 OPENAI_API_KEY=<sua chave OpenAI>
 YAHOO_FINANCE_API_KEY=<sua chave Yahoo>
 ENCRYPTION_KEY=<sua chave de criptografia>
@@ -102,6 +103,20 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<sua chave pública>
 **Database**: `finnextho`
 **Plan**: Starter (gratuito)
 
+### 4. Redis Cache (finextho-redis)
+
+**Nome**: `finextho-redis`
+**URL**: `redis://red-d1gsqdvgi27c73c34r8g:6379`
+**Plan**: Free (25 MB RAM, 50 conexões)
+**Região**: Oregon
+
+**Funcionalidades**:
+- Cache de respostas do chatbot
+- Cache de contexto do usuário
+- Cache de sugestões
+- Cache de análise de sentimentos
+- Cache de métricas de performance
+
 ## Passos para Deploy
 
 ### 1. Preparação
@@ -113,16 +128,18 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<sua chave pública>
 1. Acesse [render.com](https://render.com)
 2. Conecte seu repositório GitHub
 3. Crie o serviço de banco de dados MongoDB primeiro
-4. Crie o serviço web do backend
-5. Configure todas as variáveis de ambiente
-6. Crie o serviço web do frontend
-7. Configure as variáveis de ambiente do frontend
+4. Crie a instância Redis (Key-Value Store)
+5. Crie o serviço web do backend
+6. Configure todas as variáveis de ambiente (incluindo REDIS_URL)
+7. Crie o serviço web do frontend
+8. Configure as variáveis de ambiente do frontend
 
 ### 3. Verificação
 1. Teste o endpoint `/health` do backend
 2. Teste a página inicial do frontend
 3. Verifique a conexão entre frontend e backend
 4. Teste as funcionalidades principais
+5. Verifique a conexão com Redis
 
 ## Vantagens da Migração
 
@@ -132,13 +149,19 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<sua chave pública>
 - **CDN global** para melhor performance
 - **Logs centralizados** e monitoramento
 - **Escalabilidade** fácil
-- **Integração nativa** com MongoDB
+- **Integração nativa** com MongoDB e Redis
 
 ### ✅ Remoção do Docker
 - **Menos complexidade** de configuração
 - **Deploy mais rápido** e simples
 - **Menos recursos** necessários
 - **Manutenção reduzida**
+
+### ✅ Cache com Redis
+- **Performance melhorada** com cache
+- **Redução de latência** da API
+- **Melhor experiência** do usuário
+- **Escalabilidade** do sistema
 
 ## Troubleshooting
 
@@ -156,7 +179,11 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<sua chave pública>
    - Confirme se a URI do MongoDB está correta
    - Verifique se o banco está acessível
 
-4. **CORS errors**
+4. **Conexão com Redis**
+   - Verifique se `REDIS_URL` está configurada
+   - Confirme se o Redis está ativo no Render
+
+5. **CORS errors**
    - Configure o CORS corretamente no backend
    - Verifique se a URL do frontend está correta
 
@@ -172,6 +199,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<sua chave pública>
 3. **Configuração de domínio** personalizado (opcional)
 4. **Monitoramento** e alertas
 5. **Backup** do banco de dados
+6. **Otimização** do cache Redis
 
 ## Suporte
 
@@ -179,6 +207,10 @@ Para dúvidas sobre o Render:
 - [Documentação oficial](https://render.com/docs)
 - [Comunidade](https://community.render.com)
 - [Status do serviço](https://status.render.com)
+
+Para dúvidas sobre Redis:
+- [Documentação do ioredis](https://github.com/luin/ioredis)
+- [Documentação do Render Redis](https://render.com/docs/redis)
 
 ---
 

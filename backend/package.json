@@ -16,8 +16,7 @@
     "fix-subscription": "cross-env NODE_ENV=development ts-node src/scripts/fixSubscription.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "prebuild": "node scripts/checkFirebaseConfig.js"
+    "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@types/cookie-parser": "^1.4.8",

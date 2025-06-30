@@ -27,7 +27,7 @@ services:
       - key: FRONTEND_URL
         value: https://theclosen-frontend.onrender.com
       - key: REDIS_URL
-        sync: false
+        value: redis://red-d1gsqdvgi27c73c34r8g:6379
       - key: OPENAI_API_KEY
         sync: false
       - key: YAHOO_FINANCE_API_KEY
