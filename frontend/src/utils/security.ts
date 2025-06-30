@@ -82,7 +82,7 @@ export const validateTokenFormat = (token: string): boolean => {
 };
 
 // Limpeza de dados antes de enviar para API
-export const sanitizeApiData = (data: any): any => {
+export const sanitizeApiData = (data: unknown): unknown => {
   if (typeof data === 'string') {
     return sanitizeInput(data);
   }
@@ -92,7 +92,7 @@ export const sanitizeApiData = (data: any): any => {
       return data.map(sanitizeApiData);
     }
     
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
       sanitized[key] = sanitizeApiData(value);
     }

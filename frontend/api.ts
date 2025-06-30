@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -32,22 +32,22 @@ api.interceptors.response.use(
 
 export const chatbotAPI = {
   sendQuery: async (query: string) => {
-    const response = await api.post('/chatbot/query', { query });
+    const response = await api.post('/api/chatbot/query', { query });
     return response.data;
   },
 };
 
 export const subscriptionAPI = {
   getPlans: async () => {
-    const response = await api.get('/subscriptions/plans');
+    const response = await api.get('/api/subscriptions/plans');
     return response.data;
   },
   createCheckoutSession: async (priceId: string) => {
-    const response = await api.post('/subscriptions/create-checkout-session', { priceId });
+    const response = await api.post('/api/subscriptions/create-checkout-session', { priceId });
     return response.data;
   },
   getStatus: async () => {
-    const response = await api.get('/subscriptions/status');
+    const response = await api.get('/api/subscriptions/status');
     return response.data;
   },
 };
@@ -85,15 +85,15 @@ export const financeAPI = {
 
 export const dashboardAPI = {
   getSummary: async () => {
-    const response = await api.get('/dashboard/summary');
+    const response = await api.get('/api/dashboard/summary');
     return response.data;
   },
   getAnalytics: async () => {
-    const response = await api.get('/dashboard/analytics');
+    const response = await api.get('/api/dashboard/analytics');
     return response.data;
   },
   getMarketData: async (requestBody: any) => {
-    const response = await api.post('/dashboard/market-data', requestBody);
+    const response = await api.post('/api/dashboard/market-data', requestBody);
     return response.data;
   },
 };

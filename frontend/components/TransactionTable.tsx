@@ -16,12 +16,12 @@ import { Transacao } from "../types/Transacao";
 import { useTheme } from "../context/ThemeContext";
 
 // Tipo guards
-function isMongoId(id: any): id is { $oid: string } {
-  return id && typeof id === 'object' && '$oid' in id;
+function isMongoId(id: unknown): id is { $oid: string } {
+  return typeof id === 'object' && id !== null && '$oid' in id;
 }
 
-function isMongoDate(date: any): date is { $date: string } {
-  return date && typeof date === 'object' && '$date' in date;
+function isMongoDate(date: unknown): date is { $date: string } {
+  return typeof date === 'object' && date !== null && '$date' in date;
 }
 
 interface TransactionTableProps {

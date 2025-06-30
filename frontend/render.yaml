@@ -24,7 +24,21 @@ services:
         sync: false
       - key: NEXT_PUBLIC_FIREBASE_APP_ID
         sync: false
+      - key: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+        sync: false
       - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
         sync: false
+      - key: NEXTAUTH_URL
+        value: https://theclosen-frontend.onrender.com
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_GA_ID
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://theclosen-frontend.onrender.com
     healthCheckPath: /
     autoDeploy: true 

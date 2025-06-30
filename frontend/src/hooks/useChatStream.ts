@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { sanitizeInput, validateMessageSize, validateTokenFormat, sanitizeApiData, logSuspiciousActivity, SECURITY_CONFIG } from '../utils/security';
+import { sanitizeInput, validateMessageSize, validateTokenFormat, logSuspiciousActivity, SECURITY_CONFIG } from '../utils/security';
 
 interface StreamChunk {
   type: 'start' | 'chunk' | 'end' | 'error';

@@ -7,7 +7,7 @@ interface StreamData {
   metadata?: {
     processingTime?: number;
     chunkCount?: number;
-    analysisData?: any;
+    analysisData?: unknown;
     error?: boolean;
     errorMessage?: string;
   };
@@ -52,10 +52,10 @@ export const useChatStreamSecure = (): UseChatStreamReturn => {
       }
 
       // Sanitizar dados antes de enviar
-      const sanitizedData = sanitizeApiData({
+      const sanitizedData = {
         message: sanitizedMessage,
         chatId: chatId
-      });
+      };
 
       // Cancelar stream anterior se existir
       if (abortControllerRef.current) {
