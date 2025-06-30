@@ -64,9 +64,9 @@ const userSchema = new Schema<IUser>(
             subscriptionId: String,
             updatedAt: Date
         },
-        transacoes: { type: Array, default: [] },
-        investimentos: { type: Array, default: [] },
-        metas: { type: Array, default: [] },
+        transacoes: [{ type: Schema.Types.Mixed }],
+        investimentos: [{ type: Schema.Types.Mixed }],
+        metas: [{ type: Schema.Types.Mixed }],
         lastPayment: {
             date: Date,
             amount: Number,
