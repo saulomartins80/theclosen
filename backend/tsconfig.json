@@ -4,9 +4,7 @@
     "module": "CommonJS",
     "outDir": "./dist",
     "rootDir": "./src",
-    "strict": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -27,22 +25,15 @@
       "@interfaces/*": ["interfaces/*"]
     },
     "types": ["node"],
-    "sourceMap": true,
+    "sourceMap": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "typeRoots": [
-      "./node_modules/@types",
-      "./src/@types"
-    ],
-    "strictPropertyInitialization": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noImplicitAny": false
   },
   "include": [
-    "src/**/*.ts",
-    "src/types/global.d.ts",
-    "src/types/express.d.ts"
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules",

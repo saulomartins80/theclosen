@@ -1,13 +1,13 @@
 // Configurações específicas para produção no Render
 export const productionConfig = {
-  // Configurações de CORS para produção
+  port: process.env.PORT || 10000,
+  nodeEnv: 'production',
   cors: {
     origin: [
-      'https://theclosen-frontend.onrender.com',
-      'https://theclosen.vercel.app',
-      'https://theclosen.com',
-      process.env.FRONTEND_URL
-    ].filter(Boolean),
+      process.env.FRONTEND_URL || 'https://theclosen-frontend.onrender.com',
+      'https://theclosen-frontend.vercel.app',
+      'https://accounts.google.com'
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],

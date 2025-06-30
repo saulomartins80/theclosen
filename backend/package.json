@@ -10,8 +10,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "cross-env NODE_ENV=development ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "npm run clean && tsc && tsc-alias && dir dist\\middlewares > build_log.txt",
-    "clean": "rimraf dist build_log.txt",
+    "build": "rimraf dist && tsc",
+    "type-check": "tsc --noEmit",
+    "clean": "rimraf dist",
     "cleanup-db": "cross-env NODE_ENV=development ts-node src/scripts/cleanupDatabase.ts",
     "fix-subscription": "cross-env NODE_ENV=development ts-node src/scripts/fixSubscription.ts",
     "test": "jest",
