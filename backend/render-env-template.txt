@@ -1,0 +1,46 @@
+# Template de Variáveis de Ambiente para o Render
+# Copie e cole estas variáveis no dashboard do Render
+
+# Configurações Básicas
+NODE_ENV=production
+PORT=10000
+FRONTEND_URL=https://theclosen-frontend.onrender.com
+REDIS_URL=redis://red-d1gsqdvgi27c73c34r8g:6379
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=1000
+
+# Configurações de Segurança (SUBSTITUA pelos valores reais)
+MONGO_URI=mongodb+srv://seu_usuario:sua_senha@seu_cluster.mongodb.net/finnextho
+JWT_SECRET=seu_jwt_secret_muito_seguro_aqui
+APP_JWT_SECRET=seu_app_jwt_secret_muito_seguro_aqui
+
+# Firebase Admin (SUBSTITUA pelos valores reais)
+FIREBASE_ADMIN_PROJECT_ID=seu-projeto-firebase
+FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxxxx@seu-projeto.iam.gserviceaccount.com
+FIREBASE_ADMIN_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nSUA_CHAVE_PRIVADA_AQUI\n-----END PRIVATE KEY-----\n
+FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://seu-projeto-default-rtdb.firebaseio.com
+
+# Stripe (SUBSTITUA pelos valores reais)
+STRIPE_SECRET_KEY=sk_test_ou_sk_live_sua_chave_aqui
+STRIPE_WEBHOOK_SECRET=whsec_sua_chave_webhook_aqui
+
+# APIs Externas (SUBSTITUA pelos valores reais)
+OPENAI_API_KEY=sk-sua_chave_openai_aqui
+YAHOO_FINANCE_API_KEY=sua_chave_yahoo_finance_aqui
+OPENWEATHER_API_KEY=sua_chave_openweather_aqui
+
+# Chaves de Segurança (SUBSTITUA pelos valores reais)
+ENCRYPTION_KEY=sua_chave_criptografia_aqui
+HSM_API_KEY=sua_chave_hsm_aqui
+AUDIT_API_KEY=sua_chave_auditoria_aqui
+
+# INSTRUÇÕES:
+# 1. Acesse: https://dashboard.render.com/web/theclosen-backend/environment
+# 2. Clique em "Add Environment Variable"
+# 3. Copie e cole cada variável acima
+# 4. Substitua os valores "SUBSTITUA" pelos valores reais
+# 5. Salve cada variável
+# 6. Faça deploy novamente 

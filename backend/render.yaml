@@ -38,6 +38,18 @@ services:
         sync: false
       - key: AUDIT_API_KEY
         sync: false
+      - key: APP_JWT_SECRET
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: NEXT_PUBLIC_FIREBASE_DATABASE_URL
+        sync: false
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX
+        value: 1000
     healthCheckPath: /health
     autoDeploy: true
 
