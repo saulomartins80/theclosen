@@ -5,9 +5,9 @@
     "dev": "next dev",
     "build": "next build",
     "build:no-lint": "DISABLE_ESLINT_PLUGIN=true next build",
+    "build:render": "next build",
     "start": "next start",
     "lint": "next lint",
-
     "build-safe": "npm run build",
     "clean": "rm -rf .next",
     "tailwind": "tailwindcss -i ./tailwind-input.css -o ./tailwind-output.css --watch"
@@ -81,7 +81,7 @@
     "@typescript-eslint/eslint-plugin": "^8.35.1",
     "@typescript-eslint/parser": "^8.35.1",
     "autoprefixer": "^10.4.16",
-    "eslint": "^9.27.0",
+    "eslint": "^9.30.0",
     "eslint-config-next": "^15.3.2",
     "firebase-admin": "^13.4.0",
     "lodash": "^4.17.21",
