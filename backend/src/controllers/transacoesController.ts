@@ -8,7 +8,7 @@ import { Transacoes, ITransacaoDocument } from "../models/Transacoes";
 export const createTransacao = async (req: Request, res: Response): Promise<void> => {
   try {
     const { descricao, valor, data, categoria, tipo, conta } = req.body;
-    const userId = req.user?.id; // req.user.id agora tipado pela declaração global
+    const userId = req.user?._id || req.user?.uid; // Usar _id ou uid do Firebase
 
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
@@ -67,7 +67,7 @@ export const createTransacao = async (req: Request, res: Response): Promise<void
 
 export const getTransacoes = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
 
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
@@ -92,7 +92,7 @@ export const getTransacoes = async (req: Request, res: Response): Promise<void> 
 export const updateTransacao = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id: transacaoId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     
     // DESESTRUTURAR req.body AQUI TAMBÉM
     const { descricao, valor, data, categoria, tipo, conta } = req.body;
@@ -162,7 +162,7 @@ export const updateTransacao = async (req: Request, res: Response): Promise<void
 export const deleteTransacao = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id: transacaoId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
 
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
@@ -190,7 +190,7 @@ export const deleteTransacao = async (req: Request, res: Response): Promise<void
 
 export const suggestAndAddTransaction = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;

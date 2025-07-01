@@ -28,9 +28,8 @@ const GoalSchema = new mongoose.Schema({
     required: [true, "O campo 'data_conclusao' é obrigatório"]
   },
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: [true, "O campo 'userId' é obrigatório"],
-    ref: "User"
+    type: String,
+    required: [true, "O campo 'userId' é obrigatório"]
   },
   categoria: {
     type: String,

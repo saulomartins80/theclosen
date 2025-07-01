@@ -397,11 +397,15 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         };
         console.log('[ChatbotController] Using action detection response:', finalResponse.text);
       } else {
-        // Usar o novo sistema FinnEngine com contexto completo
+        // ✅ CORREÇÃO: Usar o novo sistema FinnEngine com contexto completo
+        // Aumentar o histórico para as últimas 10 mensagens para manter contexto
+        const recentHistory = conversationHistory.messages.slice(-10);
+        console.log(`[ChatbotController] Using FinnEngine with ${recentHistory.length} messages of history`);
+        
         finalResponse = await aiService.generateContextualResponse(
           '', // systemPrompt vazio ativa o FinnEngine
           message,
-          conversationHistory.messages.slice(-2),
+          recentHistory, // ✅ CORREÇÃO: Passar mais mensagens do histórico
           userRealData // Passar contexto completo do usuário
         );
         console.log('[ChatbotController] Using FinnEngine response:', finalResponse.text);

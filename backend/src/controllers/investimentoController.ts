@@ -14,7 +14,7 @@ const TIPOS_VALIDOS = [
 
 export const getInvestimentos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;
@@ -46,7 +46,7 @@ export const getInvestimentos = async (req: Request, res: Response): Promise<voi
 
 export const addInvestimento = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;
@@ -172,7 +172,7 @@ export const addInvestimento = async (req: Request, res: Response): Promise<void
 
 export const updateInvestimento = async (req: Request, res: Response): Promise<void> => {
   const { id: investimentoId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.user?._id || req.user?.uid;
 
   if (!userId) {
     res.status(401).json({ message: "Usuário não autenticado." });
@@ -254,7 +254,7 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
 
 export const deleteInvestimento = async (req: Request, res: Response): Promise<void> => {
   const { id: investimentoId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.user?._id || req.user?.uid;
 
   if (!userId) {
     res.status(401).json({ message: "Usuário não autenticado." });
@@ -285,7 +285,7 @@ export const deleteInvestimento = async (req: Request, res: Response): Promise<v
 
 export const suggestAndAddInvestment = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;
@@ -321,6 +321,32 @@ export const suggestAndAddInvestment = async (req: Request, res: Response): Prom
     console.error('Erro ao sugerir investimento:', error);
     res.status(500).json({
       message: 'Erro ao sugerir investimento',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+};
+
+export const getInvestimentoById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id: investimentoId } = req.params;
+    const userId = req.user?._id || req.user?.uid;
+
+    if (!userId) {
+      res.status(401).json({ message: "Usuário não autenticado." });
+      return;
+    }
+
+    const investimento = await Investimento.findById(investimentoId);
+    if (!investimento) {
+      res.status(404).json({ message: 'Investimento não encontrado' });
+      return;
+    }
+
+    res.json(investimento);
+  } catch (error: unknown) {
+    console.error('Erro ao buscar investimento:', error);
+    res.status(500).json({
+      message: 'Erro ao buscar investimento',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }

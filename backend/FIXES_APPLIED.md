@@ -168,3 +168,77 @@ Responda apenas com JSON válido:
 3. Testar a exclusão de conversas
 4. Melhorar os prompts de detecção de intenções
 5. Monitorar os logs para verificar se os problemas foram resolvidos 
+
+# Correções Aplicadas para Problemas de Webhook
+
+## Problemas Identificados nos Logs
+
+### 1. Erro: `subscription_exposed_id` é null
+**Erro:** `Stripe: Argument "subscription_exposed_id" must be a string, but got: null`
+**Localização:** SubscriptionController.ts linha 91
+
+### 2. Erro: Webhook payload deve ser string ou Buffer
+**Erro:** `Webhook payload must be provided as a string or a Buffer instance`
+**Causa:** Configuração duplicada do express.raw()
+
+### 3. Erro: Portal do cliente não configurado
+**Erro:** `No configuration provided and your test mode default configuration has not been created`
+
+## Correções Necessárias
+
+### 1. Corrigir validação de subscription no webhook
+
+No arquivo `backend/src/modules/subscriptions/controllers/SubscriptionController.ts`, 
+adicionar validação antes de chamar `stripe.subscriptions.retrieve()`:
+
+```typescript
+// Verificar se session.subscription existe antes de tentar recuperar
+if (!session.subscription) {
+  console.log('Subscription ID não encontrado na sessão:', session);
+  res.status(400).json({ error: 'Subscription ID não encontrado na sessão' });
+  return;
+}
+```
+
+### 2. Remover configuração duplicada do express.raw
+
+No arquivo `backend/src/index.ts`, remover a linha duplicada na linha 82:
+
+```typescript
+// REMOVER esta linha:
+app.use('/api/subscriptions/webhook', express.raw({ type: 'application/json' }));
+```
+
+### 3. Configurar Portal do Cliente no Stripe
+
+1. Acesse https://dashboard.stripe.com/test/settings/billing/portal
+2. Configure as opções do portal
+3. Salve as configurações
+
+### 4. Verificar variáveis de ambiente
+
+```env
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+FRONTEND_URL=http://localhost:3000
+```
+
+## Status das Correções
+
+- [ ] Validação de subscription no webhook
+- [ ] Remoção de express.raw duplicado
+- [ ] Configuração do portal do cliente
+- [ ] Verificação de variáveis de ambiente
+
+## Comandos para Aplicar
+
+```bash
+# 1. Parar o servidor
+pkill -f "node.*backend"
+
+# 2. Aplicar correções nos arquivos
+
+# 3. Reiniciar o servidor
+cd backend
+npm run dev
+``` 

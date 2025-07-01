@@ -216,6 +216,13 @@ export class SubscriptionController {
               if (user) {
                 console.log('Usuário encontrado pelo customer ID:', user.firebaseUid);
                 
+                // Verificar se session.subscription existe antes de tentar recuperar
+                if (!session.subscription) {
+                  console.log('Subscription ID não encontrado na sessão:', session);
+                  res.status(400).json({ error: 'Subscription ID não encontrado na sessão' });
+                  return;
+                }
+                
                 // Buscar dados reais da assinatura do Stripe
                 const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string);
                 const subscriptionData = stripeSubscription as unknown as StripeSubscription;

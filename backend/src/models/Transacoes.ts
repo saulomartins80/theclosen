@@ -8,7 +8,7 @@ export interface ITransacao {
   categoria: string;
   tipo: "receita" | "despesa" | "transferencia";
   conta: string;
-  userId: Schema.Types.ObjectId; // NOVO CAMPO
+  userId: string; // Alterado para string para usar UID do Firebase
 }
 
 // Interface para o documento do Mongoose
@@ -27,7 +27,7 @@ const transacaoSchema = new Schema<ITransacaoDocument>(
       enum: ["receita", "despesa", "transferencia"] 
     },
     conta: { type: String, required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // NOVO CAMPO
+    userId: { type: String, required: true, index: true }, // Alterado para String
   },
   { timestamps: true } // Adiciona createdAt e updatedAt automaticamente
 );

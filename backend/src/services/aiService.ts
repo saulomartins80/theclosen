@@ -1393,7 +1393,7 @@ class FinnEngine {
   private rewardSystem = new RewardSystem();
   private conversationManager = new ConversationManager();
 
-  async generateResponse(userId: string, message: string, userContext?: any): Promise<string> {
+  async generateResponse(userId: string, message: string, userContext?: any, conversationHistory?: ChatMessage[]): Promise<string> {
     // Atualiza contexto emocional
     this.emotionalMemory.updateEmotionalContext(userId, message);
     
@@ -1403,6 +1403,24 @@ class FinnEngine {
     const context = this.memory.getContext(userId);
     const emotionalContext = this.emotionalMemory.getContext(userId);
     const longTermContext = this.longTermMemory.getPersonalizedContext(userId);
+    
+    // ✅ NOVA FUNCIONALIDADE: Usar histórico da conversa se disponível
+    let conversationContext = '';
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Usar as últimas 10 mensagens da conversa para contexto
+      const recentMessages = conversationHistory.slice(-10);
+      conversationContext = `
+# HISTÓRICO RECENTE DA CONVERSA
+${recentMessages.map((msg, index) => 
+  `${msg.sender === 'user' ? 'Usuário' : 'Finn'}: ${msg.content}`
+).join('\n')}
+
+# RESUMO DO CONTEXTO DA CONVERSA
+- Total de mensagens na conversa: ${conversationHistory.length}
+- Últimas mensagens consideradas: ${recentMessages.length}
+- Tópicos discutidos: ${this.extractTopicsFromHistory(recentMessages).join(', ')}
+`;
+    }
     
     // Log para debug do contexto
     console.log(`[FinnEngine] Gerando resposta para usuário ${userId}`);
@@ -1414,7 +1432,8 @@ class FinnEngine {
       hasInvestments: userContext?.hasInvestments || userContext?.userData?.hasInvestments,
       hasGoals: userContext?.hasGoals || userContext?.userData?.hasGoals,
       stressLevel: emotionalContext.stressLevel,
-      recentEmotions: emotionalContext.lastEmotions
+      recentEmotions: emotionalContext.lastEmotions,
+      conversationHistoryLength: conversationHistory?.length || 0
     });
     
     // Construir contexto do usuário mais robusto
@@ -1499,6 +1518,8 @@ ${JSON.stringify(userContext.metasCompletas, null, 2)}
       
       ${userContextPrompt}
       
+      ${conversationContext}
+      
       # MENSAGEM DO USUÁRIO
       "${message}"
       
@@ -1511,6 +1532,8 @@ ${JSON.stringify(userContext.metasCompletas, null, 2)}
       6. Responder ao estado emocional do usuário (estresse: ${emotionalContext.stressLevel}/10)
       7. Usar linguagem natural e conversacional
       8. Incluir elementos de personalidade (contrações, perguntas retóricas, exemplos)
+      9. ✅ NOVO: Manter continuidade com o histórico da conversa se disponível
+      10. ✅ NOVO: Referenciar tópicos discutidos anteriormente quando relevante
     `;
 
     const technicalResponse = await this.callAI(prompt);
@@ -1630,11 +1653,42 @@ ${JSON.stringify(userContext.metasCompletas, null, 2)}
   }
 
   private postProcess(text: string): string {
-    // Remove frases padrão indesejadas
-    return text.replace(/Como consultor financeiro\.\.\./gi, '')
-              .replace(/Você como cliente premium\.\.\./gi, '')
-              .replace(/Como consultor certificado\.\.\./gi, '')
-              .trim();
+    // Remove caracteres especiais desnecessários
+    return text
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // ✅ NOVA FUNÇÃO: Extrair tópicos do histórico da conversa
+  private extractTopicsFromHistory(messages: ChatMessage[]): string[] {
+    const topics = new Set<string>();
+    
+    messages.forEach(msg => {
+      const content = msg.content.toLowerCase();
+      
+      // Detectar tópicos financeiros
+      if (content.includes('transação') || content.includes('gasto') || content.includes('receita')) {
+        topics.add('transações');
+      }
+      if (content.includes('investimento') || content.includes('ação') || content.includes('renda fixa')) {
+        topics.add('investimentos');
+      }
+      if (content.includes('meta') || content.includes('objetivo') || content.includes('poupança')) {
+        topics.add('metas');
+      }
+      if (content.includes('orçamento') || content.includes('planejamento')) {
+        topics.add('orçamento');
+      }
+      if (content.includes('dívida') || content.includes('cartão') || content.includes('empréstimo')) {
+        topics.add('dívidas');
+      }
+      if (content.includes('economia') || content.includes('poupar')) {
+        topics.add('economia');
+      }
+    });
+    
+    return Array.from(topics);
   }
 }
 
@@ -2006,7 +2060,8 @@ class AIService {
         const response = await this.finnEngine.generateResponse(
           userContext?.userId || 'anonymous',
           userMessage,
-          userContext
+          userContext,
+          conversationHistory // ✅ CORREÇÃO: Passar o histórico da conversa
         );
 
         return {
@@ -2026,7 +2081,10 @@ class AIService {
         return this.responseCache.get(cacheKey);
       }
 
-      const limitedHistory = conversationHistory.slice(-2);
+      // ✅ CORREÇÃO: Usar histórico completo em vez de limitar a 2 mensagens
+      // Usar até as últimas 15 mensagens para manter contexto adequado
+      const limitedHistory = conversationHistory.slice(-15);
+      console.log(`[AIService] Using ${limitedHistory.length} messages from conversation history`);
 
       const messages = [
         { role: 'system', content: systemPrompt },

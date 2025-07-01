@@ -16,7 +16,7 @@ interface ProgressoCategoria {
 
 export const getGoals = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;
@@ -35,7 +35,7 @@ export const getGoals = async (req: Request, res: Response): Promise<void> => {
 
 export const getGoalsProgressByCategory = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;
@@ -44,7 +44,7 @@ export const getGoalsProgressByCategory = async (req: Request, res: Response): P
     const goalsProgress: ProgressoCategoria[] = await Goal.aggregate([
       {
         $match: {
-          userId: new mongoose.Types.ObjectId(userId), // FILTRAR POR USERID
+          userId: userId, // Usar userId diretamente como string
           categoria: { $exists: true, $ne: "" }
         }
       },
@@ -84,7 +84,7 @@ export const getGoalsProgressByCategory = async (req: Request, res: Response): P
 
 export const createGoal = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?._id || req.user?.uid;
     if (!userId) {
       res.status(401).json({ message: "Usuário não autenticado." });
       return;
@@ -138,7 +138,7 @@ export const createGoal = async (req: Request, res: Response): Promise<void> => 
 
 export const updateGoal = async (req: Request, res: Response): Promise<void> => {
   const { id: goalId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.user?._id || req.user?.uid;
 
   if (!userId) {
     res.status(401).json({ message: "Usuário não autenticado." });
@@ -220,7 +220,7 @@ export const updateGoal = async (req: Request, res: Response): Promise<void> => 
 
 export const deleteGoal = async (req: Request, res: Response): Promise<void> => {
   const { id: goalId } = req.params;
-  const userId = req.user?.id;
+  const userId = req.user?._id || req.user?.uid;
 
   if (!userId) {
     res.status(401).json({ message: "Usuário não autenticado." });

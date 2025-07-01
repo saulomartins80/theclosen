@@ -79,9 +79,6 @@ const PORT = process.env.PORT || 5000;
 
 app.set('trust proxy', 1);
 
-// Configuração do webhook do Stripe deve vir antes de outras configurações
-app.use('/api/subscriptions/webhook', express.raw({ type: 'application/json' }));
-
 app.use(helmet());
 app.use(morgan('dev'));
 app.use(compression());

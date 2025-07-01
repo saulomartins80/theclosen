@@ -9,7 +9,7 @@ export interface IInvestimento extends Document {
         'Fundos de Ações' | 'Fundos de Renda Fixa' | 'Fundos de Previdência' | 'Fundos de Crédito Privado';
   valor: number;
   data: Date;
-  userId: Schema.Types.ObjectId;
+  userId: string;
   // Novos campos para mais detalhes
   instituicao?: string; // Banco ou corretora
   rentabilidade?: number; // Taxa de rentabilidade (%)
@@ -69,7 +69,7 @@ const InvestimentoSchema = new Schema({
     type: Date, 
     required: true 
   },
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  userId: { type: String, required: true, index: true },
   // Novos campos opcionais
   instituicao: { 
     type: String, 
