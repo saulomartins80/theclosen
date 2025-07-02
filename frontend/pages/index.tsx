@@ -372,7 +372,7 @@ export default function HomePage() {
             playsInline 
             className="w-full h-full object-cover"
           >
-            <source src="/hero/background.mp4.mp4" type="video/mp4" />
+            <source src="/hero/background.mp4" type="video/mp4" />
           </video>
           <div className={`absolute inset-0 ${
             resolvedTheme === 'dark' 

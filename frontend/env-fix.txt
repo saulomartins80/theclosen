@@ -1,0 +1,7 @@
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyBqXqXqXqXqXqXqXqXqXqXqXqXqXqXqXqX
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-K8DT0TTYEC
+
+# Para produção na Render, você também precisa configurar estas variáveis no painel da Render:
+# NEXT_PUBLIC_API_URL=https://theclosen-backend.onrender.com
+# NEXTAUTH_URL=https://theclosen-frontend.onrender.com
+# NEXT_PUBLIC_AUTH_CALLBACK_URL=https://theclosen-frontend.onrender.com/dashboard 
