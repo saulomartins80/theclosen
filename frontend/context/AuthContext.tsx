@@ -9,6 +9,7 @@ import {
   IdTokenResult,
 } from 'firebase/auth'; 
 import { loginWithGoogle as firebaseLoginWithGoogle } from '../lib/firebase/client';
+import { handleRedirectResult } from '../lib/firebase/auth';
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase/client';
@@ -371,6 +372,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
+      // Primeiro, verificar se há resultado de redirect
+      const redirectResult = await handleRedirectResult();
+      if (redirectResult) {
+        console.log('[AuthContext] Redirect result found, processing...');
+        const { redirect } = router.query;
+        const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
+        router.push(redirectTo);
+        return;
+      }
+      
+      // Tentar login com popup
       const userCredential = await firebaseLoginWithGoogle();
       
       if (!userCredential?.user) {
@@ -384,13 +396,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
       router.push(redirectTo);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google login error:', error);
       
       let errorMessage = 'Falha no login com Google';
       if (error instanceof Error) {
         if (error.message.includes('auth/popup-closed-by-user')) {
           errorMessage = 'Login cancelado';
+        } else if (error.message.includes('auth/popup-blocked')) {
+          errorMessage = 'Popup bloqueado pelo navegador. Por favor, permita popups para este site.';
         } else if (error.message.includes('auth/account-exists-with-different-credential')) {
           errorMessage = 'Este email já está cadastrado com outro método de login';
         } else {

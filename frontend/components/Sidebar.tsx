@@ -11,6 +11,7 @@ import {
   Menu,
   Gem, // Ícone para Planos/Assinaturas
   HelpCircle, // Ícone para Suporte
+  Plane, // Ícone para Milhas
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
@@ -98,6 +99,11 @@ export default function Sidebar({
       path: "/investimentos",
       icon: DollarSign,
       label: "Investimentos",
+    },
+    {
+      path: "/milhas",
+      icon: Plane,
+      label: "Milhas",
     },
     {
       path: "/assinaturas",

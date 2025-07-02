@@ -12,7 +12,8 @@ import {
   onAuthStateChanged,
   getIdToken,
   browserPopupRedirectResolver,
-  browserSessionPersistence
+  browserSessionPersistence,
+  getRedirectResult
 } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 // IMPORTAR getStorage do Firebase Storage
@@ -69,15 +70,33 @@ export const loginWithGoogle = async (): Promise<UserCredential> => {
   }
 
   const provider = new GoogleAuthProvider();
+  
+  // Configurações para evitar problemas de popup
   provider.setCustomParameters({
-    prompt: 'select_account'
+    prompt: 'select_account',
+    // Adicionar parâmetros para melhorar a experiência
+    access_type: 'offline',
+    include_granted_scopes: 'true'
   });
 
+  // Adicionar escopos necessários
+  provider.addScope('email');
+  provider.addScope('profile');
+
   try {
+    // Usar signInWithPopup com configurações específicas para produção
     const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Google sign-in error:', error);
+    
+    // Se o popup falhar, tentar com redirect (fallback)
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+      console.log('Popup blocked or closed, trying redirect method...');
+      // Implementar fallback para redirect se necessário
+      throw new Error('Popup bloqueado. Por favor, permita popups para este site.');
+    }
+    
     throw error;
   }
 };

@@ -20,7 +20,7 @@ export interface MarketDataRequest {
 }
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://backend-hzmhqdxnw-saulomartins80s-projects.vercel.app',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://theclosen-backend.onrender.com',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',

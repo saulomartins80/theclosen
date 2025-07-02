@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/router';
 import { 
   MessageSquare, X, Send, User, Bot, 
   Sparkles, BarChart2, Lightbulb, BookOpen,
   Copy, ThumbsUp, ThumbsDown, Paperclip, Command,
   Star, TrendingUp, Target, Shield, Zap, Trash2,
   AlertTriangle, Clock, BarChart3, CheckCircle, XCircle,
-  Plus, Edit3, Eye, Brain, Zap as ZapIcon
+  Plus, Edit3, Eye, Brain, Zap as ZapIcon, Plane,
+  CreditCard, DollarSign, Calculator, Gift, Calendar
 } from 'lucide-react';
 import { chatbotAPI } from '../services/api';
 import { chatbotDeleteAPI } from '../services/chatbotDeleteAPI';
@@ -18,7 +20,8 @@ import React from 'react';
 
 // Tipos para o sistema de automação inteligente
 type AutomatedAction = {
-  type: 'CREATE_TRANSACTION' | 'CREATE_INVESTMENT' | 'CREATE_GOAL' | 'ANALYZE_DATA' | 'GENERATE_REPORT';
+  type: 'CREATE_TRANSACTION' | 'CREATE_INVESTMENT' | 'CREATE_GOAL' | 'ANALYZE_DATA' | 'GENERATE_REPORT' | 
+        'CREATE_MILEAGE' | 'REDEEM_MILEAGE' | 'ANALYZE_MILEAGE' | 'CONNECT_PLUGGY' | 'CALCULATE_VALUE';
   payload: any;
   confidence: number;
   requiresConfirmation: boolean;
@@ -45,6 +48,9 @@ type ChatMessage = {
     userLevel?: 'basic' | 'intermediate' | 'advanced';
     actionExecuted?: boolean;
     requiresConfirmation?: boolean;
+    mileageProgram?: string;
+    pointsEarned?: number;
+    estimatedValue?: number;
   };
 };
 
@@ -161,6 +167,11 @@ const AutomatedActionCard = ({
       case 'CREATE_GOAL': return '🎯';
       case 'ANALYZE_DATA': return '📊';
       case 'GENERATE_REPORT': return '📋';
+      case 'CREATE_MILEAGE': return '✈️';
+      case 'REDEEM_MILEAGE': return '🎫';
+      case 'ANALYZE_MILEAGE': return '📊';
+      case 'CONNECT_PLUGGY': return '🔗';
+      case 'CALCULATE_VALUE': return '💰';
       default: return '🤖';
     }
   };
@@ -172,6 +183,11 @@ const AutomatedActionCard = ({
       case 'CREATE_GOAL': return 'Meta Detectada';
       case 'ANALYZE_DATA': return 'Análise Automática';
       case 'GENERATE_REPORT': return 'Relatório Gerado';
+      case 'CREATE_MILEAGE': return 'Milhas Detectadas';
+      case 'REDEEM_MILEAGE': return 'Resgate de Milhas';
+      case 'ANALYZE_MILEAGE': return 'Análise de Milhas';
+      case 'CONNECT_PLUGGY': return 'Conectar Conta';
+      case 'CALCULATE_VALUE': return 'Cálculo de Valor';
       default: return 'Ação Automatizada';
     }
   };
@@ -395,6 +411,26 @@ const AdvancedMessageBubble = ({
           {/* Metadados ricos */}
           {message.sender === 'bot' && message.metadata && !message.metadata.action && (
             <div className="mt-4 space-y-3">
+              {/* Informações específicas de milhas */}
+              {message.metadata.pointsEarned && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plane size={16} className="text-green-600 dark:text-green-400" />
+                    <h4 className="font-bold text-sm text-green-800 dark:text-green-200">Milhas Acumuladas</h4>
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-green-700 dark:text-green-300">
+                      <strong>{message.metadata.pointsEarned.toLocaleString()}</strong> pontos no {message.metadata.mileageProgram}
+                    </p>
+                    {message.metadata.estimatedValue && (
+                      <p className="text-green-600 dark:text-green-400 text-xs">
+                        Valor estimado: R$ {message.metadata.estimatedValue.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* Análise de dados */}
               {message.metadata.analysisData && (
                 <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
@@ -412,16 +448,16 @@ const AdvancedMessageBubble = ({
               
               {/* Sugestões */}
               {message.metadata.suggestions && (
-                <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Lightbulb size={16} className="text-green-600 dark:text-green-400" />
-                    <h4 className="font-bold text-sm text-green-800 dark:text-green-200">Sugestões</h4>
+                    <Lightbulb size={16} className="text-blue-600 dark:text-blue-400" />
+                    <h4 className="font-bold text-sm text-blue-800 dark:text-blue-200">Sugestões</h4>
                   </div>
                   <ul className="space-y-1 text-sm">
                     {message.metadata.suggestions.map((suggestion, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-green-600 dark:text-green-400">•</span>
-                        <span className="text-green-700 dark:text-green-300">{suggestion}</span>
+                        <span className="text-blue-600 dark:text-blue-400">•</span>
+                        <span className="text-blue-700 dark:text-blue-300">{suggestion}</span>
                       </li>
                     ))}
                   </ul>
@@ -541,6 +577,7 @@ const CommandBar = ({
 export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotProps) {
   const { user, subscription } = useAuth();
   const { resolvedTheme } = useTheme();
+  const router = useRouter();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -549,6 +586,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
   const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
   const [feedbackModal, setFeedbackModal] = useState<{ messageId: string; isOpen: boolean }>({ messageId: '', isOpen: false });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isMileagePage, setIsMileagePage] = useState(false);
 
   // Usar estado externo se fornecido, senão usar interno
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
@@ -562,8 +600,36 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
       subscription.plan.toLowerCase().includes('premium')))
   );
 
-  // Obter tema dinâmico
-  const theme = getChatTheme(subscription?.plan?.toString());
+  // Detectar se está na página de milhas
+  useEffect(() => {
+    setIsMileagePage(router.pathname === '/milhas');
+  }, [router.pathname]);
+
+  // Obter tema dinâmico baseado no contexto
+  const getContextualTheme = () => {
+    if (isMileagePage) {
+      // Tema específico para milhas
+      return {
+        name: 'mileage',
+        primary: '#00A1E0', // Azul Smiles
+        secondary: '#0066CC', // Azul TudoAzul
+        gradient: 'from-blue-500 to-cyan-500',
+        bubbleUser: 'bg-gradient-to-r from-blue-500 to-cyan-500',
+        bubbleBot: 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700',
+        text: 'text-gray-900 dark:text-white',
+        icon: '✈️',
+        accent: 'text-blue-600 dark:text-blue-400',
+        button: 'bg-blue-600 hover:bg-blue-700',
+        border: 'border-blue-300 dark:border-blue-600',
+        chatBg: 'bg-gray-50 dark:bg-gray-800',
+        headerBg: 'bg-white dark:bg-gray-900',
+        inputBg: 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600'
+      };
+    }
+    return getChatTheme(subscription?.plan?.toString());
+  };
+
+  const theme = getContextualTheme();
 
   // Obter o nome do plano para exibição
   const getPlanDisplayName = () => {
@@ -578,8 +644,25 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
     return subscription.plan;
   };
 
-  // Obter expertise do consultor
+  // Obter expertise do consultor baseado no contexto
   const getExpertiseDisplay = () => {
+    if (isMileagePage) {
+      if (isPremiumUser) {
+        return {
+          title: 'Finn Milhas Premium',
+          subtitle: 'Especialista em Programas de Fidelidade',
+          description: 'Consultor certificado em milhas aéreas e cartões de crédito',
+          icon: '✈️'
+        };
+      }
+      return {
+        title: 'Finn Milhas',
+        subtitle: 'Assistente de Milhas',
+        description: 'Especialista em programas de fidelidade e cartões',
+        icon: '✈️'
+      };
+    }
+    
     if (isPremiumUser) {
       return {
         title: 'Dr. Finn',
@@ -628,7 +711,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
       const response = await chatbotAPI.startNewSession();
       const newSession: ChatSession = {
         chatId: response.chatId,
-        title: 'Nova Conversa',
+        title: isMileagePage ? 'Nova Consulta de Milhas' : 'Nova Conversa',
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -1007,25 +1090,15 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
               // Visualização de seleção de sessão
               <div className="flex-1 p-4 overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold chat-title">Suas Conversas</h3>
-                  <div className="flex gap-2">
-                    {sessions.length > 0 && (
-                      <button
-                        onClick={handleDeleteAllSessions}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm flex items-center gap-2 border border-red-200 dark:border-red-800"
-                        title="Excluir todas as conversas"
-                      >
-                        <Trash2 size={14} />
-                        Limpar Tudo
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setIsNewSessionModalOpen(true)}
-                      className={`${theme.button} text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2`}
-                    >
-                      Nova Conversa
-                    </button>
-                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {isMileagePage ? 'Consultas de Milhas' : 'Conversas'}
+                  </h3>
+                  <button
+                    onClick={() => setIsNewSessionModalOpen(true)}
+                    className={`${theme.button} text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2`}
+                  >
+                    {isMileagePage ? 'Nova Consulta' : 'Nova Conversa'}
+                  </button>
                 </div>
                 
                 {Array.isArray(sessions) && sessions.length > 0 ? (
@@ -1126,14 +1199,15 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
                   </div>
                 </div>
 
-                <div className={`p-4 chat-border-top ${theme.headerBg}`}>
+                <div className={`p-4 border-t border-gray-200 dark:border-gray-700 ${theme.headerBg}`}>
                   <CommandBar 
                     onSubmit={handleSendMessage}
                     isLoading={isLoading}
                     theme={theme}
-                    placeholder={isPremiumUser 
-                      ? "Digite sua pergunta ou ação financeira..." 
-                      : "Pergunte sobre finanças ou o app..."}
+                    placeholder={isMileagePage 
+                      ? "Pergunte sobre suas milhas, cartões ou resgates..."
+                      : "Como posso te ajudar hoje?"
+                    }
                   />
                 </div>
               </>
@@ -1150,11 +1224,17 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4"
           >
-            <h3 className="text-lg font-bold mb-4 dark:text-white">Nova Conversa</h3>
+            <h3 className="text-lg font-bold mb-4 dark:text-white">
+              {isMileagePage ? 'Nova Consulta de Milhas' : 'Nova Conversa'}
+            </h3>
             <p className="mb-6 text-gray-600 dark:text-gray-300">
-              {isPremiumUser
-                ? "Você está iniciando uma nova sessão com o consultor financeiro premium. Posso executar ações automaticamente e analisar seus dados em tempo real."
-                : "Você está iniciando uma nova conversa com o assistente básico. Posso ajudar com dúvidas sobre o app e conceitos financeiros gerais."}
+              {isMileagePage
+                ? (isPremiumUser
+                    ? "Você está iniciando uma nova consulta com o especialista premium em milhas. Posso analisar seus cartões, calcular pontos e otimizar seus resgates."
+                    : "Você está iniciando uma nova consulta sobre milhas. Posso ajudar com dúvidas sobre programas de fidelidade e cartões de crédito.")
+                : (isPremiumUser
+                    ? "Você está iniciando uma nova sessão com o consultor financeiro premium. Posso executar ações automaticamente e analisar seus dados em tempo real."
+                    : "Você está iniciando uma nova conversa com o assistente básico. Posso ajudar com dúvidas sobre o app e conceitos financeiros gerais.")}
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -1168,7 +1248,7 @@ export default function Chatbot({ isOpen: externalIsOpen, onToggle }: ChatbotPro
                 disabled={isLoading}
                 className={`px-4 py-2 ${theme.button} text-white rounded-lg disabled:opacity-50 flex items-center gap-2`}
               >
-                {isLoading ? 'Iniciando...' : 'Começar Conversa'}
+                {isLoading ? 'Iniciando...' : (isMileagePage ? 'Começar Consulta' : 'Começar Conversa')}
               </button>
             </div>
           </motion.div>

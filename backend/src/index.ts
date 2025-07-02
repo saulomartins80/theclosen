@@ -89,11 +89,15 @@ app.use(cookieParser());
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3000',
     'https://theclosen-frontend.vercel.app',
-    'https://accounts.google.com'
+    'https://accounts.google.com',
+    'https://finnextho.com',
+    'https://www.finnextho.com',
+    'https://finnextho.vercel.app'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'X-Requested-With'],
   credentials: true,
   exposedHeaders: ['Authorization', 'Set-Cookie']
 }));
@@ -108,9 +112,16 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 
 app.use((req, res, next) => {
+  // Headers de segurança mais permissivos para desenvolvimento
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN'); // Mudança de DENY para SAMEORIGIN
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  // Remover Cross-Origin-Opener-Policy para permitir popups do Google Auth
+  if (process.env.NODE_ENV === 'development') {
+    res.removeHeader('Cross-Origin-Opener-Policy');
+  }
+  
   next();
 });
 

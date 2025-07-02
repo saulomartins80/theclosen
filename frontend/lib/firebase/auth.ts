@@ -5,6 +5,7 @@ import {
   signOut,
   getIdToken
 } from './client';
+import { signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 
 const getAuthErrorMessage = (error: unknown): string => {
   if (error && typeof error === 'object' && 'code' in error) {
@@ -18,6 +19,8 @@ const getAuthErrorMessage = (error: unknown): string => {
         return 'Invalid email address.';
       case 'auth/popup-closed-by-user':
         return 'Login canceled by user.';
+      case 'auth/popup-blocked':
+        return 'Popup blocked by browser. Please allow popups for this site.';
       case 'auth/account-exists-with-different-credential':
         return 'Account exists with different credential.';
       case 'auth/auth-domain-config-required':
@@ -61,23 +64,67 @@ export const loginWithEmail = async (email: string, password: string) => {
 
 export const loginWithGoogleAuth = async () => {
   try {
-    const userCredential = await loginWithGoogle();
-    const token = await getIdToken(userCredential.user);
-    
-    const response = await fetch('/api/auth/session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ token })
-    });
+    // Primeiro, tentar com popup
+    try {
+      const userCredential = await loginWithGoogle();
+      const token = await getIdToken(userCredential.user);
+      
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to create session');
+      if (!response.ok) {
+        throw new Error('Failed to create session');
+      }
+
+      return await response.json();
+    } catch (popupError: any) {
+      // Se popup falhar, tentar com redirect
+      if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
+        console.log('Popup failed, trying redirect method...');
+        
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
+        
+        await signInWithRedirect(auth, provider);
+        return { redirect: true };
+      }
+      throw popupError;
     }
+  } catch (error) {
+    throw new Error(getAuthErrorMessage(error));
+  }
+};
 
-    return await response.json();
+export const handleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      const token = await getIdToken(result.user);
+      
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create session');
+      }
+
+      return await response.json();
+    }
+    return null;
   } catch (error) {
     throw new Error(getAuthErrorMessage(error));
   }
