@@ -35,6 +35,12 @@ export interface ChatMessageMetadata {
     level: number;
     streak: number;
   };
+  // ✅ NOVO: Contexto da conversa para melhorar o histórico
+  conversationContext?: {
+    totalMessages: number;
+    lastUserMessage?: string;
+    conversationId: string;
+  };
 }
 
 export interface ChatMessage {

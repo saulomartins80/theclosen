@@ -31,6 +31,12 @@ export interface IUser extends Document {
     transacoes?: any[];
     investimentos?: any[];
     metas?: any[];
+    mileageBalance?: number;
+    mileagePreferences?: {
+        defaultProgram?: string;
+        preferredCards?: string[];
+        autoConnect?: boolean;
+    };
     lastPayment?: {
         date: Date;
         amount: number;
@@ -67,6 +73,12 @@ const userSchema = new Schema<IUser>(
         transacoes: [{ type: Schema.Types.Mixed }],
         investimentos: [{ type: Schema.Types.Mixed }],
         metas: [{ type: Schema.Types.Mixed }],
+        mileageBalance: { type: Number, default: 0 },
+        mileagePreferences: {
+            defaultProgram: { type: String, default: 'Smiles' },
+            preferredCards: [{ type: String }],
+            autoConnect: { type: Boolean, default: false }
+        },
         lastPayment: {
             date: Date,
             amount: Number,

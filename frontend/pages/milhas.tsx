@@ -41,178 +41,61 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useMileage } from '../src/hooks/useMileage';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
-// Tipos para o sistema de milhas
-interface MileageProgram {
-  id: string;
-  name: string;
-  icon: string;
-  totalPoints: number;
-  estimatedValue: number;
-  lastUpdated: Date;
-  status: 'active' | 'inactive' | 'pending';
-  color: string;
-  partners: string[];
-}
-
-interface MileageTransaction {
-  id: string;
-  program: string;
-  points: number;
-  type: 'earned' | 'redeemed' | 'expired';
-  date: Date;
-  description: string;
-  card?: string;
-  value: number;
-  category?: string;
-}
-
-interface MileageCard {
-  id: string;
-  name: string;
-  bank: string;
-  program: string;
-  pointsPerReal: number;
-  annualFee: number;
-  benefits: string[];
-  status: 'active' | 'inactive';
-}
-
-interface PluggyConnection {
-  id: string;
-  bankName: string;
-  accountType: string;
-  lastSync: Date;
-  status: 'connected' | 'disconnected' | 'error';
-  accounts: string[];
-}
 
 export default function MilhasPage() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('overview');
-  const [isLoading, setIsLoading] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
-
-  // Estados para dados de milhas
-  const [mileagePrograms, setMileagePrograms] = useState<MileageProgram[]>([
-    {
-      id: 'smiles',
-      name: 'Smiles',
-      icon: '✈️',
-      totalPoints: 15420,
-      estimatedValue: 385.50,
-      lastUpdated: new Date(),
-      status: 'active',
-      color: '#00A1E0',
-      partners: ['GOL', 'Itaú', 'Santander']
-    },
-    {
-      id: 'tudoazul',
-      name: 'TudoAzul',
-      icon: '🛩️',
-      totalPoints: 8920,
-      estimatedValue: 200.70,
-      lastUpdated: new Date(),
-      status: 'active',
-      color: '#0066CC',
-      partners: ['Azul', 'Bradesco', 'Nubank']
-    },
-    {
-      id: 'latam',
-      name: 'Latam Pass',
-      icon: '✈️',
-      totalPoints: 5670,
-      estimatedValue: 141.75,
-      lastUpdated: new Date(),
-      status: 'active',
-      color: '#D70040',
-      partners: ['Latam', 'Itaú', 'Citi']
-    }
-  ]);
-
-  const [recentTransactions, setRecentTransactions] = useState<MileageTransaction[]>([
-    {
-      id: '1',
-      program: 'Smiles',
-      points: 1250,
-      type: 'earned',
-      date: new Date(),
-      description: 'Compra no Supermercado Extra',
-      card: 'Itaú Personnalité',
-      value: 31.25,
-      category: 'Supermercado'
-    },
-    {
-      id: '2',
-      program: 'TudoAzul',
-      points: 800,
-      type: 'earned',
-      date: new Date(Date.now() - 86400000),
-      description: 'Combustível Shell',
-      card: 'Nubank Ultravioleta',
-      value: 18.00,
-      category: 'Transporte'
-    }
-  ]);
-
-  const [mileageCards, setMileageCards] = useState<MileageCard[]>([
-    {
-      id: '1',
-      name: 'Itaú Personnalité Visa Infinite',
-      bank: 'Itaú',
-      program: 'Latam Pass',
-      pointsPerReal: 2.5,
-      annualFee: 1295,
-      benefits: ['Sala VIP', 'Seguro viagem', 'Bônus de boas-vindas'],
-      status: 'active'
-    },
-    {
-      id: '2',
-      name: 'Nubank Ultravioleta',
-      bank: 'Nubank',
-      program: 'TudoAzul',
-      pointsPerReal: 1.8,
-      annualFee: 0,
-      benefits: ['Sem anuidade', 'Cashback', 'Cartão virtual'],
-      status: 'active'
-    }
-  ]);
-
-  const [pluggyConnections, setPluggyConnections] = useState<PluggyConnection[]>([]);
 
   // Estados para o chatbot
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
-  // Funções para integração com Pluggy
-  const connectPluggy = async () => {
-    setIsLoading(true);
-    try {
-      // Simulação da integração com Pluggy
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newConnection: PluggyConnection = {
-        id: Date.now().toString(),
-        bankName: 'Itaú',
-        accountType: 'Conta Corrente',
-        lastSync: new Date(),
-        status: 'connected',
-        accounts: ['Conta Principal', 'Cartão de Crédito']
-      };
-      
-      setPluggyConnections([...pluggyConnections, newConnection]);
-      toast.success('Conta conectada com sucesso!');
-      setShowConnectModal(false);
-    } catch (error) {
-      toast.error('Erro ao conectar conta');
-    } finally {
-      setIsLoading(false);
+  // Hook centralizado para todas as operações de milhas
+  const {
+    // Estados
+    mileagePrograms,
+    recentTransactions,
+    mileageCards,
+    pluggyConnections,
+    mileageAnalytics,
+    isLoading,
+    error,
+    
+    // Ações
+    loadMileageData,
+    connectPluggy,
+    addMileageCard,
+    updateMileageCard,
+    deleteMileageCard,
+    addMileageTransaction,
+    calculateMiles,
+    getCardRecommendations,
+    loadPluggyConnections,
+    disconnectPluggyConnection,
+    updateMileageProgram,
+    getMileageSummary,
+    getMileageTransactions,
+    
+    // Valores computados
+    totalPoints,
+    totalValue,
+    activeCards,
+    activePrograms
+  } = useMileage();
+
+  // Carregar dados iniciais
+  useEffect(() => {
+    if (user) {
+      loadMileageData();
+      loadPluggyConnections();
     }
-  };
+  }, [user, loadMileageData, loadPluggyConnections]);
 
   // Funções para o chatbot
   const sendChatMessage = async (message: string) => {
@@ -265,7 +148,7 @@ export default function MilhasPage() {
     }
     
     if (lowerMessage.includes('valor') || lowerMessage.includes('quanto vale')) {
-      return `Atualmente suas milhas valem aproximadamente:\n\n• Smiles: R$ 385,50 (R$ 25/1000 milhas)\n• TudoAzul: R$ 200,70 (R$ 22,50/1000 milhas)\n• Latam Pass: R$ 141,75 (R$ 25/1000 milhas)\n\nTotal: R$ 727,95`;
+      return `Atualmente suas milhas valem aproximadamente:\n\n${mileagePrograms.map(p => `• ${p.name}: R$ ${p.estimatedValue.toFixed(2)}`).join('\n')}\n\nTotal: R$ ${totalValue.toFixed(2)}`;
     }
     
     return `Olá! Sou especialista em milhas e posso te ajudar com:\n\n• Análise de cartões de crédito\n• Estratégias de acumulação\n• Melhores formas de resgate\n• Promoções ativas\n\nComo posso te ajudar hoje?`;
@@ -286,7 +169,7 @@ export default function MilhasPage() {
   };
 
   // Componente de programa de milhas
-  const MileageProgramCard = ({ program }: { program: MileageProgram }) => (
+  const MileageProgramCard = ({ program }: { program: any }) => (
     <motion.div
       whileHover={{ scale: 1.02 }}
       className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm"
@@ -327,7 +210,7 @@ export default function MilhasPage() {
       
       <div className="flex items-center justify-between">
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Atualizado: {program.lastUpdated.toLocaleDateString()}
+          Atualizado: {new Date(program.lastUpdated).toLocaleDateString()}
         </p>
         <button
           onClick={() => setSelectedProgram(program.id)}
@@ -338,6 +221,17 @@ export default function MilhasPage() {
       </div>
     </motion.div>
   );
+
+  if (isLoading && mileagePrograms.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="animate-spin mx-auto h-8 w-8 text-blue-600 mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Carregando dados de milhas...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -356,6 +250,14 @@ export default function MilhasPage() {
             </div>
             
             <div className="flex space-x-3">
+              <button
+                onClick={loadMileageData}
+                disabled={isLoading}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center"
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </button>
               <button
                 onClick={() => setShowConnectModal(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
@@ -413,7 +315,7 @@ export default function MilhasPage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total de Pontos</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {mileagePrograms.reduce((sum, p) => sum + p.totalPoints, 0).toLocaleString()}
+                        {totalPoints.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -427,7 +329,7 @@ export default function MilhasPage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Valor Total</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        R$ {mileagePrograms.reduce((sum, p) => sum + p.estimatedValue, 0).toFixed(2)}
+                        R$ {totalValue.toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -441,7 +343,7 @@ export default function MilhasPage() {
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Cartões Ativos</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {mileageCards.filter(c => c.status === 'active').length}
+                        {activeCards.length}
                       </p>
                     </div>
                   </div>
@@ -450,12 +352,12 @@ export default function MilhasPage() {
                 <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center">
                     <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                      <Activity className="text-orange-600 dark:text-orange-400" size={20} />
+                      <Plane className="text-orange-600 dark:text-orange-400" size={20} />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Programas</p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Programas Ativos</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {mileagePrograms.filter(p => p.status === 'active').length}
+                        {activePrograms.length}
                       </p>
                     </div>
                   </div>
@@ -463,60 +365,70 @@ export default function MilhasPage() {
               </div>
 
               {/* Programas de Milhas */}
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Seus Programas de Milhas
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {mileagePrograms.map((program) => (
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Programas de Milhas</h2>
+                  <button
+                    onClick={() => setActiveTab('programs')}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                  >
+                    Ver todos
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {mileagePrograms.slice(0, 3).map((program) => (
                     <MileageProgramCard key={program.id} program={program} />
                   ))}
                 </div>
               </div>
 
               {/* Transações Recentes */}
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                  Transações Recentes
-                </h2>
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <div className="p-6">
-                    {recentTransactions.map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            transaction.type === 'earned' 
-                              ? 'bg-green-100 dark:bg-green-900' 
-                              : 'bg-red-100 dark:bg-red-900'
-                          }`}>
-                            {transaction.type === 'earned' ? (
-                              <Plus size={16} className="text-green-600 dark:text-green-400" />
-                            ) : (
-                              <Minus size={16} className="text-red-600 dark:text-red-400" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {transaction.program} • {transaction.card}
-                            </p>
-                          </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Transações Recentes</h2>
+                  <button
+                    onClick={() => setActiveTab('transactions')}
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                  >
+                    Ver todas
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {recentTransactions.slice(0, 5).map((transaction) => (
+                    <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-full ${
+                          transaction.type === 'earned' 
+                            ? 'bg-green-100 dark:bg-green-900' 
+                            : 'bg-red-100 dark:bg-red-900'
+                        }`}>
+                          {transaction.type === 'earned' ? (
+                            <Plus className="text-green-600 dark:text-green-400" size={16} />
+                          ) : (
+                            <Minus className="text-red-600 dark:text-red-400" size={16} />
+                          )}
                         </div>
-                        <div className="text-right">
-                          <p className={`font-semibold ${
-                            transaction.type === 'earned' 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            {transaction.type === 'earned' ? '+' : '-'}{transaction.points.toLocaleString()} pts
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            R$ {transaction.value.toFixed(2)}
-                          </p>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{transaction.program}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${
+                          transaction.type === 'earned' 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {transaction.type === 'earned' ? '+' : '-'}{transaction.points.toLocaleString()} pts
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(transaction.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </motion.div>
@@ -546,13 +458,18 @@ export default function MilhasPage() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {mileageCards.map((card) => (
-                  <div key={card.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                  <div key={card.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{card.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{card.bank}</p>
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                          <CreditCard className="text-blue-600 dark:text-blue-400" size={20} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 dark:text-white">{card.name}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{card.bank}</p>
+                        </div>
                       </div>
                       <div className={`px-2 py-1 rounded-full text-xs ${
                         card.status === 'active' 
@@ -563,36 +480,36 @@ export default function MilhasPage() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Pontos por Real</p>
-                        <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                          {card.pointsPerReal} pts
-                        </p>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Programa:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{card.program}</span>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Anuidade</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-white">
-                          R$ {card.annualFee.toLocaleString()}
-                        </p>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Pontos por R$:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">{card.pointsPerReal}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Anuidade:</span>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">R$ {card.annualFee.toFixed(2)}</span>
                       </div>
                     </div>
                     
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Benefícios:</p>
-                      <ul className="space-y-1">
-                        {card.benefits.map((benefit, index) => (
-                          <li key={index} className="text-sm text-gray-700 dark:text-gray-300 flex items-center">
-                            <CheckCircle size={14} className="text-green-500 mr-2" />
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Benefícios:</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {card.benefits.slice(0, 3).map((benefit, index) => (
+                          <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs">
                             {benefit}
-                          </li>
+                          </span>
                         ))}
-                      </ul>
+                        {card.benefits.length > 3 && (
+                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs">
+                            +{card.benefits.length - 3} mais
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    
-                    <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                      Ver detalhes
-                    </button>
                   </div>
                 ))}
               </div>
@@ -607,56 +524,49 @@ export default function MilhasPage() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      Histórico de Transações
-                    </h3>
-                    <div className="flex space-x-2">
-                      <button className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <Filter size={14} className="mr-1" />
-                        Filtrar
-                      </button>
-                      <button className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <Download size={14} className="mr-1" />
-                        Exportar
-                      </button>
-                    </div>
-                  </div>
-                  
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Histórico de Transações</h2>
+                </div>
+                
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   {recentTransactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          transaction.type === 'earned' 
-                            ? 'bg-green-100 dark:bg-green-900' 
-                            : 'bg-red-100 dark:bg-red-900'
-                        }`}>
-                          {transaction.type === 'earned' ? (
-                            <Plus size={16} className="text-green-600 dark:text-green-400" />
-                          ) : (
-                            <Minus size={16} className="text-red-600 dark:text-red-400" />
-                          )}
+                    <div key={transaction.id} className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`p-2 rounded-full ${
+                            transaction.type === 'earned' 
+                              ? 'bg-green-100 dark:bg-green-900' 
+                              : 'bg-red-100 dark:bg-red-900'
+                          }`}>
+                            {transaction.type === 'earned' ? (
+                              <Plus className="text-green-600 dark:text-green-400" size={16} />
+                            ) : (
+                              <Minus className="text-red-600 dark:text-red-400" size={16} />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {transaction.program} • {transaction.category}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{transaction.description}</p>
+                        <div className="text-right">
+                          <p className={`font-bold ${
+                            transaction.type === 'earned' 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {transaction.type === 'earned' ? '+' : '-'}{transaction.points.toLocaleString()} pts
+                          </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {transaction.program} • {transaction.card} • {transaction.date.toLocaleDateString()}
+                            R$ {transaction.value.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {new Date(transaction.date).toLocaleDateString()}
                           </p>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-semibold ${
-                          transaction.type === 'earned' 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : 'text-red-600 dark:text-red-400'
-                        }`}>
-                          {transaction.type === 'earned' ? '+' : '-'}{transaction.points.toLocaleString()} pts
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          R$ {transaction.value.toFixed(2)}
-                        </p>
                       </div>
                     </div>
                   ))}
@@ -674,51 +584,61 @@ export default function MilhasPage() {
               className="space-y-6"
             >
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Acumulação por Programa
-                  </h3>
-                  <div className="space-y-4">
-                    {mileagePrograms.map((program) => (
-                      <div key={program.id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg">{program.icon}</span>
-                          <span className="font-medium text-gray-900 dark:text-white">{program.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900 dark:text-white">
-                            {program.totalPoints.toLocaleString()} pts
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            R$ {program.estimatedValue.toFixed(2)}
-                          </p>
-                        </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Análise de Milhas</h3>
+                  {mileageAnalytics ? (
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Total de pontos:</span>
+                        <span className="font-bold">{totalPoints.toLocaleString()}</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Valor total:</span>
+                        <span className="font-bold">R$ {totalValue.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Cartões ativos:</span>
+                        <span className="font-bold">{activeCards.length}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Programas ativos:</span>
+                        <span className="font-bold">{activePrograms.length}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Carregando análises...</p>
+                  )}
                 </div>
                 
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    Performance dos Cartões
-                  </h3>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Conexões Pluggy</h3>
                   <div className="space-y-4">
-                    {mileageCards.map((card) => (
-                      <div key={card.id} className="flex items-center justify-between">
+                    {pluggyConnections.map((connection) => (
+                      <div key={connection.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{card.name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">{card.program}</p>
+                          <p className="font-medium text-gray-900 dark:text-white">{connection.bankName}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{connection.accountType}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-blue-600 dark:text-blue-400">
-                            {card.pointsPerReal} pts/R$
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            R$ {card.annualFee.toLocaleString()}/ano
-                          </p>
+                        <div className="flex items-center space-x-2">
+                          <div className={`px-2 py-1 rounded-full text-xs ${
+                            connection.status === 'connected' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          }`}>
+                            {connection.status === 'connected' ? 'Conectado' : 'Desconectado'}
+                          </div>
+                          <button
+                            onClick={() => disconnectPluggyConnection(connection.id)}
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
                       </div>
                     ))}
+                    {pluggyConnections.length === 0 && (
+                      <p className="text-gray-500 dark:text-gray-400">Nenhuma conexão encontrada</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -727,53 +647,60 @@ export default function MilhasPage() {
         </AnimatePresence>
       </div>
 
-      {/* Modal de Conexão */}
-      <AnimatePresence>
-        {showConnectModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-            onClick={() => setShowConnectModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Conectar Conta Bancária
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Conecte sua conta para rastreamento automático de milhas através da Pluggy.
-              </p>
-              
-              <div className="space-y-4">
-                <button
-                  onClick={connectPluggy}
-                  disabled={isLoading}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                >
-                  {isLoading ? 'Conectando...' : 'Conectar com Pluggy'}
-                </button>
-                
-                <button
-                  onClick={() => setShowConnectModal(false)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Modal de Conexão Pluggy */}
+      {showConnectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4 dark:text-white">Conectar Conta Bancária</h3>
+            <p className="mb-6 text-gray-600 dark:text-gray-300">
+              Conecte sua conta bancária para sincronizar automaticamente suas transações e calcular milhas.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowConnectModal(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  connectPluggy();
+                  setShowConnectModal(false);
+                }}
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="animate-spin mr-2 h-4 w-4" />
+                    Conectando...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink size={16} className="mr-2" />
+                    Conectar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Toast Container */}
-      <ToastContainer position="bottom-right" />
+      {/* ToastContainer */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={theme === 'dark' ? 'dark' : 'light'}
+      />
     </div>
   );
-} 
+}
+   

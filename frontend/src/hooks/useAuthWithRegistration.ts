@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { loginWithGoogle } from '../lib/firebase/client';
-import { checkAndCreateUserProfile, isUserRegistrationComplete } from '../lib/firebase/autoRegistration';
+import { loginWithGoogle } from '../../lib/firebase/client';
+import { checkAndCreateUserProfile, isUserRegistrationComplete } from '../../lib/firebase/autoRegistration';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../lib/firebase/client';
+import { auth } from '../../lib/firebase/client';
 
 export const useAuthWithRegistration = () => {
   const [user, setUser] = useState<User | null>(null);

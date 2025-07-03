@@ -6,6 +6,7 @@ import { FiMail, FiLock, FiLoader, FiAlertCircle, FiArrowRight, FiCheck } from '
 import { FcGoogle } from 'react-icons/fc';
 import { motion } from 'framer-motion';
 import { usePreloadCheck } from '../../src/hooks/usePreloadCheck';
+import DebugConfig from '../../components/DebugConfig';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

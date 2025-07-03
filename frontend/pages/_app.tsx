@@ -31,7 +31,7 @@ function AppContent({ Component, pageProps }: AppProps) {
   const router = useRouter()
   const isPublicRoute = ['/', '/recursos', '/solucoes', '/precos', '/clientes', '/contato', '/sobre', '/termos']
     .includes(router.pathname)
-  const isAuthRoute = ['/auth/login', '/auth/register', '/auth/forgot-password']
+  const isAuthRoute = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/complete-registration']
     .includes(router.pathname)
 
   if (isPublicRoute) {

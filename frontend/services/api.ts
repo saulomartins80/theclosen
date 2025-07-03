@@ -451,4 +451,196 @@ export const dashboardAPI = {
   }
 };
 
+// API para Sistema de Milhas
+export const mileageAPI = {
+  // Pluggy Integration
+  getConnectToken: async () => {
+    console.log('[mileageAPI] Obtendo token de conexão Pluggy');
+    try {
+      const response = await api.get('/api/pluggy/connect-token');
+      console.log('[mileageAPI] Token de conexão obtido com sucesso');
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao obter token de conexão:', error);
+      throw error;
+    }
+  },
+
+  getMileageSummary: async () => {
+    console.log('[mileageAPI] Obtendo resumo de milhas');
+    try {
+      const response = await api.get('/api/pluggy/mileage-summary');
+      console.log('[mileageAPI] Resumo de milhas obtido com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao obter resumo de milhas:', error);
+      throw error;
+    }
+  },
+
+  // Mileage Programs
+  getMileagePrograms: async () => {
+    console.log('[mileageAPI] Buscando programas de milhas');
+    try {
+      const response = await api.get('/api/mileage/programs');
+      console.log('[mileageAPI] Programas de milhas obtidos com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao buscar programas de milhas:', error);
+      throw error;
+    }
+  },
+
+  updateMileageProgram: async (programId: string, data: any) => {
+    console.log('[mileageAPI] Atualizando programa de milhas:', programId, data);
+    try {
+      const response = await api.put(`/api/mileage/programs/${programId}`, data);
+      console.log('[mileageAPI] Programa de milhas atualizado com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao atualizar programa de milhas:', error);
+      throw error;
+    }
+  },
+
+  // Mileage Cards
+  getMileageCards: async () => {
+    console.log('[mileageAPI] Buscando cartões de milhas');
+    try {
+      const response = await api.get('/api/mileage/cards');
+      console.log('[mileageAPI] Cartões de milhas obtidos com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao buscar cartões de milhas:', error);
+      throw error;
+    }
+  },
+
+  addMileageCard: async (cardData: any) => {
+    console.log('[mileageAPI] Adicionando cartão de milhas:', cardData);
+    try {
+      const response = await api.post('/api/mileage/cards', cardData);
+      console.log('[mileageAPI] Cartão de milhas adicionado com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao adicionar cartão de milhas:', error);
+      throw error;
+    }
+  },
+
+  updateMileageCard: async (cardId: string, cardData: any) => {
+    console.log('[mileageAPI] Atualizando cartão de milhas:', cardId, cardData);
+    try {
+      const response = await api.put(`/api/mileage/cards/${cardId}`, cardData);
+      console.log('[mileageAPI] Cartão de milhas atualizado com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao atualizar cartão de milhas:', error);
+      throw error;
+    }
+  },
+
+  deleteMileageCard: async (cardId: string) => {
+    console.log('[mileageAPI] Removendo cartão de milhas:', cardId);
+    try {
+      await api.delete(`/api/mileage/cards/${cardId}`);
+      console.log('[mileageAPI] Cartão de milhas removido com sucesso');
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao remover cartão de milhas:', error);
+      throw error;
+    }
+  },
+
+  // Mileage Transactions
+  getMileageTransactions: async (filters?: any) => {
+    console.log('[mileageAPI] Buscando transações de milhas:', filters);
+    try {
+      const response = await api.get('/api/mileage/transactions', { params: filters });
+      console.log('[mileageAPI] Transações de milhas obtidas com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao buscar transações de milhas:', error);
+      throw error;
+    }
+  },
+
+  addMileageTransaction: async (transactionData: any) => {
+    console.log('[mileageAPI] Adicionando transação de milhas:', transactionData);
+    try {
+      const response = await api.post('/api/mileage/transactions', transactionData);
+      console.log('[mileageAPI] Transação de milhas adicionada com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao adicionar transação de milhas:', error);
+      throw error;
+    }
+  },
+
+  // Mileage Analytics
+  getMileageAnalytics: async (period: string = 'month') => {
+    console.log('[mileageAPI] Buscando análises de milhas:', period);
+    try {
+      const response = await api.get(`/api/mileage/analytics?period=${period}`);
+      console.log('[mileageAPI] Análises de milhas obtidas com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao buscar análises de milhas:', error);
+      throw error;
+    }
+  },
+
+  // Mileage Recommendations
+  getCardRecommendations: async (monthlySpending: number, preferredPrograms?: string[]) => {
+    console.log('[mileageAPI] Buscando recomendações de cartões:', { monthlySpending, preferredPrograms });
+    try {
+      const response = await api.post('/api/mileage/recommendations', {
+        monthlySpending,
+        preferredPrograms
+      });
+      console.log('[mileageAPI] Recomendações obtidas com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao buscar recomendações:', error);
+      throw error;
+    }
+  },
+
+  // Mileage Calculator
+  calculateMiles: async (params: any) => {
+    console.log('[mileageAPI] Calculando milhas:', params);
+    try {
+      const response = await api.post('/api/mileage/calculate', params);
+      console.log('[mileageAPI] Cálculo de milhas realizado com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao calcular milhas:', error);
+      throw error;
+    }
+  },
+
+  // Pluggy Connections
+  getPluggyConnections: async () => {
+    console.log('[mileageAPI] Buscando conexões Pluggy');
+    try {
+      const response = await api.get('/api/pluggy/connections');
+      console.log('[mileageAPI] Conexões Pluggy obtidas com sucesso:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao buscar conexões Pluggy:', error);
+      throw error;
+    }
+  },
+
+  disconnectPluggyConnection: async (connectionId: string) => {
+    console.log('[mileageAPI] Desconectando conexão Pluggy:', connectionId);
+    try {
+      await api.delete(`/api/pluggy/connections/${connectionId}`);
+      console.log('[mileageAPI] Conexão Pluggy desconectada com sucesso');
+    } catch (error) {
+      console.error('[mileageAPI] Erro ao desconectar Pluggy:', error);
+      throw error;
+    }
+  }
+};
+
 export default api;

@@ -27,6 +27,9 @@ import marketDataRoutes from './routes/marketDataRoutes';
 import protectedRoutes from './routes/protectedRoutes';
 import userRoutes from './modules/users/routes/userRoutes';
 import automatedActionsRoutes from './routes/automatedActions';
+// ✅ CORREÇÃO: Adicionar rotas de milhas e pluggy
+import mileageRoutes from './routes/mileageRoutes';
+import pluggyRoutes from './routes/pluggyRoutes';
 
 interface HealthCheckResponse {
   status: 'OK' | 'PARTIAL' | 'FAIL';
@@ -259,6 +262,9 @@ app.use('/api/market-data', marketDataRoutes);
 app.use('/api/protected', protectedRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/automated-actions', automatedActionsRoutes);
+// ✅ CORREÇÃO: Registrar rotas de milhas e pluggy
+app.use('/api/mileage', mileageRoutes);
+app.use('/api/pluggy', pluggyRoutes);
 
 app.use(errorHandler as express.ErrorRequestHandler);
 

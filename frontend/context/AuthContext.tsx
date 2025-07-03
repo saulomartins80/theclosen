@@ -8,13 +8,15 @@ import {
   onAuthStateChanged,
   IdTokenResult,
 } from 'firebase/auth'; 
-import { loginWithGoogle as firebaseLoginWithGoogle } from '../lib/firebase/client';
+import { loginWithGoogle as firebaseLoginWithGoogle, getFirebaseInstances } from '../lib/firebase/client';
 import { handleRedirectResult } from '../lib/firebase/auth';
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { auth } from '../lib/firebase/client';
 import api from '../services/api';
 import Cookies from 'js-cookie';
+import { checkAndCreateUserProfile, isUserRegistrationComplete } from '../lib/firebase/autoRegistration';
+
 
 // Tipos
 export type SubscriptionPlan = 'free' | 'premium' | 'enterprise' | 'trial';
@@ -154,6 +156,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     error: string | null;
     subscriptionError: string | null;
     isAuthReady: boolean;
+    quotaExceeded: boolean;
   }>({
     user: null,
     subscription: null,
@@ -162,7 +165,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadingSubscription: false,
     error: null,
     subscriptionError: null,
-    isAuthReady: false
+    isAuthReady: false,
+    quotaExceeded: false
   });
 
   const clearErrors = useCallback(() => {
@@ -178,6 +182,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         authChecked: true,
         loading: false,
         isAuthReady: true,
+        quotaExceeded: false,
       }));
       Cookies.remove('token', { path: '/' });
       Cookies.remove('user', { path: '/' });
@@ -206,40 +211,57 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           authChecked: true,
           loading: false,
           isAuthReady: true,
-          error: null,
+          quotaExceeded: false,
         }));
 
         return authUser;
       } else {
+        // Usuário não encontrado no backend, criar usuário básico
+        const authUser = normalizeUser(null, firebaseUser);
         setState(prev => ({
           ...prev,
-          user: null,
+          user: authUser,
           subscription: null,
           authChecked: true,
           loading: false,
           isAuthReady: true,
-          error: 'Dados do usuário não encontrados na resposta do backend.',
+          quotaExceeded: false,
         }));
-        Cookies.remove('token', { path: '/' });
-        Cookies.remove('user', { path: '/' });
+
+        return authUser;
+      }
+    } catch (error: any) {
+      console.error('Erro ao sincronizar sessão:', error);
+      
+      // Tratamento específico para erro de quota excedida
+      if (error?.message?.includes('auth/quota-exceeded') || error?.code === 'auth/quota-exceeded') {
+        console.error('QUOTA EXCEDIDA: Firebase Authentication atingiu o limite gratuito');
+        setState(prev => ({
+          ...prev,
+          error: 'Serviço temporariamente indisponível. Tente novamente mais tarde.',
+          authChecked: true,
+          loading: false,
+          isAuthReady: true,
+          quotaExceeded: true,
+        }));
         return null;
       }
-    } catch (error) {
-      console.error('syncSessionWithBackend: Error syncing session with backend:', error);
+      
+      // Em caso de erro, criar usuário básico sem verificar cadastro
+      const authUser = normalizeUser(null, firebaseUser);
       setState(prev => ({
         ...prev,
-        user: null,
+        user: authUser,
         subscription: null,
         authChecked: true,
         loading: false,
         isAuthReady: true,
-        error: error instanceof Error ? error.message : 'Erro desconhecido na sincronização',
+        quotaExceeded: false,
       }));
-      Cookies.remove('token', { path: '/' });
-      Cookies.remove('user', { path: '/' });
-      return null;
+
+      return authUser;
     }
-  }, []);
+  }, [router]);
 
   const updateUserContextProfile = useCallback((updatedProfileData: Partial<SessionUser>) => {
     setState(prev => {
@@ -285,6 +307,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         error: null,
         subscriptionError: null,
         isAuthReady: true,
+        quotaExceeded: false,
       });
       
       router.push('/auth/login');
@@ -372,55 +395,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      // Primeiro, verificar se há resultado de redirect
-      const redirectResult = await handleRedirectResult();
-      if (redirectResult) {
-        console.log('[AuthContext] Redirect result found, processing...');
-        const { redirect } = router.query;
-        const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
-        router.push(redirectTo);
+      const result = await firebaseLoginWithGoogle();
+      
+      // Verificar se é um novo usuário ou se precisa completar cadastro
+      const { isNewUser, profile } = await checkAndCreateUserProfile(result.user);
+      
+      if (isNewUser || !profile.isComplete) {
+        // Redirecionar para completar cadastro
+        router.push('/auth/complete-registration');
         return;
       }
       
-      // Tentar login com popup
-      const userCredential = await firebaseLoginWithGoogle();
+      // Sincronizar com backend
+      await syncSessionWithBackend(result.user);
       
-      if (!userCredential?.user) {
-        setState(prev => ({ ...prev, loading: false }));
-        return;
-      }
-      
-      await syncSessionWithBackend(userCredential.user);
-
-      const { redirect } = router.query;
-      const redirectTo = typeof redirect === 'string' ? redirect : '/dashboard';
-      router.push(redirectTo);
-      
+      // Redirecionar para dashboard
+      router.push('/dashboard');
     } catch (error: any) {
-      console.error('Google login error:', error);
+      console.error('Erro no login com Google:', error);
       
-      let errorMessage = 'Falha no login com Google';
-      if (error instanceof Error) {
-        if (error.message.includes('auth/popup-closed-by-user')) {
-          errorMessage = 'Login cancelado';
-        } else if (error.message.includes('auth/popup-blocked')) {
-          errorMessage = 'Popup bloqueado pelo navegador. Por favor, permita popups para este site.';
-        } else if (error.message.includes('auth/account-exists-with-different-credential')) {
-          errorMessage = 'Este email já está cadastrado com outro método de login';
-        } else {
-          errorMessage = error.message;
-        }
+      // Tratamento específico para erro de quota excedida
+      if (error?.message?.includes('auth/quota-exceeded') || error?.code === 'auth/quota-exceeded') {
+        setState(prev => ({ 
+          ...prev, 
+          error: 'Serviço temporariamente indisponível. Tente novamente mais tarde.',
+          loading: false 
+        }));
+        return;
       }
       
-      setState(prev => ({
-        ...prev,
-        error: errorMessage,
-        loading: false,
-        user: null,
-        subscription: null,
-        authChecked: true,
-        isAuthReady: true,
+      setState(prev => ({ 
+        ...prev, 
+        error: 'Falha ao entrar com Google. Tente novamente.',
+        loading: false 
       }));
+      throw error;
     }
   }, [router, syncSessionWithBackend]);
 
@@ -428,7 +437,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     console.log('[AuthContext] Verificando autenticação do Firebase...');
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Garantir que o Firebase esteja inicializado
+    const { auth: firebaseAuth } = getFirebaseInstances();
+    
+    if (!firebaseAuth) {
+      console.error('[AuthContext] Firebase Auth não inicializado');
+      setState(prev => ({
+        ...prev,
+        authChecked: true,
+        loading: false,
+        isAuthReady: true,
+      }));
+      return;
+    }
+    
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       console.log('[AuthContext] Firebase auth state changed:', !!firebaseUser);
       
       if (firebaseUser) {

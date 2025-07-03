@@ -33,7 +33,7 @@
         "context/*"
       ],
       "@services/*": [
-        "src/services/*"
+        "services/*"
       ],
       "@lib/*": [
         "lib/*"

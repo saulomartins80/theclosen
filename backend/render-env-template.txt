@@ -37,6 +37,36 @@ ENCRYPTION_KEY=sua_chave_criptografia_aqui
 HSM_API_KEY=sua_chave_hsm_aqui
 AUDIT_API_KEY=sua_chave_auditoria_aqui
 
+# Configurações do Banco de Dados
+MONGODB_URI=mongodb://localhost:27017/finnextho
+MONGODB_URI_PROD=mongodb+srv://username:password@cluster.mongodb.net/finnextho
+
+# Configurações do Firebase
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_PRIVATE_KEY_ID=your-private-key-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=your-client-id
+FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
+FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
+FIREBASE_AUTH_PROVIDER_X509_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
+FIREBASE_CLIENT_X509_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-xxxxx%40your-project.iam.gserviceaccount.com
+
+# Configurações do Stripe
+STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+
+# Configurações da API de IA
+DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# Configurações da Pluggy
+PLUGGY_API_KEY=your_pluggy_api_key
+
+# Configurações de Segurança
+CORS_ORIGIN=https://your-frontend-domain.com
+
+# Configurações de Log
+LOG_LEVEL=info
+
 # INSTRUÇÕES:
 # 1. Acesse: https://dashboard.render.com/web/theclosen-backend/environment
 # 2. Clique em "Add Environment Variable"

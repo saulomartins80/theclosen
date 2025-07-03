@@ -109,16 +109,31 @@ export const handleChatQuery = async (req: Request, res: Response) => {
     const chatHistoryService = new ChatHistoryService();
     const aiService = new AIService();
 
-    // Buscar ou criar conversa
+    // ✅ CORREÇÃO: Buscar ou criar conversa com melhor tratamento de erro
     let conversationHistory;
     try {
       conversationHistory = await chatHistoryService.getConversation(chatId);
+      console.log(`[ChatbotController] Conversa ${chatId} encontrada com ${conversationHistory.messages.length} mensagens`);
     } catch (error) {
-      // Se a conversa não existe, criar uma nova
+      console.log(`[ChatbotController] Conversa ${chatId} não encontrada, criando nova...`);
       conversationHistory = await chatHistoryService.startNewConversation(userId);
+      console.log(`[ChatbotController] Nova conversa criada: ${conversationHistory.chatId}`);
     }
 
-    console.log(`[ChatbotController] Conversa ${chatId} encontrada com ${conversationHistory.messages.length} mensagens`);
+    // ✅ CORREÇÃO: Adicionar mensagem do usuário ANTES de processar
+    const userMessageId = `${conversationHistory.chatId}_user_${Date.now()}`;
+    await chatHistoryService.addMessage({
+      chatId: conversationHistory.chatId,
+      userId: userId,
+      sender: 'user',
+      content: message,
+      timestamp: new Date(),
+      metadata: {
+        messageType: 'basic',
+        isImportant: false,
+        messageId: userMessageId
+      }
+    });
 
     // Buscar dados do usuário
     const user = await User.findOne({ firebaseUid: userId });
@@ -247,7 +262,11 @@ export const handleChatQuery = async (req: Request, res: Response) => {
     const startTime = Date.now();
 
     try {
-      // ✅ NOVA LÓGICA: Primeiro tentar detectar ação automatizada
+      // ✅ CORREÇÃO: Buscar histórico completo da conversa
+      const fullConversationHistory = await chatHistoryService.getConversation(conversationHistory.chatId);
+      console.log(`[ChatbotController] Histórico completo: ${fullConversationHistory.messages.length} mensagens`);
+
+      // ✅ CORREÇÃO: Usar histórico completo para contexto
       const userContext = {
         name: userRealData.name,
         email: userRealData.email,
@@ -261,17 +280,19 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         totalMetas: userRealData.totalMetas,
         transacoes: transacoes,
         investimentos: investimentos,
-        metas: metas
+        metas: metas,
+        // ✅ NOVO: Incluir histórico completo da conversa
+        conversationHistory: fullConversationHistory.messages
       };
 
       // Importar função de detecção de ações
       const { detectUserIntent } = require('./automatedActionsController');
-      const detectedAction = await detectUserIntent(message, userContext, conversationHistory.messages);
+      const detectedAction = await detectUserIntent(message, userContext, fullConversationHistory.messages);
       
       if (detectedAction && detectedAction.confidence && detectedAction.confidence > 0.7) {
         console.log('[ChatbotController] Action detected with confidence:', detectedAction.confidence);
         
-        // ✅ NOVA LÓGICA: Executar automaticamente se confiança é alta e dados estão completos
+        // ✅ CORREÇÃO: Executar automaticamente se confiança é alta e dados estão completos
         if (detectedAction.confidence > 0.85 && hasCompleteData(detectedAction)) {
           try {
             let result;
@@ -295,8 +316,8 @@ export const handleChatQuery = async (req: Request, res: Response) => {
                 throw new Error('Ação não suportada');
             }
 
-            // Adicionar resposta de sucesso ao histórico
-            const messageId = `${conversationHistory.chatId}_${Date.now()}`;
+            // ✅ CORREÇÃO: Adicionar resposta de sucesso ao histórico
+            const successMessageId = `${conversationHistory.chatId}_success_${Date.now()}`;
             await chatHistoryService.addMessage({
               chatId: conversationHistory.chatId,
               userId: userId,
@@ -305,7 +326,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
               metadata: {
                 messageType: 'premium',
                 isImportant: true,
-                messageId: messageId,
+                messageId: successMessageId,
                 actionExecuted: true,
                 actionType: detectedAction.type,
                 result: result
@@ -319,7 +340,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
               message: detectedAction.successMessage,
               metadata: {
                 chatId: conversationHistory.chatId,
-                messageId: messageId,
+                messageId: successMessageId,
                 isPremium,
                 actionExecuted: true,
                 actionType: detectedAction.type
@@ -335,10 +356,10 @@ export const handleChatQuery = async (req: Request, res: Response) => {
             // Se falhar, continuar para confirmação manual
           }
         } else {
-          // ✅ NOVA LÓGICA: Pedir mais detalhes de forma mais natural
+          // ✅ CORREÇÃO: Pedir mais detalhes de forma mais natural
           const questionMessage = generateQuestionForAction(detectedAction);
           
-          const messageId = `${conversationHistory.chatId}_${Date.now()}`;
+          const questionMessageId = `${conversationHistory.chatId}_question_${Date.now()}`;
           await chatHistoryService.addMessage({
             chatId: conversationHistory.chatId,
             userId: userId,
@@ -347,7 +368,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
             metadata: {
               messageType: 'premium',
               isImportant: true,
-              messageId: messageId,
+              messageId: questionMessageId,
               action: detectedAction,
               requiresConfirmation: true
             },
@@ -360,7 +381,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
             message: questionMessage,
             metadata: {
               chatId: conversationHistory.chatId,
-              messageId: messageId,
+              messageId: questionMessageId,
               isPremium,
               actionDetected: true,
               actionType: detectedAction.type
@@ -374,19 +395,6 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         }
       }
 
-      // Adicionar mensagem do usuário ao histórico
-      await chatHistoryService.addMessage({
-        chatId: conversationHistory.chatId,
-        userId: userId,
-        sender: 'user',
-        content: message,
-        timestamp: new Date(),
-        metadata: {
-          messageType: 'basic',
-          isImportant: false
-        }
-      });
-
       // ✅ CORREÇÃO: Se chegou até aqui, usar a resposta da detecção de ações se disponível
       let finalResponse;
       if (detectedAction && detectedAction.confidence && detectedAction.confidence > 0.5) {
@@ -398,8 +406,8 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         console.log('[ChatbotController] Using action detection response:', finalResponse.text);
       } else {
         // ✅ CORREÇÃO: Usar o novo sistema FinnEngine com contexto completo
-        // Aumentar o histórico para as últimas 10 mensagens para manter contexto
-        const recentHistory = conversationHistory.messages.slice(-10);
+        // Aumentar o histórico para as últimas 20 mensagens para manter contexto completo
+        const recentHistory = fullConversationHistory.messages.slice(-20);
         console.log(`[ChatbotController] Using FinnEngine with ${recentHistory.length} messages of history`);
         
         finalResponse = await aiService.generateContextualResponse(
@@ -441,10 +449,10 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         completeResponse += '\n\n' + upsellMessage;
       }
 
-      // Gerar ID único para a mensagem para feedback
-      const messageId = `${conversationHistory.chatId}_${Date.now()}`;
+      // ✅ CORREÇÃO: Gerar ID único para a mensagem para feedback
+      const botMessageId = `${conversationHistory.chatId}_bot_${Date.now()}`;
 
-      // Adicionar resposta ao histórico
+      // ✅ CORREÇÃO: Adicionar resposta ao histórico com contexto completo
       await chatHistoryService.addMessage({
         chatId: conversationHistory.chatId,
         userId: userId,
@@ -457,7 +465,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
           confidence: isPremium ? 0.95 : 0.85,
           messageType: isPremium ? 'premium' : 'basic',
           isImportant: false,
-          messageId: messageId, // ID para feedback
+          messageId: botMessageId, // ID para feedback
           userDataAccessed: {
             name: userRealData.name,
             totalTransacoes: userRealData.totalTransacoes,
@@ -466,16 +474,22 @@ export const handleChatQuery = async (req: Request, res: Response) => {
           },
           celebrations: celebrations,
           motivationalMessage: motivationalMessage,
-          upsellMessage: upsellMessage
+          upsellMessage: upsellMessage,
+          // ✅ NOVO: Incluir contexto da conversa
+          conversationContext: {
+            totalMessages: fullConversationHistory.messages.length,
+            lastUserMessage: message,
+            conversationId: conversationHistory.chatId
+          }
         },
         timestamp: new Date()
       });
 
-      // Retornar resposta com ID para feedback
+      // ✅ CORREÇÃO: Retornar resposta com ID para feedback e contexto
       const cleanResponse = {
         text: completeResponse,
         chatId: conversationHistory.chatId,
-        messageId: messageId,
+        messageId: botMessageId,
         isPremium,
         userData: {
           name: userRealData.name,
@@ -485,7 +499,12 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         },
         celebrations: celebrations,
         motivationalMessage: motivationalMessage,
-        upsellMessage: upsellMessage
+        upsellMessage: upsellMessage,
+        // ✅ NOVO: Incluir contexto da conversa
+        conversationContext: {
+          totalMessages: fullConversationHistory.messages.length,
+          conversationId: conversationHistory.chatId
+        }
       };
 
       return res.status(200).json({ 
@@ -494,7 +513,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
         message: completeResponse,
         metadata: {
           chatId: conversationHistory.chatId,
-          messageId: messageId,
+          messageId: botMessageId,
           isPremium,
           userData: {
             name: userRealData.name,
@@ -504,15 +523,20 @@ export const handleChatQuery = async (req: Request, res: Response) => {
           },
           celebrations: celebrations,
           motivationalMessage: motivationalMessage,
-          upsellMessage: upsellMessage
+          upsellMessage: upsellMessage,
+          conversationContext: {
+            totalMessages: fullConversationHistory.messages.length,
+            conversationId: conversationHistory.chatId
+          }
         }
       });
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
       
-      // Adicionar mensagem de erro ao histórico
-      const message = {
+      // ✅ CORREÇÃO: Adicionar mensagem de erro ao histórico
+      const errorMessageId = `${conversationHistory.chatId}_error_${Date.now()}`;
+      const errorMessage = {
         chatId: conversationHistory.chatId,
         userId: userId,
         sender: 'assistant' as const,
@@ -522,16 +546,18 @@ export const handleChatQuery = async (req: Request, res: Response) => {
           analysisData: null,
           processingTime: Date.now() - startTime,
           error: true,
-          errorMessage: error instanceof Error ? error.message : 'Erro desconhecido'
+          errorMessage: error instanceof Error ? error.message : 'Erro desconhecido',
+          messageId: errorMessageId
         } as {
           analysisData: null;
           processingTime: number;
           error: boolean;
           errorMessage: string;
+          messageId: string;
         }
       };
 
-      await chatHistoryService.addMessage(message);
+      await chatHistoryService.addMessage(errorMessage);
 
       return res.status(500).json({ 
         success: false, 
