@@ -27,7 +27,7 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
-function AppContent({ Component, pageProps }: AppProps) {
+function AppContent({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) {
   const router = useRouter()
   const isPublicRoute = ['/', '/recursos', '/solucoes', '/precos', '/clientes', '/contato', '/sobre', '/termos']
     .includes(router.pathname)
@@ -52,6 +52,22 @@ function AppContent({ Component, pageProps }: AppProps) {
         <Component {...pageProps} />
       )}
     </AuthInitializer>
+  )
+}
+
+function ProtectedAppContent({ Component, pageProps }: AppProps) {
+  return (
+    <DashboardProvider>
+      <FinanceProvider>
+        <NotificationProvider>
+          <Elements stripe={stripePromise}>
+            <GoogleAnalytics />
+            <ToastContainerWithTheme />
+            <AppContent Component={Component} pageProps={pageProps} />
+          </Elements>
+        </NotificationProvider>
+      </FinanceProvider>
+    </DashboardProvider>
   )
 }
 
@@ -80,20 +96,24 @@ function ToastContainerWithTheme() {
 }
 
 function MyApp(props: AppProps) {
+  const router = useRouter()
+  const isPublicRoute = ['/', '/recursos', '/solucoes', '/precos', '/clientes', '/contato', '/sobre', '/termos']
+    .includes(router.pathname)
+  const isAuthRoute = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/complete-registration']
+    .includes(router.pathname)
+
   return (
     <ThemeProvider>
       <AuthProvider>
-        <DashboardProvider>
-          <FinanceProvider>
-            <NotificationProvider>
-              <Elements stripe={stripePromise}>
-                <GoogleAnalytics />
-                <ToastContainerWithTheme />
-                <AppContent {...props} />
-              </Elements>
-            </NotificationProvider>
-          </FinanceProvider>
-        </DashboardProvider>
+        {isPublicRoute || isAuthRoute ? (
+          <>
+            <GoogleAnalytics />
+            <ToastContainerWithTheme />
+            <AppContent {...props} />
+          </>
+        ) : (
+          <ProtectedAppContent {...props} />
+        )}
       </AuthProvider>
     </ThemeProvider>
   )

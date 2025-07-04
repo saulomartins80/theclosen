@@ -20,8 +20,8 @@ export interface MarketDataRequest {
 }
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://theclosen-backend.onrender.com',
-  timeout: 30000,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+  timeout: 60000, // Aumentando para 60 segundos
   headers: {
     'Content-Type': 'application/json',
   },
@@ -171,7 +171,9 @@ export const chatbotAPI = {
   getSessions: async () => {
     console.log('[chatbotAPI] Buscando sessões');
     try {
-      const response = await api.get('/api/chatbot/sessions');
+      const response = await api.get('/api/chatbot/sessions', {
+        timeout: 90000 // 90 segundos para sessões
+      });
       console.log('[chatbotAPI] Sessões obtidas com sucesso:', response.data);
       return response.data;
     } catch (error) {
@@ -580,7 +582,9 @@ export const mileageAPI = {
   getMileageAnalytics: async (period: string = 'month') => {
     console.log('[mileageAPI] Buscando análises de milhas:', period);
     try {
-      const response = await api.get(`/api/mileage/analytics?period=${period}`);
+      const response = await api.get(`/api/mileage/analytics?period=${period}`, {
+        timeout: 90000 // 90 segundos para análises
+      });
       console.log('[mileageAPI] Análises de milhas obtidas com sucesso:', response.data);
       return response.data;
     } catch (error) {
@@ -622,7 +626,9 @@ export const mileageAPI = {
   getPluggyConnections: async () => {
     console.log('[mileageAPI] Buscando conexões Pluggy');
     try {
-      const response = await api.get('/api/pluggy/connections');
+      const response = await api.get('/api/pluggy/connections', {
+        timeout: 90000 // 90 segundos para conexões Pluggy
+      });
       console.log('[mileageAPI] Conexões Pluggy obtidas com sucesso:', response.data);
       return response.data;
     } catch (error) {

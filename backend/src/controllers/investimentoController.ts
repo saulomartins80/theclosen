@@ -184,7 +184,18 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
   }
 
   try {
-    const { nome, valor, data, tipo } = req.body;
+    const { 
+      nome, 
+      valor, 
+      data, 
+      tipo, 
+      instituicao, 
+      rentabilidade, 
+      vencimento, 
+      liquidez, 
+      risco, 
+      categoria 
+    } = req.body;
     const updateData: any = {};
 
     if (nome !== undefined) {
@@ -216,6 +227,46 @@ export const updateInvestimento = async (req: Request, res: Response): Promise<v
             return;
         }
         updateData.data = dataObj;
+    }
+    
+    // Novos campos opcionais
+    if (instituicao !== undefined) {
+        updateData.instituicao = instituicao.trim();
+    }
+    if (rentabilidade !== undefined) {
+        const rentabilidadeNum = Number(rentabilidade);
+        if (isNaN(rentabilidadeNum) || rentabilidadeNum < 0 || rentabilidadeNum > 1000) {
+            res.status(400).json({ message: "Rentabilidade deve ser um número entre 0 e 1000" });
+            return;
+        }
+        updateData.rentabilidade = rentabilidadeNum;
+    }
+    if (vencimento !== undefined) {
+        const vencimentoObj = new Date(vencimento);
+        if (isNaN(vencimentoObj.getTime())) {
+            res.status(400).json({ message: "Data de vencimento inválida" });
+            return;
+        }
+        updateData.vencimento = vencimentoObj;
+    }
+    if (liquidez !== undefined) {
+        const liquidezValida = ['D+0', 'D+1', 'D+30', 'D+60', 'D+90', 'D+180', 'D+365', 'Sem liquidez'];
+        if (!liquidezValida.includes(liquidez)) {
+            res.status(400).json({ message: "Liquidez inválida", valoresValidos: liquidezValida });
+            return;
+        }
+        updateData.liquidez = liquidez;
+    }
+    if (risco !== undefined) {
+        const riscoValido = ['Baixo', 'Médio', 'Alto', 'Muito Alto'];
+        if (!riscoValido.includes(risco)) {
+            res.status(400).json({ message: "Risco inválido", valoresValidos: riscoValido });
+            return;
+        }
+        updateData.risco = risco;
+    }
+    if (categoria !== undefined) {
+        updateData.categoria = categoria.trim();
     }
     
     if (Object.keys(updateData).length === 0) {

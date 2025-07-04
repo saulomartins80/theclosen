@@ -1,8 +1,7 @@
 import express from 'express';
-import { getConnectToken, handleItemCreation, getMileageSummary } from '../controllers/pluggyController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { asyncHandler } from '../utils/asyncHandler';
-import PluggyService from '../services/pluggyServiceFixed';
+import PluggyService from '../services/pluggyService';
 
 const router = express.Router();
 
@@ -15,10 +14,10 @@ router.get('/connect-token', asyncHandler(async (req, res) => {
     const userId = (req as any).user._id || (req as any).user.id;
     
     // ✅ IMPLEMENTAÇÃO REAL: Usar serviço Pluggy
-    const pluggyServiceFixed = new PluggyService();
+    const pluggyService = new PluggyService();
     const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/connect`;
     
-    const tokenData = await pluggyServiceFixed.createConnectToken(redirectUrl);
+    const tokenData = await pluggyService.createConnectToken(redirectUrl);
     
     res.json({
       success: true,
@@ -36,17 +35,14 @@ router.get('/connect-token', asyncHandler(async (req, res) => {
   }
 }));
 
-// Callback para quando o item é criado na Pluggy
-router.post('/item-created', asyncHandler(handleItemCreation));
-
 // Resumo de milhas acumuladas
 router.get('/mileage-summary', asyncHandler(async (req, res) => {
   try {
     const userId = (req as any).user._id || (req as any).user.id;
     
     // ✅ IMPLEMENTAÇÃO REAL: Buscar dados reais do Pluggy
-    const pluggyServiceFixed = new PluggyService();
-    const items = await pluggyServiceFixed.getItems();
+    const pluggyService = new PluggyService();
+    const items = await pluggyService.getItems();
     
     let totalMiles = 0;
     let totalValue = 0;
@@ -57,13 +53,13 @@ router.get('/mileage-summary', asyncHandler(async (req, res) => {
       if (item.status === 'UPDATED') {
         for (const account of item.accounts) {
           try {
-            const transactions = await pluggyServiceFixed.getTransactions(
+            const transactions = await pluggyService.getTransactions(
               item.id, 
               account.id,
               new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() // Últimos 30 dias
             );
             
-            const milesData = pluggyServiceFixed.calculateMilesFromTransactions(transactions);
+            const milesData = pluggyService.calculateMilesFromTransactions(transactions);
             totalMiles += milesData.totalMiles;
             totalValue += milesData.estimatedValue;
             totalTransactions += transactions.length;
@@ -98,48 +94,9 @@ router.get('/mileage-summary', asyncHandler(async (req, res) => {
 router.get('/connections', asyncHandler(async (req, res) => {
   try {
     const userId = (req as any).user._id || (req as any).user.id;
-    console.log('[pluggyRoutes] Buscando conexões para usuário:', userId);
-    
-    // Verificar se as credenciais do Pluggy estão configuradas
-    console.log('[pluggyRoutes] Verificando credenciais Pluggy:');
-    console.log('[pluggyRoutes] PLUGGY_CLIENT_ID:', process.env.PLUGGY_CLIENT_ID ? '✅ Configurado' : '❌ Não configurado');
-    console.log('[pluggyRoutes] PLUGGY_API_KEY:', process.env.PLUGGY_API_KEY ? '✅ Configurado' : '❌ Não configurado');
-    
-    if (!process.env.PLUGGY_CLIENT_ID || !process.env.PLUGGY_API_KEY) {
-      console.log('[pluggyRoutes] Credenciais não configuradas, retornando dados mockados');
-      
-      // Retornar dados mockados para desenvolvimento
-      const mockConnections = [
-        {
-          id: 'mock-connection-1',
-          bankName: 'Banco do Brasil',
-          accountType: 'CHECKING',
-          lastSync: new Date().toISOString(),
-          status: 'connected',
-          accounts: ['Conta Corrente', 'Conta Poupança']
-        },
-        {
-          id: 'mock-connection-2',
-          bankName: 'Itaú',
-          accountType: 'CREDIT_CARD',
-          lastSync: new Date().toISOString(),
-          status: 'connected',
-          accounts: ['Cartão de Crédito']
-        }
-      ];
-      
-      return res.json({
-        success: true,
-        connections: mockConnections,
-        message: 'Dados mockados - Configure PLUGGY_CLIENT_ID e PLUGGY_API_KEY para dados reais'
-      });
-    }
     
     const pluggyService = new PluggyService();
-    console.log('[pluggyRoutes] Serviço Pluggy inicializado');
-    
     const items = await pluggyService.getItems();
-    console.log('[pluggyRoutes] Items obtidos:', items.length);
     
     const connections = items.map(item => ({
       id: item.id,
@@ -150,14 +107,11 @@ router.get('/connections', asyncHandler(async (req, res) => {
       accounts: item.accounts.map(account => account.name)
     }));
     
-    console.log('[pluggyRoutes] Conexões processadas:', connections.length);
-    
     res.json({
       success: true,
       connections: connections
     });
   } catch (error: any) {
-    console.error('[pluggyRoutes] Erro ao buscar conexões Pluggy:', error);
     res.status(500).json({
       success: false,
       error: 'Falha ao buscar conexões Pluggy',
@@ -172,8 +126,8 @@ router.delete('/connections/:itemId', asyncHandler(async (req, res) => {
     const userId = (req as any).user._id || (req as any).user.id;
     const { itemId } = req.params;
     
-    const pluggyServiceFixed = new PluggyService();
-    await pluggyServiceFixed.deleteItem(itemId);
+    const pluggyService = new PluggyService();
+    await pluggyService.deleteItem(itemId);
     
     res.json({
       success: true,
@@ -195,14 +149,14 @@ router.get('/connections/:itemId/transactions', asyncHandler(async (req, res) =>
     const { itemId } = req.params;
     const { from, to } = req.query;
     
-    const pluggyServiceFixed = new PluggyService();
-    const item = await pluggyServiceFixed.getItem(itemId);
+    const pluggyService = new PluggyService();
+    const item = await pluggyService.getItem(itemId);
     
     const allTransactions = [];
     
     for (const account of item.accounts) {
       try {
-        const transactions = await pluggyServiceFixed.getTransactions(
+        const transactions = await pluggyService.getTransactions(
           itemId,
           account.id,
           from as string,
@@ -219,7 +173,7 @@ router.get('/connections/:itemId/transactions', asyncHandler(async (req, res) =>
       }
     }
     
-    const milesData = pluggyServiceFixed.calculateMilesFromTransactions(allTransactions);
+    const milesData = pluggyService.calculateMilesFromTransactions(allTransactions);
     
     res.json({
       success: true,

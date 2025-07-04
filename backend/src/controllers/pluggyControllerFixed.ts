@@ -109,4 +109,4 @@ export async function getMileageSummary(req: Request, res: Response) {
       details: error.message
     });
   }
-}  
+} 

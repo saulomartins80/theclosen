@@ -189,14 +189,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return null;
     }
 
+    // Verificar se já temos dados do usuário para evitar sincronização desnecessária
+    if (state.user && state.user.uid === firebaseUser.uid) {
+      console.log('[AuthContext] Usuário já sincronizado, pulando sincronização...');
+      setState(prev => ({
+        ...prev,
+        authChecked: true,
+        loading: false,
+        isAuthReady: true,
+      }));
+      return state.user;
+    }
+
     try {
+      console.log('[AuthContext] Iniciando sincronização com backend...');
       const token = await firebaseUser.getIdToken(true);
       
       const response = await api.post('/api/auth/session', {}, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        withCredentials: true
+        withCredentials: true,
+        timeout: 10000 // Timeout de 10 segundos
       });
 
       const sessionData = response.data;
@@ -261,7 +275,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return authUser;
     }
-  }, [router]);
+  }, [router, state.user]);
 
   const updateUserContextProfile = useCallback((updatedProfileData: Partial<SessionUser>) => {
     setState(prev => {
@@ -455,8 +469,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('[AuthContext] Firebase auth state changed:', !!firebaseUser);
       
       if (firebaseUser) {
-        console.log('[AuthContext] Usuário Firebase encontrado, sincronizando com backend...');
-        await syncSessionWithBackend(firebaseUser);
+        console.log('[AuthContext] Usuário Firebase encontrado, verificando se precisa sincronizar...');
+        
+        // Verificar se já temos dados do usuário para evitar sincronização desnecessária
+        if (!state.user || state.user.uid !== firebaseUser.uid) {
+          // Verificar se estamos na página inicial - se sim, não sincronizar ainda
+          const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+          const isHomePage = currentPath === '/';
+          
+          if (isHomePage) {
+            console.log('[AuthContext] Na página inicial, criando usuário básico sem sincronizar com backend');
+            const authUser = normalizeUser(null, firebaseUser);
+            setState(prev => ({
+              ...prev,
+              user: authUser,
+              subscription: null,
+              authChecked: true,
+              loading: false,
+              isAuthReady: true,
+            }));
+          } else {
+            console.log('[AuthContext] Sincronizando com backend...');
+            await syncSessionWithBackend(firebaseUser);
+          }
+        } else {
+          console.log('[AuthContext] Usuário já sincronizado, finalizando verificação...');
+          setState(prev => ({
+            ...prev,
+            authChecked: true,
+            loading: false,
+            isAuthReady: true,
+          }));
+        }
       } else {
         console.log('[AuthContext] Nenhum usuário Firebase, finalizando verificação...');
         setState(prev => ({
@@ -471,7 +515,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, [syncSessionWithBackend]);
+  }, []); // Removido syncSessionWithBackend e state.user?.uid das dependências
 
   const value: AuthContextType = useMemo(() => ({
     ...state,

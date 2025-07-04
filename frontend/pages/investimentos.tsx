@@ -76,6 +76,30 @@ const InvestimentosDashboard = () => {
     'Fundos de Crédito Privado': { bg: 'bg-violet-100', text: 'text-violet-800', dark: { bg: 'dark:bg-violet-900', text: 'dark:text-violet-200' } }
   };
 
+  // Lista de instituições comuns
+  const instituicoesComuns = [
+    'Banco do Brasil',
+    'Bradesco',
+    'Itaú',
+    'Santander',
+    'Caixa Econômica Federal',
+    'Nubank',
+    'Inter',
+    'C6 Bank',
+    'BTG Pactual',
+    'XP Investimentos',
+    'Rico',
+    'Clear',
+    'Modalmais',
+    'Genial',
+    'Mercado Bitcoin',
+    'Binance',
+    'Coinbase',
+    'Tesouro Direto',
+    'Banco Central',
+    'Outros'
+  ];
+
   const fetchInvestimentos = async () => {
     try {
       setLoading(true);
@@ -139,7 +163,8 @@ const InvestimentosDashboard = () => {
           tipo: tiposValidos.includes(item.tipo) ? item.tipo : 'Renda Fixa',
           valor: Number(item.valor) || 0,
           data: getLocalDate(item.data),
-          meta: item.meta !== undefined ? Number(item.meta) : undefined
+          meta: item.meta !== undefined ? Number(item.meta) : undefined,
+          instituicao: item.instituicao || 'Outros'
         };
       });
 
@@ -338,7 +363,8 @@ const InvestimentosDashboard = () => {
       tipo: form.data.tipo as any,
       valor: Number(form.data.valor),
       data: form.data.data + 'T12:00:00Z',
-      ...(form.data.meta !== undefined && { meta: Number(form.data.meta) })
+      ...(form.data.meta !== undefined && { meta: Number(form.data.meta) }),
+      ...(form.data.instituicao && { instituicao: form.data.instituicao })
     };
 
     // Chama a API
@@ -707,6 +733,7 @@ const InvestimentosDashboard = () => {
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nome</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tipo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Instituição</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Valor</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Data</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ações</th>
@@ -720,6 +747,9 @@ const InvestimentosDashboard = () => {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <Badge tipo={investimento.tipo} />
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {investimento.instituicao || 'Não informado'}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           {new Intl.NumberFormat('pt-BR', {
@@ -770,6 +800,9 @@ const InvestimentosDashboard = () => {
                         <div className="mt-1">
                           <Badge tipo={investimento.tipo} />
                         </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          {investimento.instituicao || 'Instituição não informada'}
+                        </p>
                       </div>
                       <span className="text-lg font-semibold text-gray-900 dark:text-white">
                         {new Intl.NumberFormat('pt-BR', {
@@ -892,6 +925,19 @@ const InvestimentosDashboard = () => {
                       })}
                       className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm md:text-base"
                     />
+                  </div>
+                  <div>
+                    <label className="block mb-1 md:mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Instituição</label>
+                    <select
+                      value={form.data.instituicao || 'Outros'}
+                      onChange={(e) => setForm({ ...form, data: { ...form.data, instituicao: e.target.value } })}
+                      className="w-full p-2 md:p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm md:text-base"
+                    >
+                      <option value="Outros">Outros</option>
+                      {instituicoesComuns.map(inst => (
+                        <option key={inst} value={inst}>{inst}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 md:gap-3 mt-4 md:mt-6">

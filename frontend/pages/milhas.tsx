@@ -46,7 +46,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function MilhasPage() {
-  const { user } = useAuth();
+  const { user, isAuthReady } = useAuth();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('overview');
   const [showConnectModal, setShowConnectModal] = useState(false);
@@ -55,6 +55,32 @@ export default function MilhasPage() {
   // Estados para o chatbot
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
+
+  // Verificar se o usuário está autenticado
+  if (!isAuthReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Acesso Negado</h1>
+          <p className="text-gray-600 mb-4">Você precisa estar logado para acessar esta página.</p>
+          <a 
+            href="/auth/login" 
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Fazer Login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   // Hook centralizado para todas as operações de milhas
   const {
@@ -89,13 +115,42 @@ export default function MilhasPage() {
     activePrograms
   } = useMileage();
 
+  // Verificar se o usuário está autenticado
+  if (!isAuthReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Acesso Negado</h1>
+          <p className="text-gray-600 mb-4">Você precisa estar logado para acessar esta página.</p>
+          <a 
+            href="/auth/login" 
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Fazer Login
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   // Carregar dados iniciais
   useEffect(() => {
-    if (user) {
+    if (user && isAuthReady) {
+      console.log('[MilhasPage] Usuário autenticado, carregando dados...');
       loadMileageData();
       loadPluggyConnections();
+    } else {
+      console.log('[MilhasPage] Usuário não autenticado ou auth não pronto, pulando carregamento...');
     }
-  }, [user, loadMileageData, loadPluggyConnections]);
+  }, [user, isAuthReady, loadMileageData, loadPluggyConnections]);
 
   // Funções para o chatbot
   const sendChatMessage = async (message: string) => {

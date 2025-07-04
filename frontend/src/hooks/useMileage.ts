@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { mileageAPI } from '@services/api';
 import { toast } from 'react-toastify';
+import { useAuth } from '../../context/AuthContext';
 
 interface MileageProgram {
   id: string;
@@ -47,6 +48,7 @@ interface PluggyConnection {
 }
 
 export const useMileage = () => {
+  const { user, isAuthReady } = useAuth();
   const [mileagePrograms, setMileagePrograms] = useState<MileageProgram[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<MileageTransaction[]>([]);
   const [mileageCards, setMileageCards] = useState<MileageCard[]>([]);
@@ -57,6 +59,12 @@ export const useMileage = () => {
 
   // Carregar todos os dados de milhas
   const loadMileageData = useCallback(async () => {
+    // Verificar se o usuário está autenticado antes de fazer chamadas
+    if (!user || !isAuthReady) {
+      console.log('[useMileage] Usuário não autenticado, pulando carregamento de dados');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     
@@ -180,7 +188,7 @@ export const useMileage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user, isAuthReady]);
 
   // Conectar com Pluggy
   const connectPluggy = useCallback(async () => {
@@ -189,8 +197,10 @@ export const useMileage = () => {
       const tokenData = await mileageAPI.getConnectToken();
       
       if (tokenData.token) {
-        window.open(`https://pluggy.ai/connect?token=${tokenData.token}`, '_blank');
-        toast.success('Redirecionando para Pluggy...');
+        // ✅ CORREÇÃO: Usar URL de callback local em vez da URL do Pluggy
+        const callbackUrl = `${window.location.origin}/connect?token=${tokenData.token}`;
+        window.open(callbackUrl, '_blank');
+        toast.success('Redirecionando para conexão...');
         return tokenData;
       }
     } catch (error) {

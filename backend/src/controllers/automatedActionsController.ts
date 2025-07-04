@@ -268,93 +268,49 @@ JSON:`;
 
 // Funções de mapeamento de dados
 function mapTransactionData(entities: any): TransactionPayload {
-  // Extrair valor - pode vir de diferentes campos
-  let valor = 0;
-  if (entities.valor) {
-    valor = parseFloat(entities.valor) || 0;
-  } else if (entities.value) {
-    valor = parseFloat(entities.value) || 0;
-  }
+  console.log('[mapTransactionData] Mapping entities:', entities);
   
-  // Extrair descrição - pode vir de diferentes campos
-  let descricao = '';
-  if (entities.descricao) {
-    descricao = entities.descricao;
-  } else if (entities.local) {
-    descricao = entities.local;
-  } else if (entities.estabelecimento) {
-    descricao = entities.estabelecimento;
-  }
+  // Determinar o tipo baseado na descrição ou contexto
+  let tipo = entities.tipo || 'despesa';
   
-  // Extrair tipo - pode vir de diferentes campos
-  let tipo = 'despesa'; // padrão
-  if (entities.tipo) {
-    tipo = entities.tipo.toLowerCase();
-  } else if (entities.type) {
-    tipo = entities.type.toLowerCase();
-  }
-  
-  // Mapear tipos para português
-  if (tipo === 'expense' || tipo === 'gasto' || tipo === 'despesa') {
-    tipo = 'despesa';
-  } else if (tipo === 'income' || tipo === 'receita' || tipo === 'receita') {
+  // Se não foi especificado, inferir baseado na descrição
+  if (!entities.tipo) {
+    const descricao = entities.descricao?.toLowerCase() || '';
+    if (descricao.includes('salário') || descricao.includes('receita') || descricao.includes('pagamento')) {
     tipo = 'receita';
+    } else if (descricao.includes('transferência') || descricao.includes('transferencia')) {
+      tipo = 'transferencia';
+    } else {
+      tipo = 'despesa'; // Padrão
+    }
   }
   
-  // Extrair categoria - pode vir de diferentes campos
-  let categoria = 'outros';
-  if (entities.categoria) {
-    categoria = entities.categoria;
-  } else if (entities.category) {
-    categoria = entities.category;
-  } else if (entities.tipo_compra) {
-    categoria = entities.tipo_compra;
+  // Determinar categoria baseada na descrição
+  let categoria = entities.categoria || 'Outros';
+  if (!entities.categoria) {
+    const descricao = entities.descricao?.toLowerCase() || '';
+    if (descricao.includes('mercado') || descricao.includes('supermercado') || descricao.includes('alimentação') || descricao.includes('gas') || descricao.includes('gás')) {
+      categoria = 'Alimentação';
+    } else if (descricao.includes('combustível') || descricao.includes('gasolina') || descricao.includes('etanol')) {
+      categoria = 'Transporte';
+    } else if (descricao.includes('salário') || descricao.includes('receita')) {
+      categoria = 'Trabalho';
+    } else if (descricao.includes('manutenção') || descricao.includes('manutencao')) {
+      categoria = 'Manutenção';
+    }
   }
   
-  // Mapear categorias comuns
-  const categoriaMapping: { [key: string]: string } = {
-    'mercado': 'Alimentação',
-    'supermercado': 'Alimentação',
-    'atacadista': 'Alimentação',
-    'bretas': 'Alimentação',
-    'bretas atacadista': 'Alimentação',
-    'compras': 'Compras',
-    'shopping': 'Compras',
-    'combustível': 'Transporte',
-    'gasolina': 'Transporte',
-    'uber': 'Transporte',
-    '99': 'Transporte',
-    'salário': 'Trabalho',
-    'salario': 'Trabalho',
-    'pagamento': 'Trabalho',
-    'conta': 'Contas',
-    'luz': 'Contas',
-    'água': 'Contas',
-    'agua': 'Contas',
-    'internet': 'Contas',
-    'telefone': 'Contas',
-    'saúde': 'Saúde',
-    'saude': 'Saúde',
-    'farmácia': 'Saúde',
-    'farmacia': 'Saúde',
-    'lazer': 'Lazer',
-    'cinema': 'Lazer',
-    'restaurante': 'Alimentação',
-    'bar': 'Lazer'
-  };
-  
-  if (categoriaMapping[categoria.toLowerCase()]) {
-    categoria = categoriaMapping[categoria.toLowerCase()];
-  }
-  
-  return {
-    valor: valor,
-    descricao: descricao,
+  const payload: TransactionPayload = {
+    valor: parseFloat(entities.valor) || 0,
+    descricao: entities.descricao || 'Transação',
     tipo: tipo,
     categoria: categoria,
     conta: entities.conta || 'Conta Corrente',
     data: entities.data || new Date().toISOString().split('T')[0]
   };
+  
+  console.log('[mapTransactionData] Mapped payload:', payload);
+  return payload;
 }
 
 function mapInvestmentData(entities: any): InvestmentPayload {
@@ -474,6 +430,23 @@ function generateFollowUpQuestions(intent: string, entities: any): string[] {
   };
 
   return questions[intent as keyof typeof questions] || [];
+}
+
+// Função auxiliar para verificar se os dados necessários para a ação foram completos
+function hasCompleteData(action: any): boolean {
+  switch (action.type) {
+    case 'CREATE_TRANSACTION':
+      return !!(action.payload.valor && action.payload.descricao && action.payload.tipo);
+    case 'CREATE_INVESTMENT':
+      return !!(action.payload.valor && action.payload.nome && action.payload.tipo);
+    case 'CREATE_GOAL':
+      return !!(action.payload.valor_total && action.payload.meta);
+    case 'ANALYZE_DATA':
+    case 'GENERATE_REPORT':
+      return true;
+    default:
+      return false;
+  }
 }
 
 // Controller principal para ações automatizadas

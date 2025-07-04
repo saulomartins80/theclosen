@@ -34,13 +34,36 @@ const aiService = new AIService();
 
 // Função para verificar se os dados estão completos para execução automática
 function hasCompleteData(action: any): boolean {
+  console.log('[hasCompleteData] Checking action:', action);
+  
   switch (action.type) {
     case 'CREATE_TRANSACTION':
-      return !!(action.payload.valor && action.payload.descricao && action.payload.tipo);
+      // Remover verificação de tipo - pode ser inferido automaticamente
+      const hasTransactionData = !!(action.payload.valor && action.payload.descricao);
+      console.log('[hasCompleteData] CREATE_TRANSACTION check:', {
+        valor: action.payload.valor,
+        descricao: action.payload.descricao,
+        tipo: action.payload.tipo,
+        hasData: hasTransactionData
+      });
+      return hasTransactionData;
     case 'CREATE_INVESTMENT':
-      return !!(action.payload.valor && action.payload.nome && action.payload.tipo);
+      const hasInvestmentData = !!(action.payload.valor && action.payload.nome);
+      console.log('[hasCompleteData] CREATE_INVESTMENT check:', {
+        valor: action.payload.valor,
+        nome: action.payload.nome,
+        tipo: action.payload.tipo,
+        hasData: hasInvestmentData
+      });
+      return hasInvestmentData;
     case 'CREATE_GOAL':
-      return !!(action.payload.valor_total && action.payload.meta);
+      const hasGoalData = !!(action.payload.valor_total && action.payload.meta);
+      console.log('[hasCompleteData] CREATE_GOAL check:', {
+        valor_total: action.payload.valor_total,
+        meta: action.payload.meta,
+        hasData: hasGoalData
+      });
+      return hasGoalData;
     case 'ANALYZE_DATA':
     case 'GENERATE_REPORT':
       return true;
@@ -291,20 +314,35 @@ export const handleChatQuery = async (req: Request, res: Response) => {
       
       if (detectedAction && detectedAction.confidence && detectedAction.confidence > 0.7) {
         console.log('[ChatbotController] Action detected with confidence:', detectedAction.confidence);
+        console.log('[ChatbotController] Action details:', {
+          type: detectedAction.type,
+          payload: detectedAction.payload,
+          confidence: detectedAction.confidence
+        });
         
         // ✅ CORREÇÃO: Executar automaticamente se confiança é alta e dados estão completos
-        if (detectedAction.confidence > 0.85 && hasCompleteData(detectedAction)) {
+        const hasComplete = hasCompleteData(detectedAction);
+        console.log('[ChatbotController] Has complete data:', hasComplete);
+        
+        if (detectedAction.confidence > 0.85 && hasComplete) {
+          console.log('[ChatbotController] Executing action automatically...');
           try {
             let result;
             switch (detectedAction.type) {
               case 'CREATE_TRANSACTION':
+                console.log('[ChatbotController] Creating transaction with payload:', detectedAction.payload);
                 result = await createTransaction(user._id.toString(), detectedAction.payload);
+                console.log('[ChatbotController] Transaction created successfully:', result);
                 break;
               case 'CREATE_INVESTMENT':
+                console.log('[ChatbotController] Creating investment with payload:', detectedAction.payload);
                 result = await createInvestment(user._id.toString(), detectedAction.payload);
+                console.log('[ChatbotController] Investment created successfully:', result);
                 break;
               case 'CREATE_GOAL':
+                console.log('[ChatbotController] Creating goal with payload:', detectedAction.payload);
                 result = await createGoal(user._id.toString(), detectedAction.payload);
+                console.log('[ChatbotController] Goal created successfully:', result);
                 break;
               case 'ANALYZE_DATA':
                 result = await analyzeData(user._id.toString(), detectedAction.payload);
@@ -316,6 +354,7 @@ export const handleChatQuery = async (req: Request, res: Response) => {
                 throw new Error('Ação não suportada');
             }
 
+            console.log('[ChatbotController] Action executed successfully, returning response...');
             // ✅ CORREÇÃO: Adicionar resposta de sucesso ao histórico
             const successMessageId = `${conversationHistory.chatId}_success_${Date.now()}`;
             await chatHistoryService.addMessage({
@@ -1296,17 +1335,34 @@ export const adaptResponseToSentiment = async (req: Request, res: Response) => {
 
 // Funções auxiliares para executar ações
 async function createTransaction(userId: string, payload: any) {
-  const transacao = new Transacoes({
-    userId,
-    ...payload,
-    createdAt: new Date()
-  });
+  console.log('[createTransaction] Creating transaction with payload:', payload);
+  console.log('[createTransaction] User ID:', userId);
   
-  await transacao.save();
-  return transacao;
+  // Garantir que os campos obrigatórios estejam presentes
+  const transactionData = {
+    userId,
+    valor: parseFloat(payload.valor) || 0,
+    descricao: payload.descricao || 'Transação',
+    tipo: payload.tipo || 'despesa',
+    categoria: payload.categoria || 'Outros',
+    conta: payload.conta || 'Conta Corrente',
+    data: payload.data ? new Date(payload.data) : new Date(),
+    createdAt: new Date()
+  };
+  
+  console.log('[createTransaction] Final transaction data:', transactionData);
+  
+  const transacao = new Transacoes(transactionData);
+  const savedTransaction = await transacao.save();
+  
+  console.log('[createTransaction] Transaction saved successfully:', savedTransaction);
+  return savedTransaction;
 }
 
 async function createInvestment(userId: string, payload: any) {
+  console.log('[createInvestment] Creating investment with payload:', payload);
+  console.log('[createInvestment] User ID:', userId);
+  
   // Validar e mapear o tipo de investimento
   const tipoMapping: { [key: string]: string } = {
     'criptomoeda': 'Criptomoedas',
@@ -1329,7 +1385,30 @@ async function createInvestment(userId: string, payload: any) {
     'internacional': 'Internacional',
     'renda variavel': 'Renda Variável',
     'renda variável': 'Renda Variável',
-    'renda fixa': 'Renda Fixa'
+    'renda fixa': 'Renda Fixa',
+    'lci': 'LCI',
+    'lca': 'LCA',
+    'cdb': 'CDB',
+    'cdi': 'CDI',
+    'poupanca': 'Poupança',
+    'poupança': 'Poupança',
+    'fundos de investimento': 'Fundos de Investimento',
+    'debentures': 'Debêntures',
+    'debêntures': 'Debêntures',
+    'cra': 'CRA',
+    'cri': 'CRI',
+    'letras de cambio': 'Letras de Câmbio',
+    'letras de câmbio': 'Letras de Câmbio',
+    'coe': 'COE',
+    'fundos multimercado': 'Fundos Multimercado',
+    'fundos cambiais': 'Fundos Cambiais',
+    'fundos de acoes': 'Fundos de Ações',
+    'fundos de ações': 'Fundos de Ações',
+    'fundos de renda fixa': 'Fundos de Renda Fixa',
+    'fundos de previdencia': 'Fundos de Previdência',
+    'fundos de previdência': 'Fundos de Previdência',
+    'fundos de credito privado': 'Fundos de Crédito Privado',
+    'fundos de crédito privado': 'Fundos de Crédito Privado'
   };
 
   // Mapear o tipo se necessário
@@ -1347,24 +1426,39 @@ async function createInvestment(userId: string, payload: any) {
   // Validar se o tipo é válido
   const tiposValidos = [
     'Renda Fixa', 'Tesouro Direto', 'Ações', 'Fundos Imobiliários',
-    'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável'
+    'Criptomoedas', 'Previdência Privada', 'ETF', 'Internacional', 'Renda Variável',
+    'LCI', 'LCA', 'CDB', 'CDI', 'Poupança', 'Fundos de Investimento', 'Debêntures',
+    'CRA', 'CRI', 'Letras de Câmbio', 'COE', 'Fundos Multimercado', 'Fundos Cambiais',
+    'Fundos de Ações', 'Fundos de Renda Fixa', 'Fundos de Previdência', 'Fundos de Crédito Privado'
   ];
   
   if (!tiposValidos.includes(tipo)) {
     throw new Error(`Tipo de investimento inválido. Tipos válidos: ${tiposValidos.join(', ')}`);
   }
 
-  const investimento = new Investimento({
+  // Preparar dados do investimento
+  const investmentData = {
     userId,
     nome: payload.nome || 'Investimento',
     tipo,
     valor,
     data: payload.data ? new Date(payload.data) : new Date(),
+    instituicao: payload.instituicao || 'Não informado',
+    rentabilidade: payload.rentabilidade ? parseFloat(payload.rentabilidade) : undefined,
+    vencimento: payload.vencimento ? new Date(payload.vencimento) : undefined,
+    liquidez: payload.liquidez || undefined,
+    risco: payload.risco || undefined,
+    categoria: payload.categoria || undefined,
     createdAt: new Date()
-  });
+  };
+
+  console.log('[createInvestment] Final investment data:', investmentData);
+
+  const investimento = new Investimento(investmentData);
+  const savedInvestment = await investimento.save();
   
-  await investimento.save();
-  return investimento;
+  console.log('[createInvestment] Investment saved successfully:', savedInvestment);
+  return savedInvestment;
 }
 
 async function createGoal(userId: string, payload: any) {

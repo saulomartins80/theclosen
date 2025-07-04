@@ -371,8 +371,12 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     const effectId = Date.now();
     console.log(`[FinanceProvider EFFECT ${effectId}] Triggered. Path: ${router.pathname}, RouterReady: ${router.isReady}, AuthReady: ${isAuthReady}, User: ${!!user}`);
     
-    if (router.isReady && router.pathname !== '/') {
-      console.log(`[FinanceProvider EFFECT ${effectId}] Path is NOT / and router IS ready.`);
+    // Lista de rotas que precisam de dados financeiros
+    const protectedRoutes = ['/dashboard', '/investimentos', '/metas', '/transacoes', '/configuracoes', '/profile', '/assinaturas', '/milhas'];
+    const isProtectedRoute = protectedRoutes.some(route => router.pathname.startsWith(route));
+    
+    if (router.isReady && isProtectedRoute) {
+      console.log(`[FinanceProvider EFFECT ${effectId}] Path is protected route and router IS ready.`);
       if (isAuthReady && user) {
         console.log(`[FinanceProvider EFFECT ${effectId}] Conditions MET (auth ready, user exists). CALLING fetchData(). User ID: ${user.uid}`);
         fetchData();
@@ -381,7 +385,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       }
     } else {
-      console.log(`[FinanceProvider EFFECT ${effectId}] SKIPPING fetchData (on homepage, or router not ready). Path: ${router.pathname}, RouterReady: ${router.isReady}`);
+      console.log(`[FinanceProvider EFFECT ${effectId}] SKIPPING fetchData (not on protected route, or router not ready). Path: ${router.pathname}, RouterReady: ${router.isReady}, isProtectedRoute: ${isProtectedRoute}`);
       setLoading(false);
     }
   }, [isAuthReady, user, router.isReady, router.pathname]);

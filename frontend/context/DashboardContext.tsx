@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { marketDataAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useRouter } from 'next/router';
 
 interface ManualAsset {
   symbol: string;
@@ -157,6 +158,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [availableIndices, setAvailableIndices] = useState<string[]>(EXAMPLE_AVAILABLE_INDICES);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const router = useRouter();
 
   const { isAuthReady, user } = useAuth();
 
@@ -221,6 +223,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
+    // Lista de rotas que precisam de dados de mercado
+    const protectedRoutes = ['/dashboard', '/investimentos', '/metas', '/transacoes', '/configuracoes', '/profile', '/assinaturas', '/milhas'];
+    const isProtectedRoute = protectedRoutes.some(route => router.pathname.startsWith(route));
+
+    if (!isProtectedRoute) {
+      console.log('[DashboardContext] Not on protected route, skipping market data refresh. Path:', router.pathname);
+      return;
+    }
+
     console.log('[DashboardContext] useEffect: refreshing market data...');
     refreshMarketData();
     // Fetch every 5 minutes (300000 ms)
@@ -229,7 +240,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       clearInterval(intervalId);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [refreshMarketData, isAuthReady, user]);
+  }, [refreshMarketData, isAuthReady, user, router.pathname]);
 
   const addCustomIndex = (index: { symbol: string; name: string }) => {
     const symbolToAdd = index.symbol;
